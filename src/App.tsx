@@ -1288,7 +1288,7 @@ function AuditApp() {
 
                   {/* Sticky Bottom Bar */}
                   <div className="fixed bottom-0 left-0 right-0 z-30 p-4 bg-white/80 backdrop-blur-lg border-t border-gray-100 shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
-                    <div className="max-w-md mx-auto flex items-center gap-4">
+                    <div className="flex items-center gap-4 max-w-md mx-auto">
                       <div className="flex-1">
                         <div className="flex justify-between items-end mb-1">
                           <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">Puntaje Actual</span>
@@ -1316,20 +1316,24 @@ function AuditApp() {
                         onClick={handleAuditSubmit}
                         disabled={session.items.length === 0 || isSendingToSheet}
                         className={cn(
-                          "px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 shadow-lg",
+                          "px-8 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 shadow-lg whitespace-nowrap",
                           session.items.length > 0 && !isSendingToSheet
                             ? "bg-blue-600 text-white shadow-blue-100"
                             : "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none"
+                                                    ? "bg-green-600 text-white shadow-green-100 hover:bg-green-700"
+                                                    : "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none"
                         )}
                       >
                         {isSendingToSheet ? (
                           <>
                             <div className="w-4 h-4 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
+                                                        <div className="w-4 h-4 border-2 border-green-600/30 border-t-green-600 rounded-full animate-spin" />
                             Enviando...
                           </>
                         ) : (
                           <>
                             <Save className="w-4 h-4" />
+                                                        <Save className="w-4 h-4" />
                             Enviar al Sheet
                           </>
                         )}
