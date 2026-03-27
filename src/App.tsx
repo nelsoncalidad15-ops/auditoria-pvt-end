@@ -326,6 +326,9 @@ function AuditApp() {
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [view, setView] = useState<"dashboard" | "home" | "setup" | "audit" | "history" | "reports">("dashboard");
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isSendingToSheet, setIsSendingToSheet] = useState(false);
+  const [showAuditSummary, setShowAuditSummary] = useState(false);
+  const [auditSummary, setAuditSummary] = useState<Partial<AuditSession> | null>(null);
   const [session, setSession] = useState<Partial<AuditSession>>({
     date: new Date().toISOString().split("T")[0],
     items: []
@@ -465,7 +468,7 @@ function AuditApp() {
   };
 
   const handleSetupSubmit = () => {
-    if (session.auditorId && session.location) {
+    if (session.auditorId && session.location && session.orderNumber) {
       setView("audit");
     }
   };
@@ -504,22 +507,40 @@ function AuditApp() {
         totalScore: Math.round(totalScore)
       };
       
-      saveToFirestore(completeSession);
-      
+      setAuditSummary(completeSession);
+      setShowAuditSummary(true);
+    }
+  };
+
+  const sendAuditToSheet = () => {
+    if (!auditSummary) return;
+    
+    setIsSendingToSheet(true);
+    
+    saveToFirestore(auditSummary as AuditSession).then(() => {
       // Sync with Google Sheets if webhook is configured
       if (webhookUrl) {
         fetch(webhookUrl, {
           method: "POST",
           mode: "no-cors",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(completeSession)
-        }).catch(err => console.error("Sync error:", err));
+          body: JSON.stringify(auditSummary)
+        })
+        .then(() => {
+          setIsSendingToSheet(false);
+          setShowAuditSummary(false);
+          setView("home");
+          setSelectedRole(null);
+          setSelectedStaff("");
+          setAuditSummary(null);
+        })
+        .catch(err => {
+          console.error("Sync error:", err);
+          setIsSendingToSheet(false);
+          alert("Error al enviar: " + err);
+        });
       }
-
-      setView("home");
-      setSelectedRole(null);
-      setSelectedStaff("");
-    }
+    });
   };
 
   const toggleItemStatus = (question: string, status: "pass" | "fail" | "na") => {
@@ -1106,7 +1127,7 @@ function AuditApp() {
 
               <button 
                 onClick={handleSetupSubmit}
-                disabled={!session.auditorId || !session.location}
+                disabled={!session.auditorId || !session.location || !session.orderNumber}
                 className="w-full bg-[#1A1A1A] text-white py-4 rounded-2xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed mt-8"
               >
                 Continuar
@@ -1304,6 +1325,96 @@ function AuditApp() {
                   </div>
                 </div>
               )}
+            </motion.div>
+          )}
+
+          {showAuditSummary && auditSummary && (
+            <motion.div 
+              key="summary"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="fixed inset-0 z-[1000] flex items-end"
+            >
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowAuditSummary(false)}
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              />
+              <motion.div 
+                initial={{ y: 100 }}
+                animate={{ y: 0 }}
+                exit={{ y: 100 }}
+                className="relative w-full bg-white rounded-t-[2rem] p-6 md:p-8 max-w-md mx-auto md:max-w-lg space-y-6"
+              >
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-black text-slate-900">Auditoría Completada</h2>
+                  <p className="text-slate-500 font-medium">Resumen de resultados</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 rounded-2xl space-y-1">
+                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Resultado</p>
+                    <p className="text-3xl font-black text-blue-600">{auditSummary.totalScore}%</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 p-4 rounded-2xl space-y-1">
+                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Ítems</p>
+                    <p className="text-3xl font-black text-slate-900">{auditSummary.items?.length || 0}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-sm font-semibold">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Fecha:</span>
+                    <span className="text-slate-900">{auditSummary.date}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Ubicación:</span>
+                    <span className="text-slate-900">{auditSummary.location}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Personal:</span>
+                    <span className="text-slate-900">{auditSummary.staffName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">OR:</span>
+                    <span className="text-slate-900 font-black">{auditSummary.orderNumber}</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button 
+                    onClick={() => setShowAuditSummary(false)}
+                    className="flex-1 py-3 rounded-xl border-2 border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all active:scale-95"
+                  >
+                    Guardarel Local
+                  </button>
+                  <button 
+                    onClick={sendAuditToSheet}
+                    disabled={isSendingToSheet}
+                    className={cn(
+                      "flex-1 py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg",
+                      isSendingToSheet 
+                        ? "bg-blue-400 cursor-not-allowed opacity-70" 
+                        : "bg-blue-600 hover:bg-blue-700 shadow-blue-200"
+                    )}
+                  >
+                    {isSendingToSheet ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        Enviar al Sheet
+                      </>
+                    )}
+                  </button>
+                </div>
+              </motion.div>
             </motion.div>
           )}
 
