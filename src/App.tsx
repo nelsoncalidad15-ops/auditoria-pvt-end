@@ -1088,6 +1088,20 @@ function AuditApp() {
                     />
                   </div>
                 </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-400 px-1">Número de Orden (OR)</label>
+                  <div className="relative">
+                    <ClipboardList className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input 
+                      type="text" 
+                      placeholder="Ej: 259132"
+                      value={session.orderNumber || ""}
+                      onChange={(e) => setSession({ ...session, orderNumber: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-2xl font-semibold focus:outline-none focus:ring-2 focus:ring-black/5"
+                    />
+                  </div>
+                </div>
               </div>
 
               <button 
