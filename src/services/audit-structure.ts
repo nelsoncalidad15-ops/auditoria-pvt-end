@@ -1,6 +1,6 @@
-import { AUDIT_QUESTIONS, OR_CHECKLIST_ITEMS, STAFF } from "../constants";
+import { AUDIT_QUESTIONS, OR_CHECKLIST_ITEMS, PRE_DELIVERY_CHECKLIST_ITEMS, STAFF } from "../constants";
 import { createClientId } from "../lib/utils";
-import { AuditCategory, AuditStructureScope } from "../types";
+import { AuditCategory, AuditStructureScope, AuditTemplateItem } from "../types";
 
 function getStorageKey(scope: AuditStructureScope) {
   return `audit-structure-v1:${scope}`;
@@ -15,46 +15,72 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, "") || createClientId();
 }
 
+function buildTemplateItems(name: string, items: AuditTemplateItem[]): AuditTemplateItem[] {
+  return items.map((item, index) => ({
+    ...item,
+    id: item.id || `${slugify(name)}-${index + 1}`,
+    text: item.text,
+    required: false,
+    block: item.block || "General",
+    priority: item.priority || "medium",
+    guidance: item.guidance || "",
+    requiresCommentOnFail: typeof item.requiresCommentOnFail === "boolean" ? item.requiresCommentOnFail : false,
+    description: item.description || "",
+    responsibleRoles: Array.isArray(item.responsibleRoles) ? item.responsibleRoles : [],
+    sector: item.sector || "resumen",
+    allowsNa: typeof item.allowsNa === "boolean" ? item.allowsNa : true,
+    weight: typeof item.weight === "number" ? item.weight : 1,
+    order: typeof item.order === "number" ? item.order : index + 1,
+    active: typeof item.active === "boolean" ? item.active : true,
+  }));
+}
+
+function getCategoryDefaultItems(name: string, questions: string[]): AuditTemplateItem[] {
+  if (name === "Ordenes") {
+    return buildTemplateItems(name, OR_CHECKLIST_ITEMS);
+  }
+
+  if (name === "Pre Entrega") {
+    return buildTemplateItems(name, PRE_DELIVERY_CHECKLIST_ITEMS);
+  }
+
+  return questions.map((question, index) => ({
+    id: `${slugify(name)}-${index + 1}`,
+    text: question,
+    required: false,
+    block: "General",
+    priority: "medium" as const,
+    guidance: "",
+    requiresCommentOnFail: false,
+    description: "",
+    responsibleRoles: [],
+    sector: "resumen" as const,
+    allowsNa: true,
+    weight: 1,
+    order: index + 1,
+    active: true,
+  }));
+}
+
+function shouldUpgradePreDeliveryCategory(category: any) {
+  if (category?.name !== "Pre Entrega" || !Array.isArray(category?.items)) {
+    return false;
+  }
+
+  const itemTexts = category.items.map((item: any) => String(item?.text || ""));
+  const hasLegacyOnlyItems = itemTexts.includes("Lavado 24hs antes de la entrega.") || itemTexts.includes("Fecha y registro de contactos con clientes de pre entrega.");
+  const hasNewDocumentaryItem = itemTexts.some((text: string) => text.includes("3 planes") || text.includes("Vale a Taller") || text.includes("3 de tradicional"));
+
+  return hasLegacyOnlyItems && !hasNewDocumentaryItem;
+}
+
 export function getDefaultAuditCategories(): AuditCategory[] {
   return Object.entries(AUDIT_QUESTIONS).map(([name, questions]) => ({
     id: slugify(name),
     name,
     description: "",
     staffOptions: STAFF[name] ?? [],
-    items: name === "Ordenes"
-      ? OR_CHECKLIST_ITEMS.map((item, index) => ({
-          ...item,
-          id: item.id || `${slugify(name)}-${index + 1}`,
-          text: item.text,
-          required: false,
-          block: item.block || "General",
-          priority: item.priority || "medium",
-          guidance: item.guidance || "",
-          requiresCommentOnFail: typeof item.requiresCommentOnFail === "boolean" ? item.requiresCommentOnFail : false,
-          description: item.description || "",
-          responsibleRoles: Array.isArray(item.responsibleRoles) ? item.responsibleRoles : [],
-          sector: item.sector || "recepcion",
-          allowsNa: typeof item.allowsNa === "boolean" ? item.allowsNa : true,
-          weight: typeof item.weight === "number" ? item.weight : 1,
-          order: typeof item.order === "number" ? item.order : index + 1,
-          active: typeof item.active === "boolean" ? item.active : true,
-        }))
-      : questions.map((question, index) => ({
-          id: `${slugify(name)}-${index + 1}`,
-          text: question,
-          required: false,
-          block: "General",
-          priority: "medium",
-          guidance: "",
-          requiresCommentOnFail: false,
-          description: "",
-          responsibleRoles: [],
-          sector: "resumen",
-          allowsNa: true,
-          weight: 1,
-          order: index + 1,
-          active: true,
-        })),
+    items: getCategoryDefaultItems(name, questions),
   }));
 }
 
@@ -65,12 +91,18 @@ export function normalizeAuditCategories(categories: AuditCategory[] | unknown):
     return defaultCategories;
   }
 
-  return categories.map((category: any) => ({
+  return categories.map((category: any) => {
+    const defaultCategory = defaultCategories.find((item) => item.name === category.name);
+    const shouldUpgradeCategory = shouldUpgradePreDeliveryCategory(category);
+
+    return ({
     id: category.id || slugify(category.name),
     name: category.name,
     description: typeof category.description === "string" ? category.description : "",
     staffOptions: Array.isArray(category.staffOptions) ? category.staffOptions : [],
-    items: Array.isArray(category.items)
+    items: shouldUpgradeCategory && defaultCategory
+      ? defaultCategory.items
+      : Array.isArray(category.items)
       ? category.items.map((item: any, index: number) => ({
           id: item.id || `${slugify(category.name)}-${index + 1}`,
           text: item.text,
@@ -88,7 +120,8 @@ export function normalizeAuditCategories(categories: AuditCategory[] | unknown):
           active: typeof item.active === "boolean" ? item.active : true,
         }))
       : [],
-  }));
+  });
+  });
 }
 
 export function getStoredAuditCategories(scope: AuditStructureScope = "global"): AuditCategory[] {
