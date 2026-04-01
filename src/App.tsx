@@ -135,6 +135,19 @@ function createEmptyAuditedFileNames() {
 const QUICK_AUDIT_MODE_STORAGE_KEY = "quick-audit-mode";
 const USER_PROFILE_STORAGE_KEY = "audit-user-profile";
 
+function getDefaultQuickAuditMode() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const isDesktopViewport = window.matchMedia("(min-width: 1024px)").matches;
+  if (!isDesktopViewport) {
+    return false;
+  }
+
+  return window.localStorage.getItem(QUICK_AUDIT_MODE_STORAGE_KEY) !== "0";
+}
+
 const DEFAULT_OBSERVATION_SUGGESTIONS = [
   "Falta firma",
   "Falta sello",
@@ -175,13 +188,7 @@ function AuditApp() {
   const [preDeliverySection, setPreDeliverySection] = useState<"general" | "legajos">("general");
   const [preDeliveryActiveLegajoIndex, setPreDeliveryActiveLegajoIndex] = useState(0);
   const [draftSaveState, setDraftSaveState] = useState<"idle" | "saving" | "saved">("idle");
-  const [isQuickAuditMode, setIsQuickAuditMode] = useState<boolean>(() => {
-    if (typeof window === "undefined") {
-      return true;
-    }
-
-    return window.localStorage.getItem(QUICK_AUDIT_MODE_STORAGE_KEY) !== "0";
-  });
+  const [isQuickAuditMode, setIsQuickAuditMode] = useState<boolean>(() => getDefaultQuickAuditMode());
   const [userProfile, setUserProfile] = useState<AuditUserProfile>(() => {
     if (typeof window === "undefined") {
       return "auditor";
@@ -1335,11 +1342,20 @@ function AuditApp() {
         allowsNa: templateItem?.allowsNa,
       });
     }
+
+    const requiresCommentBeforeAdvance = status === "fail"
+      && Boolean(templateItem?.requiresCommentOnFail)
+      && !(newItems[existingIndex >= 0 ? existingIndex : newItems.length - 1]?.comment?.trim());
     
     setSession({ ...session, items: newItems });
 
     if (templateItem) {
       setActiveAuditItemId(templateItem.id);
+      setFocusedAuditItemId(templateItem.id);
+    }
+
+    if (requiresCommentBeforeAdvance) {
+      return;
     }
 
     const nextItem = findNextPendingAuditItem(newItems, visibleAuditItems, question);
