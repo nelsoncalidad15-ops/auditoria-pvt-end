@@ -3,7 +3,7 @@ import { AuditSession, Location, Role } from "../types";
 
 const AUDIT_DRAFTS_STORAGE_KEY = "auditDrafts";
 
-type AuditView = "dashboard" | "home" | "setup" | "audit" | "history" | "structure" | "integrations";
+type AuditView = "dashboard" | "home" | "setup" | "audit" | "history" | "structure" | "integrations" | "continuar";
 
 export interface AuditDraft {
   id: string;
@@ -15,6 +15,7 @@ export interface AuditDraft {
   role?: Role;
   items: AuditSession["items"];
   orderNumber?: string;
+  clientIdentifier?: string;
   auditedFileNames?: string[];
   notes?: string;
   participants?: AuditSession["participants"];
@@ -53,6 +54,7 @@ function normalizeDraft(rawDraft: Partial<AuditDraft>): AuditDraft {
     role,
     items: Array.isArray(rawDraft.items) ? rawDraft.items : [],
     orderNumber: rawDraft.orderNumber?.trim() || undefined,
+    clientIdentifier: rawDraft.clientIdentifier?.trim() || undefined,
     auditedFileNames: Array.isArray(rawDraft.auditedFileNames)
       ? rawDraft.auditedFileNames.slice(0, 6).map((name) => String(name ?? "").trim())
       : undefined,
@@ -124,6 +126,7 @@ export function useAuditDrafts({ selectedRole, selectedStaff, session, sessionIt
       selectedRole ||
       selectedStaff ||
       session.orderNumber?.trim() ||
+      session.clientIdentifier?.trim() ||
       session.auditedFileNames?.some((name) => name?.trim()) ||
       session.notes?.trim() ||
       session.participants?.asesorServicio?.trim() ||
@@ -156,6 +159,7 @@ export function useAuditDrafts({ selectedRole, selectedStaff, session, sessionIt
       role: persistedRole,
       items: sessionItems,
       orderNumber: session.orderNumber?.trim() || undefined,
+      clientIdentifier: session.clientIdentifier?.trim() || undefined,
       auditedFileNames: session.auditedFileNames,
       notes: session.notes?.trim() || undefined,
       participants: session.participants,
@@ -173,6 +177,7 @@ export function useAuditDrafts({ selectedRole, selectedStaff, session, sessionIt
         role: currentDraft.role,
         items: currentDraft.items,
         orderNumber: currentDraft.orderNumber,
+        clientIdentifier: currentDraft.clientIdentifier,
         auditedFileNames: currentDraft.auditedFileNames,
         notes: currentDraft.notes,
         participants: currentDraft.participants,
@@ -187,6 +192,7 @@ export function useAuditDrafts({ selectedRole, selectedStaff, session, sessionIt
         role: nextDraft.role,
         items: nextDraft.items,
         orderNumber: nextDraft.orderNumber,
+        clientIdentifier: nextDraft.clientIdentifier,
         auditedFileNames: nextDraft.auditedFileNames,
         notes: nextDraft.notes,
         participants: nextDraft.participants,

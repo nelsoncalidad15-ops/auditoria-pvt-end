@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useRef } from "react";
-import { Role } from "../types";
+import { AppView, Role } from "../types";
 
 interface UseHashNavigationParams {
-  view: string;
+  view: AppView;
   selectedRole: Role | null;
-  setView: (view: any) => void;
+  setView: (view: AppView) => void;
   clearSelectedRole: () => void;
 }
 
 export function useHashNavigation({ view, selectedRole, setView, clearSelectedRole }: UseHashNavigationParams) {
   const isApplyingHashRef = useRef(false);
   const initialHashRef = useRef<string | null>(null);
-  const previousEntryRef = useRef<{ view: string } | null>(null);
-  const navigationHistoryRef = useRef<Array<{ view: string }>>([]);
+  const previousEntryRef = useRef<{ view: AppView } | null>(null);
+  const navigationHistoryRef = useRef<Array<{ view: AppView }>>([]);
   const isGoingBackRef = useRef(false);
 
   const applyNavigationFromHash = useCallback(() => {
@@ -55,6 +55,11 @@ export function useHashNavigation({ view, selectedRole, setView, clearSelectedRo
       return;
     }
 
+    if (section === "continuar" || section === "continue") {
+      setView("continuar");
+      return;
+    }
+
     if (section === "home") {
       setView("home");
       return;
@@ -82,6 +87,10 @@ export function useHashNavigation({ view, selectedRole, setView, clearSelectedRo
 
     if (view === "integrations") {
       return "#/integraciones";
+    }
+
+    if (view === "continuar") {
+      return "#/continuar";
     }
 
     if (view === "home") {
@@ -143,7 +152,7 @@ export function useHashNavigation({ view, selectedRole, setView, clearSelectedRo
       return;
     }
 
-    if (view === "setup" || view === "history" || view === "home" || view === "structure" || view === "integrations") {
+    if (view === "setup" || view === "history" || view === "home" || view === "structure" || view === "integrations" || view === "continuar") {
       setView("dashboard");
     }
   }, [clearSelectedRole, selectedRole, setView, view]);

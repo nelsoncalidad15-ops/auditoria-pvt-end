@@ -4,6 +4,8 @@ export type AuditStructureScope = "global" | Location;
 export type AuditItemPriority = "high" | "medium" | "low";
 export type AuditItemStatus = "pass" | "fail" | "na";
 export type AuditUserProfile = "auditor" | "supervisor" | "consulta";
+export type AppView = "dashboard" | "home" | "setup" | "audit" | "history" | "structure" | "integrations" | "continuar";
+export type HistoryPanel = "records" | "exports";
 
 export type OrResponsibleRole =
   | "asesor"
@@ -101,10 +103,30 @@ export interface AuditSession {
   items: AuditItem[];
   totalScore: number;
   orderNumber?: string;
+  clientIdentifier?: string;
   auditedFileNames?: string[];
   notes?: string;
   participants?: Partial<OrAuditParticipants>;
   roleScores?: AuditRoleScore[];
   entityType?: "general" | "or";
   userProfile?: AuditUserProfile;
+}
+
+export interface IncompleteAuditListItem {
+  id: string;
+  date: string;
+  auditBatchName?: string;
+  auditorId?: string;
+  location?: Location;
+  staffName?: string;
+  role?: Role;
+  items: AuditSession["items"];
+  updatedAt?: string;
+  notes?: string;
+  participants?: AuditSession["participants"];
+  orderNumber?: string;
+  clientIdentifier?: string;
+  auditedFileNames?: string[];
+  totalScore?: number;
+  _source?: "history";
 }

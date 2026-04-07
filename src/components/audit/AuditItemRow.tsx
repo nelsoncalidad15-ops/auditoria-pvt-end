@@ -91,7 +91,7 @@ export function AuditItemRow({
   const questionTitle = hasStructuredCopy ? question.slice(0, separatorIndex).trim() : question;
   const questionHint = hasStructuredCopy ? question.slice(separatorIndex + 1).trim() : "";
   const questionOrderMatch = questionTitle.match(/^(\d+)[.)\-\s]+(.+)$/);
-  const questionOrder = questionOrderMatch?.[1] ?? String(index + 1).padStart(2, "0");
+  const questionOrder = questionOrderMatch?.[1] ?? String(index + 1);
   const questionMainCopy = questionOrderMatch?.[2] ?? questionTitle;
   const isOrdersStyle = showStructuredQuestion;
   const isCalmStyle = compactMeta && !isOrdersStyle;
@@ -101,6 +101,7 @@ export function AuditItemRow({
   const isAuxPanelOpen = showComment;
   const notePreview = item?.comment?.trim().slice(0, 72) || "";
   const shouldShowExpandedContent = !quickMode || isActive || hasComment || hasPhoto || item?.status === "fail";
+  const shortStatusLabels = { pass: "OK", fail: "No", na: "N/A" } as const;
 
   useEffect(() => {
     if (item?.status === "fail" && requiresCommentOnFail && !item?.comment?.trim()) {
@@ -165,7 +166,7 @@ export function AuditItemRow({
           ? "bg-white rounded-[1.5rem] p-3.5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] border-slate-200/80"
           : isCalmStyle
             ? "bg-white rounded-[1.45rem] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] border-slate-200"
-            : "bg-white rounded-[1.7rem] p-4 shadow-sm",
+            : "bg-white rounded-[1.5rem] p-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)]",
         onActivate && "cursor-pointer",
         emphasized && (isOrdersStyle
           ? "ring-2 ring-offset-2 ring-blue-500 shadow-[0_18px_50px_rgba(59,130,246,0.16)]"
@@ -181,7 +182,7 @@ export function AuditItemRow({
           <div className="space-y-1.5">
             <p className={cn(
               "leading-snug",
-              isOrdersStyle ? "font-black text-slate-900 text-[0.96rem] md:text-[1rem] tracking-[-0.02em]" : isCalmStyle ? "font-black text-slate-900 text-[0.98rem] md:text-[1.02rem] tracking-[-0.02em]" : "font-bold text-gray-800 text-sm md:text-base"
+              isOrdersStyle ? "font-black text-slate-900 text-[0.96rem] md:text-[1rem] tracking-[-0.02em]" : isCalmStyle ? "font-black text-slate-900 text-[0.98rem] md:text-[1.02rem] tracking-[-0.02em]" : "font-black text-slate-900 text-[0.98rem] md:text-[1.02rem] tracking-[-0.02em]"
             )}>
               {questionOrder}. {questionMainCopy}
             </p>
@@ -206,10 +207,22 @@ export function AuditItemRow({
               </p>
             )}
             {requiresCommentOnFail && (
-              <p className="text-[11px] font-bold text-amber-700">Si marcás desvío, la observación pasa a ser obligatoria.</p>
+              <p className="text-[11px] font-bold text-amber-700">Nota obligatoria en desvíos.</p>
             )}
           </div>
         </div>
+        {item?.status && (
+          <span className={cn(
+            "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em]",
+            item.status === "pass"
+              ? "bg-emerald-50 text-emerald-700"
+              : item.status === "fail"
+                ? "bg-rose-50 text-rose-700"
+                : "bg-slate-100 text-slate-600"
+          )}>
+            {shortStatusLabels[item.status]}
+          </span>
+        )}
       </div>
 
       <div className={cn("grid grid-cols-3 gap-2", quickMode && "hidden lg:grid")}>
@@ -219,8 +232,8 @@ export function AuditItemRow({
             onStatusToggle("pass");
           }}
           className={cn(
-            "flex flex-col items-center justify-center gap-1 rounded-[1.1rem] border-2 transition-all active:scale-95 px-2 sm:min-h-[64px]",
-            isCalmStyle ? "py-2.5 min-h-[66px]" : "py-3 min-h-[74px]",
+            "flex flex-col items-center justify-center gap-1 rounded-[1rem] border-2 transition-all active:scale-95 px-2 sm:min-h-[64px]",
+            isCalmStyle ? "py-2.5 min-h-[66px]" : "py-3 min-h-[68px]",
             item?.status === "pass"
               ? (isOrdersStyle ? "bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-100" : "bg-green-500 border-green-500 text-white shadow-lg shadow-green-100")
               : (isOrdersStyle ? "bg-white border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-700" : "bg-white border-gray-100 text-gray-400 hover:border-green-200 hover:text-green-500")
@@ -228,7 +241,6 @@ export function AuditItemRow({
         >
           <CheckCircle2 className={cn("h-5 w-5", item?.status === "pass" && "text-white")} />
           <span className={cn("font-black uppercase tracking-[0.16em]", isCalmStyle ? "text-[13px]" : "text-sm")}>Si</span>
-          <span className={cn("text-[10px] font-bold uppercase tracking-[0.14em]", item?.status === "pass" ? "text-white/80" : "text-inherit opacity-80")}>{isCalmStyle ? "OK" : "Cumple"}</span>
         </button>
 
         <button
@@ -237,8 +249,8 @@ export function AuditItemRow({
             onStatusToggle("fail");
           }}
           className={cn(
-            "flex flex-col items-center justify-center gap-1 rounded-[1.1rem] border-2 transition-all active:scale-95 px-2 sm:min-h-[64px]",
-            isCalmStyle ? "py-2.5 min-h-[66px]" : "py-3 min-h-[74px]",
+            "flex flex-col items-center justify-center gap-1 rounded-[1rem] border-2 transition-all active:scale-95 px-2 sm:min-h-[64px]",
+            isCalmStyle ? "py-2.5 min-h-[66px]" : "py-3 min-h-[68px]",
             item?.status === "fail"
               ? (isOrdersStyle ? "bg-red-600 border-red-600 text-white shadow-lg shadow-red-100" : "bg-red-500 border-red-500 text-white shadow-lg shadow-red-100")
               : (isOrdersStyle ? "bg-white border-slate-200 text-slate-500 hover:border-red-300 hover:text-red-700" : "bg-white border-gray-100 text-gray-400 hover:border-red-200 hover:text-red-500")
@@ -246,7 +258,7 @@ export function AuditItemRow({
         >
           <XCircle className={cn("h-5 w-5", item?.status === "fail" && "text-white")} />
           <span className={cn("font-black uppercase tracking-[0.16em]", isCalmStyle ? "text-[13px]" : "text-sm")}>No</span>
-          <span className={cn("text-[10px] font-bold uppercase tracking-[0.14em]", item?.status === "fail" ? "text-white/80" : "text-inherit opacity-80")}>Desvío</span>
+          
         </button>
 
         {allowsNa ? (
@@ -265,7 +277,7 @@ export function AuditItemRow({
           >
             <MinusCircle className={cn("h-5 w-5", item?.status === "na" && "text-white")} />
             <span className={cn("font-black uppercase tracking-[0.16em]", isCalmStyle ? "text-[13px]" : "text-sm")}>N/A</span>
-            <span className={cn("text-[10px] font-bold uppercase tracking-[0.14em]", item?.status === "na" ? "text-white/80" : "text-inherit opacity-80")}>No aplica</span>
+            
           </button>
         ) : (
           <div className={cn(
@@ -275,7 +287,7 @@ export function AuditItemRow({
           )}>
             <MinusCircle className="h-5 w-5" />
             <span className="text-sm font-black uppercase tracking-[0.16em]">N/A</span>
-            <span className="text-[10px] font-bold uppercase tracking-[0.14em]">Bloqueado</span>
+            
           </div>
         )}
       </div>
@@ -306,7 +318,7 @@ export function AuditItemRow({
           )}
         >
           <History className="w-3.5 h-3.5" />
-          {isCalmStyle ? (hasComment ? "Editar nota" : "Nota") : item?.comment ? "Ver Observación" : requiresCommentOnFail ? "Agregar Evidencia" : "Agregar Nota"}
+          {hasComment ? "Nota" : requiresCommentOnFail ? "Evidencia" : "Nota"}
         </button>
         <button
           onClick={() => {
@@ -327,7 +339,7 @@ export function AuditItemRow({
           )}
         >
           <Camera className="w-3.5 h-3.5" />
-          {isProcessingPhoto ? "Procesando..." : isCalmStyle ? (hasPhoto ? "Ver foto" : "Foto") : item?.photoUrl ? "Cambiar Foto" : "Adjuntar Foto"}
+          {isProcessingPhoto ? "Procesando" : isCalmStyle ? "Foto" : item?.photoUrl ? "Foto" : "Adjuntar"}
         </button>
       </div>
 
@@ -339,7 +351,7 @@ export function AuditItemRow({
         >
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-              {hasComment && hasPhoto ? "Nota y foto cargadas" : hasComment ? "Nota cargada" : "Foto cargada"}
+              {hasComment && hasPhoto ? "Nota + foto" : hasComment ? "Nota" : "Foto"}
             </p>
             {hasComment && (
               <p className="mt-1 truncate text-[11px] font-medium text-slate-600">
@@ -369,13 +381,13 @@ export function AuditItemRow({
               )}>
                 {item?.photoUrl && (
                   <div className="space-y-2">
-                    <img src={item.photoUrl} alt="Evidencia del desvío" className="h-40 w-full rounded-xl object-cover" />
+                    <img src={item.photoUrl} alt="Foto del item" className="h-40 w-full rounded-xl object-cover" />
                     <div className="flex gap-2">
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600 transition-all hover:border-slate-300"
                       >
-                        Reemplazar
+                        Cambiar
                       </button>
                       <button
                         onClick={() => onPhotoUpdate(undefined)}
@@ -392,7 +404,7 @@ export function AuditItemRow({
                   <textarea
                     value={item?.comment || ""}
                     onChange={(e) => onCommentUpdate(e.target.value)}
-                    placeholder="Escribe aquí las observaciones para este ítem..."
+                    placeholder="Escribe una nota..."
                     className={cn(
                       "w-full rounded-[1.2rem] text-xs resize-none transition-all focus:ring-0",
                       isOrdersStyle
@@ -406,7 +418,7 @@ export function AuditItemRow({
 
                 {observationSuggestions.length > 0 && (item?.status === "fail" || hasComment || isActive) && (
                   <div className="space-y-2">
-                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Observaciones rápidas</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Sugeridas</p>
                     <div className="flex flex-wrap gap-2">
                       {observationSuggestions.map((suggestion) => (
                         <button

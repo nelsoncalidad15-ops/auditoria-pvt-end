@@ -27,8 +27,12 @@ export function Topbar({ appTitle, view, user, userProfile, showMenuButton = fal
   const viewLabel =
     view === "dashboard"
       ? "Dashboard"
+      : view === "home"
+        ? "Inicio"
       : view === "history"
         ? "Historial"
+        : view === "continuar"
+          ? "Continuar"
         : view === "structure"
           ? "Estructura"
           : view === "integrations"
@@ -40,7 +44,7 @@ export function Topbar({ appTitle, view, user, userProfile, showMenuButton = fal
               : "Nueva auditoría";
 
   return (
-    <header className={cn("sticky top-0 z-40 border-b border-blue-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(248,250,252,0.86))] px-4 backdrop-blur-xl md:px-6", isAuditView ? "py-3" : "py-4")}>
+    <header className={cn("sticky top-0 z-40 border-b border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(248,250,252,0.88))] px-4 backdrop-blur-xl md:px-6", isAuditView ? "py-3" : "py-4")}>
       <div
         className={cn(
           "mx-auto flex items-center justify-between gap-4",
@@ -51,7 +55,7 @@ export function Topbar({ appTitle, view, user, userProfile, showMenuButton = fal
           {showBackButton && onBack && (
             <button
               onClick={onBack}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-blue-100 bg-white/90 text-slate-700 shadow-[0_10px_26px_rgba(15,23,42,0.05)]"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white/90 text-slate-700 shadow-[0_10px_26px_rgba(15,23,42,0.05)]"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
@@ -59,12 +63,12 @@ export function Topbar({ appTitle, view, user, userProfile, showMenuButton = fal
           {showMenuButton && (
             <button
               onClick={onOpenMenu}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-blue-100 bg-white/90 text-slate-700 shadow-[0_10px_26px_rgba(15,23,42,0.05)] lg:hidden"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white/90 text-slate-700 shadow-[0_10px_26px_rgba(15,23,42,0.05)] lg:hidden"
             >
               <Menu className="h-5 w-5" />
             </button>
           )}
-          <div className="rounded-2xl bg-gradient-to-br from-blue-700 via-blue-600 to-teal-600 p-2.5 shadow-[0_12px_28px_rgba(29,78,216,0.30)]">
+          <div className="rounded-2xl bg-slate-950 p-2.5 shadow-[0_12px_28px_rgba(15,23,42,0.16)]">
             <ClipboardCheck className="text-white w-5 h-5" />
           </div>
           <div>
@@ -80,11 +84,11 @@ export function Topbar({ appTitle, view, user, userProfile, showMenuButton = fal
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="hidden sm:inline-flex items-center rounded-xl border border-blue-100 bg-blue-50/80 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-blue-700">
+          <span className="hidden sm:inline-flex items-center rounded-xl border border-slate-200 bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700">
             {USER_PROFILE_LABELS[userProfile]}
           </span>
           {user && (
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-100 to-teal-50 text-[11px] font-black text-blue-700 border border-blue-200">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-[11px] font-black text-slate-700 border border-slate-200">
               {user.displayName?.charAt(0) ?? "U"}
             </div>
           )}
