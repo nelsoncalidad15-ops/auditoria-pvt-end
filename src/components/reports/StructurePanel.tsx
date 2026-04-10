@@ -664,7 +664,7 @@ export function StructurePanel({
 
                         <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Elegi area fuente</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">1. Elegi area origen</p>
                             {scoreAreaEntries
                               .filter((entry) => !(selectedScoreItem.scoreLinks ?? []).some((link) => link.area === entry.areaName))
                               .map((entry) => (
@@ -679,14 +679,14 @@ export function StructurePanel({
                               ))}
                           </div>
                           <p className="mt-3 text-xs font-semibold text-slate-500">
-                            Primero elegi el area y despues la pregunta exacta que alimenta este requisito.
+                            Primero elegi el area origen y despues la pregunta puntual de ese area. No se toma todo el promedio del area.
                           </p>
                         </div>
 
                         <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_12px_24px_rgba(15,23,42,0.04)]">
                           <div className="flex items-center gap-2">
                             <Link2 className="h-4 w-4 text-slate-500" />
-                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Preguntas vinculadas</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">2. Pregunta puntual vinculada</p>
                           </div>
 
                           {(selectedScoreItem.scoreLinks ?? []).length > 0 ? (
@@ -704,7 +704,7 @@ export function StructurePanel({
                                         </p>
                                         <p className="mt-1 text-sm font-black text-slate-900">{link.area}</p>
                                         <p className="mt-1 text-[11px] font-semibold text-slate-500">
-                                          {selectedDestinationItem?.text || "Elegi la pregunta exacta"}
+                                          {selectedDestinationItem?.text || "Elegi la pregunta puntual"}
                                         </p>
                                       </div>
                                       <div className="flex items-center gap-2">
@@ -762,6 +762,9 @@ export function StructurePanel({
                                         </option>
                                       ))}
                                     </select>
+                                    <p className="mt-2 text-[11px] font-semibold text-slate-500">
+                                      Este vinculo apunta a un item puntual de {link.area}, no al promedio completo del area.
+                                    </p>
                                   </div>
                                 );
                               })}
@@ -782,99 +785,6 @@ export function StructurePanel({
                 </div>
               </div>
 
-              <div className="hidden">
-                <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <Link2 className="h-4 w-4 text-slate-500" />
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Matriz</p>
-                  </div>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">
-                    Marcá con números qué áreas reciben el promedio de cada pregunta.
-                  </p>
-                </div>
-
-                {selectedStructureCategory.items.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-[1200px] w-full table-fixed border-collapse text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-                          <th className="w-[54%] px-4 py-3">Pregunta</th>
-                          {scoreAreaEntries.map((entry) => (
-                            <th key={`head-${entry.areaName}`} className="w-[56px] px-1 py-3 text-center">
-                              <div className="inline-flex flex-col items-center gap-1">
-                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-[10px] font-black text-white">
-                                  {entry.number}
-                                </span>
-                                <span className="max-w-[64px] text-[8px] leading-tight font-black text-slate-500">
-                                  {entry.areaName}
-                                </span>
-                              </div>
-                            </th>
-                          ))}
-                          <th className="w-[110px] px-4 py-3 text-center">Accion</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedStructureCategory.items.map((structureItem, index) => (
-                          <tr key={structureItem.id} className="border-b border-slate-100 last:border-b-0 align-top">
-                            <td className="w-[54%] px-4 py-3">
-                              <div className="flex items-start gap-3">
-                                <span className="mt-1 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600">
-                                  #{String(index + 1).padStart(2, "0")}
-                                </span>
-                                <textarea
-                                  value={structureItem.text}
-                                  onChange={(e) => updateCategory(selectedStructureCategory.id, (category) => ({
-                                    ...category,
-                                    items: category.items.map((item) => item.id === structureItem.id ? { ...item, text: e.target.value } : item),
-                                  }))}
-                                  className="min-h-[98px] w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium leading-6 text-slate-800 outline-none transition focus:border-blue-300"
-                                />
-                              </div>
-                            </td>
-                            {scoreAreaEntries.map((entry) => {
-                              const isSelected = Array.isArray(structureItem.scoreAreas) && structureItem.scoreAreas.includes(entry.areaName);
-                              return (
-                                <td key={`${structureItem.id}-${entry.areaName}`} className="w-[56px] px-1 py-3 text-center">
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleStructureItemScoreArea(structureItem.id, entry.areaName)}
-                                    className={cn(
-                                      "mx-auto flex h-9 w-9 items-center justify-center rounded-2xl border text-[13px] font-black transition",
-                                      isSelected
-                                        ? "border-amber-500 bg-amber-500 text-white shadow-sm"
-                                        : "border-slate-200 bg-white text-slate-500 hover:border-amber-200 hover:text-amber-600"
-                                    )}
-                                    aria-label={`${entry.number} ${entry.areaName}`}
-                                  >
-                                    {isSelected ? "✓" : entry.number}
-                                  </button>
-                                </td>
-                              );
-                            })}
-                            <td className="w-[110px] px-4 py-3 text-center">
-                              <button
-                                onClick={() => updateCategory(selectedStructureCategory.id, (category) => ({
-                                  ...category,
-                                  items: category.items.filter((item) => item.id !== structureItem.id),
-                                }))}
-                                className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-red-600"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                                Quitar
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center text-sm font-bold text-slate-500">
-                    Todavia no hay preguntas en esta categoria.
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         )}
@@ -884,4 +794,6 @@ export function StructurePanel({
     </div>
   );
 }
+
+
 
