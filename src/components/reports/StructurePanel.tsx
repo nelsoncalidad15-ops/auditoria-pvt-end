@@ -86,6 +86,8 @@ export function StructurePanel({
 }: StructurePanelProps) {
   const [mode, setMode] = useState<"create" | "edit">("edit");
   const [selectedScoreItemId, setSelectedScoreItemId] = useState("");
+  const [selectedSourceAreaName, setSelectedSourceAreaName] = useState("");
+  const [selectedTargetAreaName, setSelectedTargetAreaName] = useState("");
   const selectedCategoryQuestions = selectedStructureCategory?.items.length ?? 0;
 
   useEffect(() => {
@@ -108,6 +110,23 @@ export function StructurePanel({
     }
   }, [selectedScoreItemId, selectedStructureCategory]);
 
+  useEffect(() => {
+    if (!selectedStructureCategory) {
+      setSelectedTargetAreaName("");
+      return;
+    }
+
+    setSelectedTargetAreaName(selectedStructureCategory.name);
+  }, [selectedStructureCategory]);
+
+  useEffect(() => {
+    if (selectedSourceAreaName && scoreAreaOptions.includes(selectedSourceAreaName)) {
+      return;
+    }
+
+    setSelectedSourceAreaName(scoreAreaOptions[0] ?? "");
+  }, [scoreAreaOptions, selectedSourceAreaName]);
+
   const scoreAreaOptions = availableScoreAreas.filter((area) => area !== selectedStructureCategory?.name);
   const scoreAreaEntries = scoreAreaOptions.map((areaName, index) => ({
     areaName,
@@ -115,6 +134,54 @@ export function StructurePanel({
   }));
 
   const getItemsForArea = (areaName: string) => auditCategories.find((category) => category.name === areaName)?.items ?? [];
+
+  const selectedSourceCategory = auditCategories.find((category) => category.name === selectedSourceAreaName) ?? null;
+  const selectedTargetCategory = auditCategories.find((category) => category.name === selectedTargetAreaName) ?? selectedStructureCategory ?? null;
+  const sourceMatrixItems = selectedSourceCategory?.items ?? [];
+  const targetMatrixItems = selectedTargetCategory?.items ?? [];
+
+  const toggleMatrixCell = (sourceItemId: string, destinationItemId: string) => {
+    if (!selectedSourceCategory || !selectedTargetCategory) {
+      return;
+    }
+
+    const sourceItem = selectedSourceCategory.items.find((item) => item.id === sourceItemId);
+    const destinationItem = selectedTargetCategory.items.find((item) => item.id === destinationItemId);
+    if (!sourceItem || !destinationItem) {
+      return;
+    }
+
+    updateCategory(selectedSourceCategory.id, (category) => ({
+      ...category,
+      items: category.items.map((item) => {
+        if (item.id !== sourceItemId) {
+          return item;
+        }
+
+        const currentLinks = Array.isArray(item.scoreLinks) ? item.scoreLinks : [];
+        const hasLink = currentLinks.some((link) => link.area === selectedTargetCategory.name && link.destinationItemId === destinationItemId);
+        const nextLinks = hasLink
+          ? currentLinks.filter((link) => !(link.area === selectedTargetCategory.name && link.destinationItemId === destinationItemId))
+          : [
+              ...currentLinks,
+              {
+                area: selectedTargetCategory.name,
+                weight: 100,
+                destinationItemId,
+                destinationItemText: destinationItem.text,
+              },
+            ];
+
+        return {
+          ...item,
+          scoreLinks: nextLinks,
+          scoreAreas: nextLinks.map((link) => link.area),
+        };
+      }),
+    }));
+  };
+
+  const selectedMatrixSourceItem = sourceMatrixItems.find((item) => item.id === selectedScoreItemId) ?? sourceMatrixItems[0] ?? null;
 
   const toggleNewItemScoreArea = (areaName: string) => {
     setNewItemScoreAreas((current) => (
@@ -563,7 +630,126 @@ export function StructurePanel({
                 </p>
               </div>
 
-              <div className="hidden rounded-3xl border border-slate-200 bg-white shadow-[0_16px_36px_rgba(15,23,42,0.05)] lg:block">
+              <div className="rounded-3xl border border-slate-200 bg-white shadow-[0_16px_36px_rgba(15,23,42,0.05)] lg:block">
+                <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <Link2 className="h-4 w-4 text-slate-500" />
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Matriz de preguntas</p>
+                  </div>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                    Fila = pregunta origen. Columna = pregunta destino. Tocá la celda para vincularlas.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 p-4 xl:grid-cols-[260px_minmax(0,1fr)]">
+                  <div className="space-y-3">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Area origen</p>
+                      <select
+                        value={selectedSourceAreaName}
+                        onChange={(event) => setSelectedSourceAreaName(event.target.value)}
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-300"
+                      >
+                        {auditCategories.map((category) => (
+                          <option key={category.id} value={category.name}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Area destino</p>
+                      <select
+                        value={selectedTargetAreaName}
+                        onChange={(event) => setSelectedTargetAreaName(event.target.value)}
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-300"
+                      >
+                        {auditCategories.map((category) => (
+                          <option key={category.id} value={category.name}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-3">
+                      <p className="text-sm font-black text-slate-900">Como se usa</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        Elegi una fila de origen y una columna destino. La celda verde queda vinculada.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+                    {sourceMatrixItems.length > 0 && targetMatrixItems.length > 0 ? (
+                      <div className="overflow-auto">
+                        <table className="min-w-[900px] w-full table-fixed border-collapse text-sm">
+                          <thead>
+                            <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+                              <th className="w-[34%] px-4 py-3">Origen</th>
+                              {targetMatrixItems.map((destinationItem, index) => (
+                                <th key={destinationItem.id} className="w-[92px] px-1 py-3 text-center">
+                                  <div className="inline-flex flex-col items-center gap-1">
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-[10px] font-black text-white">
+                                      {index + 1}
+                                    </span>
+                                    <span className="max-w-[82px] text-[8px] leading-tight font-black text-slate-500">
+                                      {destinationItem.text}
+                                    </span>
+                                  </div>
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {sourceMatrixItems.map((sourceItem, rowIndex) => (
+                              <tr key={sourceItem.id} className="border-b border-slate-100 last:border-b-0 align-top">
+                                <td className="w-[34%] px-4 py-3">
+                                  <div className="flex items-start gap-3">
+                                    <span className="mt-1 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600">
+                                      #{String(rowIndex + 1).padStart(2, "0")}
+                                    </span>
+                                    <p className="text-sm font-semibold leading-5 text-slate-800">{sourceItem.text}</p>
+                                  </div>
+                                </td>
+                                {targetMatrixItems.map((destinationItem) => {
+                                  const isLinked = Array.isArray(sourceItem.scoreLinks)
+                                    && sourceItem.scoreLinks.some((link) => link.area === selectedTargetCategory?.name && link.destinationItemId === destinationItem.id);
+
+                                  return (
+                                    <td key={`${sourceItem.id}-${destinationItem.id}`} className="w-[92px] px-1 py-3 text-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleMatrixCell(sourceItem.id, destinationItem.id)}
+                                        className={cn(
+                                          "mx-auto flex h-10 w-10 items-center justify-center rounded-2xl border text-[11px] font-black transition",
+                                          isLinked
+                                            ? "border-emerald-500 bg-emerald-500 text-white shadow-sm"
+                                            : "border-slate-200 bg-white text-slate-500 hover:border-emerald-200 hover:text-emerald-600"
+                                        )}
+                                        aria-label={`${sourceItem.text} -> ${destinationItem.text}`}
+                                      >
+                                        {isLinked ? "✓" : "·"}
+                                      </button>
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center text-sm font-bold text-slate-500">
+                        Elegi dos areas para ver la matriz.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="hidden">
                 <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
                   <div className="flex items-center gap-2">
                     <Link2 className="h-4 w-4 text-slate-500" />
