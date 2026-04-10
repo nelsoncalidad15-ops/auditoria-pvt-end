@@ -53,11 +53,15 @@ function normalizeScoreLinks(categoryName: string, question: string, scoreLinks:
       .map((link: any) => ({
         area: typeof link?.area === "string" ? link.area.trim() : "",
         weight: Number(link?.weight),
+        destinationItemId: typeof link?.destinationItemId === "string" ? link.destinationItemId.trim() : "",
+        destinationItemText: typeof link?.destinationItemText === "string" ? link.destinationItemText.trim() : "",
       }))
       .filter((link) => isNonEmptyString(link.area) && Number.isFinite(link.weight) && link.weight > 0)
       .map((link) => ({
         area: link.area,
         weight: Math.min(100, Math.max(1, Math.round(link.weight))),
+        destinationItemId: link.destinationItemId,
+        destinationItemText: link.destinationItemText,
       }));
   }
 

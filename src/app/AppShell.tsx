@@ -37,7 +37,7 @@ function getMainClassName(view: AppView) {
   if (view === "dashboard") return "max-w-7xl mx-auto w-full";
   if (view === "setup") return "max-w-5xl mx-auto w-full pb-32";
   if (view === "audit") return "max-w-7xl mx-auto w-full pb-28 pt-2 md:pt-4";
-  if (view === "structure" || view === "integrations") return "max-w-6xl mx-auto w-full pb-12";
+  if (view === "structure" || view === "integrations") return "max-w-[1440px] mx-auto w-full pb-12";
   if (view === "continuar") return "max-w-6xl mx-auto w-full pb-28";
   if (view === "home") return "max-w-md mx-auto w-full pb-32";
   return "max-w-md mx-auto w-full lg:max-w-4xl lg:mx-0";

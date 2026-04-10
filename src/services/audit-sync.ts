@@ -164,7 +164,12 @@ export function buildAuditSyncPayload(params: {
         responsibleRoles: Array.isArray(item.responsibleRoles) ? item.responsibleRoles.join(",") : "",
         scoreAreas: Array.isArray(item.scoreAreas) ? item.scoreAreas.join(",") : "",
         scoreLinks: Array.isArray(item.scoreLinks)
-          ? item.scoreLinks.map((link) => `${link.area}:${link.weight}`).join("|")
+          ? item.scoreLinks.map((link) => [
+              encodeURIComponent(link.area),
+              link.weight,
+              encodeURIComponent(link.destinationItemId || ""),
+              encodeURIComponent(link.destinationItemText || ""),
+            ].join(":")).join("|")
           : "",
         weight: item.weight ?? 1,
         allowsNa: item.allowsNa === false ? "false" : "true",
@@ -307,9 +312,19 @@ export async function fetchAuditHistoryFromWebhook(webhookUrl: string): Promise<
             scoreAreas: itemRow.scoreAreas ? itemRow.scoreAreas.split(",").map((value) => value.trim()).filter(Boolean) : [],
             scoreLinks: itemRow.scoreLinks
               ? itemRow.scoreLinks.split("|").map((entry) => {
-                  const [area, weight] = entry.split(":");
-                  return { area: area?.trim() ?? "", weight: parseNumber(weight) || 0 };
-                }).filter((link) => Boolean(link.area) && link.weight > 0)
+                  const [area, weight, destinationItemId, destinationItemText] = entry.split(":");
+                  return {
+                    area: area?.trim() ?? "",
+                    weight: parseNumber(weight) || 0,
+                    destinationItemId: destinationItemId?.trim() ?? "",
+                    destinationItemText: destinationItemText?.trim() ?? "",
+                  };
+                }).map((link) => ({
+                  ...link,
+                  area: decodeURIComponent(link.area),
+                  destinationItemId: decodeURIComponent(link.destinationItemId || ""),
+                  destinationItemText: decodeURIComponent(link.destinationItemText || ""),
+                })).filter((link) => Boolean(link.area) && link.weight > 0)
               : undefined,
             weight: parseNumber(itemRow.weight) || 1,
             allowsNa: itemRow.allowsNa !== "false",

@@ -27,6 +27,8 @@ export type Role = string;
 export interface ScoreLink {
   area: string;
   weight: number;
+  sourceItemId?: string;
+  sourceItemText?: string;
 }
 
 export interface Auditor {

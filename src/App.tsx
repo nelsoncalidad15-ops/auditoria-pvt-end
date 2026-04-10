@@ -1631,7 +1631,7 @@ function AuditApp() {
         user={user}
         userProfile={userProfile}
         authenticationEnabled={isFirebaseEnabled}
-        showSidebar={view === "dashboard" || view === "history" || view === "structure" || view === "integrations" || view === "continuar"}
+        showSidebar={view === "dashboard" || view === "history" || view === "integrations" || view === "continuar"}
         sidebarItems={updatedSidebarItems}
         isMobileNavOpen={isMobileNavOpen}
         canRunAudits={canRunAudits}

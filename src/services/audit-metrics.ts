@@ -124,11 +124,15 @@ function getItemScoreLinks(item: AuditSession["items"][number]): ScoreLink[] {
       .map((link) => ({
         area: typeof link.area === "string" ? link.area.trim() : "",
         weight: typeof link.weight === "number" && Number.isFinite(link.weight) ? link.weight : 0,
+        destinationItemId: typeof link.destinationItemId === "string" ? link.destinationItemId.trim() : "",
+        destinationItemText: typeof link.destinationItemText === "string" ? link.destinationItemText.trim() : "",
       }))
       .filter((link) => link.area && link.weight > 0)
       .map((link) => ({
         area: link.area,
         weight: Math.min(100, Math.max(1, Math.round(link.weight))),
+        destinationItemId: link.destinationItemId,
+        destinationItemText: link.destinationItemText,
       }));
   }
 
@@ -442,39 +446,107 @@ export function buildAuditProcessMetrics({
     return acc;
   }, new Map<string, { total: number; weight: number; linkedItems: number; contributions: number }>());
 
+  const itemComplianceById = new Map<string, number>();
+  processScoreSessions.forEach((auditSession) => {
+    auditSession.items.forEach((item) => {
+      itemComplianceById.set(item.id, calculateAuditCompliance([item]).compliance);
+    });
+  });
+
+  const inboundLinksByDestinationItemId = new Map<string, Array<{ sourceItemId: string; weight: number }>>();
+  processScoreSessions.forEach((auditSession) => {
+    auditSession.items.forEach((item) => {
+      getItemScoreLinks(item).forEach((link) => {
+        if (!link.destinationItemId) {
+          return;
+        }
+
+        const current = inboundLinksByDestinationItemId.get(link.destinationItemId) ?? [];
+        current.push({ sourceItemId: item.id, weight: link.weight });
+        inboundLinksByDestinationItemId.set(link.destinationItemId, current);
+      });
+    });
+  });
+
+  const getEffectiveItemCompliance = (item: AuditSession["items"][number]) => {
+    const inboundLinks = inboundLinksByDestinationItemId.get(item.id) ?? [];
+    if (inboundLinks.length > 0) {
+      const linkedWeights = inboundLinks
+        .map((link) => {
+          const sourceCompliance = itemComplianceById.get(link.sourceItemId);
+          if (typeof sourceCompliance !== "number") {
+            return null;
+          }
+
+          return {
+            compliance: sourceCompliance,
+            weight: link.weight,
+          };
+        })
+        .filter((value): value is { compliance: number; weight: number } => Boolean(value));
+
+      if (linkedWeights.length > 0) {
+        const totalWeight = linkedWeights.reduce((acc, link) => acc + link.weight, 0);
+        const totalCompliance = linkedWeights.reduce((acc, link) => acc + (link.compliance * link.weight), 0);
+        return {
+          compliance: totalWeight > 0 ? Math.round(totalCompliance / totalWeight) : 0,
+          linked: true,
+        };
+      }
+    }
+
+    return {
+      compliance: calculateAuditCompliance([item]).compliance,
+      linked: false,
+    };
+  };
+
   processScoreSessions.forEach((auditSession) => {
     const sessionRoleName = auditSession.role || auditSession.items[0]?.category || "General";
-    const sessionCompliance = calculateAuditCompliance(auditSession.items);
+    const effectiveItems = auditSession.items.map((item) => ({
+      item,
+      effectiveCompliance: getEffectiveItemCompliance(item),
+    }));
+    const sessionWeight = effectiveItems.reduce((acc, entry) => acc + (entry.item.weight ?? 1), 0);
+    const sessionTotal = effectiveItems.reduce((acc, entry) => acc + (entry.effectiveCompliance.compliance * (entry.item.weight ?? 1)), 0);
+    const sessionCompliance = {
+      compliance: sessionWeight > 0 ? Math.round(sessionTotal / sessionWeight) : 0,
+      totalApplicableWeight: sessionWeight,
+    };
 
-    areaNames.forEach((areaName) => {
-      const current = areaScoreMetrics.get(areaName);
-      if (!current) {
+    const current = areaScoreMetrics.get(sessionRoleName);
+    if (!current || sessionCompliance.totalApplicableWeight === 0) {
+      return;
+    }
+
+    current.total += sessionCompliance.compliance * 100;
+    current.weight += 100;
+    current.contributions += 1;
+    current.linkedItems += effectiveItems.filter((entry) => entry.effectiveCompliance.linked).length;
+  });
+
+  processScoreSessions.forEach((auditSession) => {
+    auditSession.items.forEach((item) => {
+      const legacyLinks = getItemScoreLinks(item).filter((link) => !link.destinationItemId);
+      if (legacyLinks.length === 0) {
         return;
       }
 
-      if (sessionRoleName === areaName && sessionCompliance.totalApplicableWeight > 0) {
-        current.total += sessionCompliance.compliance * 100;
-        current.weight += 100;
-        current.contributions += 1;
+      const itemCompliance = calculateAuditCompliance([item]);
+      if (itemCompliance.totalApplicableWeight === 0) {
+        return;
       }
 
-      auditSession.items.forEach((item) => {
-        const itemLinks = getItemScoreLinks(item).filter((link) => link.area === areaName);
-        if (itemLinks.length === 0) {
+      legacyLinks.forEach((link) => {
+        const current = areaScoreMetrics.get(link.area);
+        if (!current) {
           return;
         }
 
-        const itemCompliance = calculateAuditCompliance([item]);
-        if (itemCompliance.totalApplicableWeight === 0) {
-          return;
-        }
-
-        itemLinks.forEach((link) => {
-          current.total += itemCompliance.compliance * link.weight;
-          current.weight += link.weight;
-          current.linkedItems += 1;
-          current.contributions += 1;
-        });
+        current.total += itemCompliance.compliance * link.weight;
+        current.weight += link.weight;
+        current.linkedItems += 1;
+        current.contributions += 1;
       });
     });
   });
