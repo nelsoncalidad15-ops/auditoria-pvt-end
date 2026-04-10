@@ -94,6 +94,10 @@ export function StructurePanel({
   }, [auditCategories, mode, selectedStructureCategory, setSelectedStructureCategoryId]);
 
   const scoreAreaOptions = availableScoreAreas.filter((area) => area !== selectedStructureCategory?.name);
+  const scoreAreaEntries = scoreAreaOptions.map((areaName, index) => ({
+    areaName,
+    number: index + 1,
+  }));
 
   const toggleNewItemScoreArea = (areaName: string) => {
     setNewItemScoreAreas((current) => (
@@ -368,6 +372,40 @@ export function StructurePanel({
               </div>
             </div>
 
+            <div className="hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_16px_36px_rgba(15,23,42,0.05)] lg:block">
+              <div className="flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-slate-500" />
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                  Matriz de puntaje
+                </p>
+              </div>
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                Los numeros son las areas que reciben el promedio adicional.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {scoreAreaEntries.length > 0 ? scoreAreaEntries.map((entry) => (
+                  <div
+                    key={`legend-${entry.areaName}`}
+                    className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2"
+                  >
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-[10px] font-black uppercase tracking-[0.14em] text-white">
+                      {entry.number}
+                    </span>
+                    <span className="text-xs font-bold text-slate-700">{entry.areaName}</span>
+                  </div>
+                )) : (
+                  <p className="text-xs font-semibold text-slate-500">No hay areas disponibles para vincular.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 lg:hidden">
+              <p className="font-black text-slate-900">Configuracion de puntaje</p>
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                Esta parte se configura mejor en computadora. En celular queda simplificada.
+              </p>
+            </div>
+
             <div className="rounded-3xl border border-slate-200 bg-white p-5 space-y-4 shadow-[0_16px_36px_rgba(15,23,42,0.05)]">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -431,7 +469,7 @@ export function StructurePanel({
                 </button>
               </div>
 
-              <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-3">
+              <div className="hidden rounded-2xl border border-blue-100 bg-blue-50/70 p-3 lg:block">
                 <div className="flex items-center gap-2">
                   <Link2 className="h-4 w-4 text-blue-600" />
                   <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
@@ -439,93 +477,132 @@ export function StructurePanel({
                   </p>
                 </div>
                 <p className="mt-1 text-xs font-semibold text-slate-500">
-                  El item sumara a la categoria actual y ademas a las areas que marques abajo.
+                  El item suma a la categoria actual y ademas a las areas que marques con numero.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {scoreAreaOptions.length > 0 ? scoreAreaOptions.map((areaName) => {
-                    const isSelected = newItemScoreAreas.includes(areaName);
+                  {scoreAreaEntries.length > 0 ? scoreAreaEntries.map((entry) => {
+                    const isSelected = newItemScoreAreas.includes(entry.areaName);
                     return (
                       <button
-                        key={`new-item-score-${areaName}`}
+                        key={`new-item-score-${entry.areaName}`}
                         type="button"
-                        onClick={() => toggleNewItemScoreArea(areaName)}
+                        onClick={() => toggleNewItemScoreArea(entry.areaName)}
                         className={cn(
-                          "rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] transition",
+                          "flex h-10 w-10 items-center justify-center rounded-2xl border text-sm font-black transition",
                           isSelected
                             ? "border-blue-500 bg-blue-500 text-white shadow-sm"
                             : "border-slate-200 bg-white text-slate-500 hover:border-blue-200 hover:text-blue-600"
                         )}
+                        aria-label={`${entry.number} ${entry.areaName}`}
                       >
-                        {areaName}
+                        {entry.number}
                       </button>
                     );
                   }) : (
                     <p className="text-xs font-semibold text-slate-500">No hay areas disponibles para vincular.</p>
                   )}
                 </div>
+                {newItemScoreAreas.length > 0 && (
+                  <p className="mt-3 text-[11px] font-bold text-blue-700">
+                    Vinculado a: {newItemScoreAreas.map((areaName) => scoreAreaEntries.find((entry) => entry.areaName === areaName)?.number).filter(Boolean).join(", ")}
+                  </p>
+                )}
               </div>
 
-              <div className="space-y-2">
-                {selectedStructureCategory.items.map((structureItem, index) => (
-                  <div key={structureItem.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.03)]">
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 shadow-sm">#{String(index + 1).padStart(2, "0")} Pregunta</span>
-                      <button
-                        onClick={() => updateCategory(selectedStructureCategory.id, (category) => ({
-                          ...category,
-                          items: category.items.filter((item) => item.id !== structureItem.id),
-                        }))}
-                        className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-red-600"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Quitar
-                      </button>
-                    </div>
-                    <textarea
-                      value={structureItem.text}
-                      onChange={(e) => updateCategory(selectedStructureCategory.id, (category) => ({
-                        ...category,
-                        items: category.items.map((item) => item.id === structureItem.id ? { ...item, text: e.target.value } : item),
-                      }))}
-                      className="min-h-[88px] w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none transition focus:border-blue-300"
-                    />
-                    <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3">
-                      <div className="flex items-center gap-2">
-                        <Link2 className="h-4 w-4 text-amber-500" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-                          Puntaje compartido
-                        </p>
-                      </div>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">
-                        Este item ya suma a su propia categoria. Elegi otras areas que tambien recibiran el promedio.
-                      </p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {scoreAreaOptions.length > 0 ? scoreAreaOptions.map((areaName) => {
-                          const isSelected = Array.isArray(structureItem.scoreAreas) && structureItem.scoreAreas.includes(areaName);
-                          return (
-                            <button
-                              key={`${structureItem.id}-score-${areaName}`}
-                              type="button"
-                              onClick={() => toggleStructureItemScoreArea(structureItem.id, areaName)}
-                              className={cn(
-                                "rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] transition",
-                                isSelected
-                                  ? "border-amber-500 bg-amber-500 text-white shadow-sm"
-                                  : "border-slate-200 bg-white text-slate-500 hover:border-amber-200 hover:text-amber-600"
-                              )}
-                            >
-                              {areaName}
-                            </button>
-                          );
-                        }) : (
-                          <p className="text-xs font-semibold text-slate-500">No hay areas disponibles para vincular.</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-3 lg:hidden">
+                <p className="text-xs font-semibold text-slate-500">
+                  En celular no se muestra la matriz de puntaje. Usá computadora para asignar vínculos.
+                </p>
+              </div>
 
-                {selectedStructureCategory.items.length === 0 && (
+              <div className="hidden overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_16px_36px_rgba(15,23,42,0.05)] lg:block">
+                <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <Link2 className="h-4 w-4 text-slate-500" />
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Matriz</p>
+                  </div>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                    Marcá con números qué áreas reciben el promedio de cada pregunta.
+                  </p>
+                </div>
+
+                {selectedStructureCategory.items.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+                          <th className="px-4 py-3">Pregunta</th>
+                          {scoreAreaEntries.map((entry) => (
+                            <th key={`head-${entry.areaName}`} className="px-2 py-3 text-center">
+                              <div className="inline-flex flex-col items-center gap-1">
+                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-[10px] font-black text-white">
+                                  {entry.number}
+                                </span>
+                                <span className="max-w-[92px] text-[9px] leading-tight font-black text-slate-500">
+                                  {entry.areaName}
+                                </span>
+                              </div>
+                            </th>
+                          ))}
+                          <th className="px-4 py-3 text-center">Accion</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedStructureCategory.items.map((structureItem, index) => (
+                          <tr key={structureItem.id} className="border-b border-slate-100 last:border-b-0 align-top">
+                            <td className="px-4 py-3">
+                              <div className="flex items-start gap-3">
+                                <span className="mt-1 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600">
+                                  #{String(index + 1).padStart(2, "0")}
+                                </span>
+                                <textarea
+                                  value={structureItem.text}
+                                  onChange={(e) => updateCategory(selectedStructureCategory.id, (category) => ({
+                                    ...category,
+                                    items: category.items.map((item) => item.id === structureItem.id ? { ...item, text: e.target.value } : item),
+                                  }))}
+                                  className="min-h-[88px] w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 outline-none transition focus:border-blue-300"
+                                />
+                              </div>
+                            </td>
+                            {scoreAreaEntries.map((entry) => {
+                              const isSelected = Array.isArray(structureItem.scoreAreas) && structureItem.scoreAreas.includes(entry.areaName);
+                              return (
+                                <td key={`${structureItem.id}-${entry.areaName}`} className="px-2 py-3 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleStructureItemScoreArea(structureItem.id, entry.areaName)}
+                                    className={cn(
+                                      "mx-auto flex h-10 w-10 items-center justify-center rounded-2xl border text-sm font-black transition",
+                                      isSelected
+                                        ? "border-amber-500 bg-amber-500 text-white shadow-sm"
+                                        : "border-slate-200 bg-white text-slate-500 hover:border-amber-200 hover:text-amber-600"
+                                    )}
+                                    aria-label={`${entry.number} ${entry.areaName}`}
+                                  >
+                                    {isSelected ? "✓" : entry.number}
+                                  </button>
+                                </td>
+                              );
+                            })}
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                onClick={() => updateCategory(selectedStructureCategory.id, (category) => ({
+                                  ...category,
+                                  items: category.items.filter((item) => item.id !== structureItem.id),
+                                }))}
+                                className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-red-600"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Quitar
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
                   <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center text-sm font-bold text-slate-500">
                     Todavia no hay preguntas en esta categoria.
                   </div>
