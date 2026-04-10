@@ -89,6 +89,11 @@ export function StructurePanel({
   const [selectedSourceAreaName, setSelectedSourceAreaName] = useState("");
   const [selectedTargetAreaName, setSelectedTargetAreaName] = useState("");
   const selectedCategoryQuestions = selectedStructureCategory?.items.length ?? 0;
+  const scoreAreaOptions = availableScoreAreas.filter((area) => area !== selectedStructureCategory?.name);
+  const scoreAreaEntries = scoreAreaOptions.map((areaName, index) => ({
+    areaName,
+    number: index + 1,
+  }));
 
   useEffect(() => {
     if (mode === "edit" && !selectedStructureCategory && auditCategories.length > 0) {
@@ -126,12 +131,6 @@ export function StructurePanel({
 
     setSelectedSourceAreaName(scoreAreaOptions[0] ?? "");
   }, [scoreAreaOptions, selectedSourceAreaName]);
-
-  const scoreAreaOptions = availableScoreAreas.filter((area) => area !== selectedStructureCategory?.name);
-  const scoreAreaEntries = scoreAreaOptions.map((areaName, index) => ({
-    areaName,
-    number: index + 1,
-  }));
 
   const getItemsForArea = (areaName: string) => auditCategories.find((category) => category.name === areaName)?.items ?? [];
 
