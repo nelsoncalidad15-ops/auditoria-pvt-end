@@ -29,11 +29,11 @@ function normalizeText(value: string) {
 }
 
 const DEFAULT_SCORE_AREA_RULES = [
-  { category: "TÃ©cnicos", questionIncludes: "firma en cada campo de diagnostico y reparacion realizada", scoreLinks: [{ area: "Jefe de Taller", weight: 100 }] },
-  { category: "TÃ©cnicos", questionIncludes: "informa al jefe de taller", scoreLinks: [{ area: "Jefe de Taller", weight: 100 }] },
-  { category: "TÃ©cnicos", questionIncludes: "se llevan a cabo todas las tareas descriptas en el check list de mantenimiento", scoreLinks: [{ area: "Jefe de Taller", weight: 100 }] },
-  { category: "TÃ©cnicos", questionIncludes: "bidones de aceite con tapa", scoreLinks: [{ area: "Jefe de Taller", weight: 100 }] },
-  { category: "TÃ©cnicos", questionIncludes: "productos toxicos y o inflamables rotulados", scoreLinks: [{ area: "Jefe de Taller", weight: 100 }] },
+  { category: "T?cnicos", questionIncludes: "firma en cada campo de diagnostico y reparacion realizada", scoreLinks: [{ area: "Jefe de Taller", weight: 100 }] },
+  { category: "T?cnicos", questionIncludes: "informa al jefe de taller", scoreLinks: [{ area: "Jefe de Taller", weight: 100 }] },
+  { category: "T?cnicos", questionIncludes: "se llevan a cabo todas las tareas descriptas en el check list de mantenimiento", scoreLinks: [{ area: "Jefe de Taller", weight: 100 }] },
+  { category: "T?cnicos", questionIncludes: "bidones de aceite con tapa", scoreLinks: [{ area: "Jefe de Taller", weight: 100 }] },
+  { category: "T?cnicos", questionIncludes: "productos toxicos y o inflamables rotulados", scoreLinks: [{ area: "Jefe de Taller", weight: 100 }] },
   { category: "Pre Entrega", questionIncludes: "bidones de aceite con tapa", scoreLinks: [{ area: "Jefe de Taller", weight: 100 }] },
 ] as const;
 
@@ -231,3 +231,4 @@ export function resetAuditCategories(scope: AuditStructureScope = "global") {
   saveAuditCategories(defaults, scope);
   return defaults;
 }
+

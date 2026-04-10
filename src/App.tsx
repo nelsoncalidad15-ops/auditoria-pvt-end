@@ -84,11 +84,11 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
   }, []);
 
   if (error) {
-    let errorMessage = "OcurriÃ³ un error inesperado.";
+    let errorMessage = "Ocurri? un error inesperado.";
     try {
       const parsed = JSON.parse(error.message);
       if (parsed.error && parsed.error.includes("insufficient permissions")) {
-        errorMessage = "Error de permisos: No tienes autorizaciÃ³n para realizar esta operaciÃ³n.";
+        errorMessage = "Error de permisos: No tienes autorizaci?n para realizar esta operaci?n.";
       }
     } catch (e) {
       errorMessage = error.message || errorMessage;
@@ -98,7 +98,7 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
       <div className="min-h-screen flex items-center justify-center p-6 bg-red-50 text-center">
         <div className="space-y-4 max-w-sm">
           <XCircle className="w-16 h-16 text-red-500 mx-auto" />
-          <h1 className="text-xl font-bold text-red-900">Algo saliÃ³ mal</h1>
+          <h1 className="text-xl font-bold text-red-900">Algo sali? mal</h1>
           <p className="text-red-700 text-sm">{errorMessage}</p>
           <button 
             onClick={() => window.location.reload()}
@@ -185,13 +185,13 @@ const DEFAULT_OBSERVATION_SUGGESTIONS = [
   "Falta sello",
   "Documento incompleto",
   "No coincide con la unidad",
-  "No aplica por operaciÃ³n",
+  "No aplica por operaci?n",
 ];
 
 type OrdersSubmitMode = "continue" | "finish";
 
 function AuditApp() {
-  const appTitle = import.meta.env.VITE_APP_TITLE?.trim() || "AuditorÃ­a OR Postventa VW";
+  const appTitle = import.meta.env.VITE_APP_TITLE?.trim() || "Auditor? OR Postventa VW";
   const contentContainerRef = React.useRef<HTMLDivElement | null>(null);
   const envWebhookUrl = import.meta.env.VITE_APPS_SCRIPT_URL?.trim() || "";
   const envSheetCsvUrl = import.meta.env.VITE_SHEET_CSV_URL?.trim() || "";
@@ -217,7 +217,7 @@ function AuditApp() {
   const [isSendingToSheet, setIsSendingToSheet] = useState(false);
   const [lastIntegrationSavedAt, setLastIntegrationSavedAt] = useState<string | null>(storedIntegrationMeta?.timestamp ?? null);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(storedSyncMeta?.timestamp ?? null);
-  const [lastSyncMessage, setLastSyncMessage] = useState<string>(storedSyncMeta?.message || "TodavÃƒÂ­a no se ejecutÃƒÂ³ ninguna sincronizaciÃƒÂ³n manual.");
+  const [lastSyncMessage, setLastSyncMessage] = useState<string>(storedSyncMeta?.message || "Todav? no se ejecut? ninguna sincronizaci?n manual.");
   const [lastExportedAt, setLastExportedAt] = useState<string | null>(storedExportMeta?.timestamp ?? null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [focusedAuditItemId, setFocusedAuditItemId] = useState<string | null>(null);
@@ -358,7 +358,7 @@ function AuditApp() {
   });
   const isOrdersAudit = selectedRole === "Ordenes";
   const isServiceAdvisorAudit = selectedRole === "Asesores de servicio";
-  const isTechnicianAudit = selectedRole === "TÃ©cnicos";
+  const isTechnicianAudit = selectedRole === "T?cnicos";
   const isPreDeliveryAudit = selectedRole === "Pre Entrega";
   const auditedFileNames = Array.from({ length: 6 }, (_, index) => session.auditedFileNames?.[index] ?? "");
   const trimmedAuditedFileNames = auditedFileNames.map((name) => name.trim());
@@ -396,7 +396,7 @@ function AuditApp() {
     ? `Legajo auditado ${preDeliveryActiveLegajoIndex + 1}: ${activePreDeliveryLegajoName}`
     : null;
   const formatPreDeliveryLegajoQuestion = (question: string) => {
-    const separatorIndex = question.indexOf(" Â· ");
+    const separatorIndex = question.indexOf(" ? ");
     return separatorIndex >= 0 ? question.slice(separatorIndex + 3) : question;
   };
   const activePreDeliveryLegajoItems = isPreDeliveryAudit && activePreDeliveryLegajoTitle
@@ -516,7 +516,7 @@ function AuditApp() {
       ? [
           "Falta limpieza",
           "Detalle incompleto",
-          "No coincide con estÃ¡ndar",
+          "No coincide con est?ndar",
           "Elemento ausente",
           "Pendiente de corregir",
         ]
@@ -659,7 +659,7 @@ function AuditApp() {
     onResume: resumeDraftSession,
   });
 
-  // Filtrar solo borradores reales (excluir auditorías ya guardadas en historial)
+  // Filtrar solo borradores reales (excluir auditor?s ya guardadas en historial)
   const completedSessionIds = new Set([
     ...history.map((h) => h.id),
     ...completedAuditReports.map((r) => r.session.id),
@@ -667,7 +667,7 @@ function AuditApp() {
 
   const realDraftAudits = sortedDraftAudits.filter((draft) => !completedSessionIds.has(draft.id));
 
-  // Obtener auditorías incompletas del historial (< 100%)
+  // Obtener auditor?s incompletas del historial (< 100%)
   const incompletedHistoryAudits: IncompleteAuditListItem[] = history
     .filter((auditSession) => (auditSession.totalScore ?? 0) < 100)
     .map((auditSession) => ({
@@ -684,22 +684,22 @@ function AuditApp() {
     }))
     .sort((left, right) => right.date.localeCompare(left.date));
 
-  // Combinar borradores reales + auditorías incompletas del historial
+  // Combinar borradores reales + auditor?s incompletas del historial
   const allIncompleteAudits: IncompleteAuditListItem[] = [...realDraftAudits, ...incompletedHistoryAudits]
     .sort((left, right) => (right.updatedAt || "").localeCompare(left.updatedAt || ""));
 
-  // Actualizar sidebarItems para incluir "Continuar Auditoría" solo si hay borradores reales
+  // Actualizar sidebarItems para incluir "Continuar Auditor?" solo si hay borradores reales
   const updatedSidebarItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    ...(canRunAudits ? [{ id: "home", label: "Nueva Auditoría", icon: Plus }] : []),
-    ...(allIncompleteAudits.length > 0 ? [{ id: "continuar", label: "Continuar Auditoría", icon: Activity }] : []),
+    ...(canRunAudits ? [{ id: "home", label: "Nueva Auditor?", icon: Plus }] : []),
+    ...(allIncompleteAudits.length > 0 ? [{ id: "continuar", label: "Continuar Auditor?", icon: Activity }] : []),
     { id: "history", label: "Historial", icon: History },
     ...(canAccessStructure ? [{ id: "structure", label: "Estructura", icon: Settings }] : []),
     ...(canAccessIntegrations ? [{ id: "integrations", label: "Integraciones", icon: ShieldCheck }] : []),
   ];
 
   const technicianDraftSessions = realDraftAudits
-    .filter((draft) => (draft.role || draft.items[0]?.category) === "TÃ©cnicos")
+    .filter((draft) => (draft.role || draft.items[0]?.category) === "T?cnicos")
     .sort((left, right) => `${right.date}-${right.id}`.localeCompare(`${left.date}-${left.id}`));
 
   const getTechnicianAuditState = React.useCallback((staffName: string) => {
@@ -715,7 +715,7 @@ function AuditApp() {
 
     const currentDraft = technicianDraftSessions.find((draft) => draft.staffName?.trim() === normalizedName);
     const completedSession = technicianReviewSessions.find((sessionItem) => sessionItem.staffName?.trim() === normalizedName);
-    const isCurrentSelection = selectedRole === "TÃ©cnicos" && selectedStaff.trim() === normalizedName;
+    const isCurrentSelection = selectedRole === "T?cnicos" && selectedStaff.trim() === normalizedName;
 
     const currentItems = isCurrentSelection
       ? sessionItems
@@ -777,7 +777,7 @@ function AuditApp() {
       auditedFileNames: createEmptyAuditedFileNames(),
       participants: undefined,
     });
-    setSelectedRole("TÃ©cnicos");
+    setSelectedRole("T?cnicos");
     setSelectedStaff(trimmedStaff);
     setActiveAuditItemId(null);
     setFocusedAuditItemId(null);
@@ -1102,15 +1102,15 @@ function AuditApp() {
       console.error("Login failed:", error);
 
       if (error.code === 'auth/popup-blocked') {
-        alert("El navegador bloqueÃ³ la ventana de acceso. PermitÃ­ popups e intentÃ¡ de nuevo.");
+        alert("El navegador bloque? la ventana de acceso. Permit? popups e intent? de nuevo.");
       } else if (error.code === 'auth/unauthorized-domain') {
-        alert("Este dominio no estÃ¡ habilitado. Agregalo en Firebase Authentication > Settings > Authorized domains.");
+        alert("Este dominio no est? habilitado. Agregalo en Firebase Authentication > Settings > Authorized domains.");
       } else if (error.code === 'auth/operation-not-allowed') {
-        alert("Google no estÃ¡ habilitado como mÃ©todo de acceso en Firebase Authentication.");
+        alert("Google no est? habilitado como m?todo de acceso en Firebase Authentication.");
       } else if (error.code === 'auth/invalid-api-key') {
-        alert("La configuraciÃ³n de Firebase es invÃ¡lida. RevisÃ¡ la API key del proyecto.");
+        alert("La configuraci?n de Firebase es inv?lida. Revis? la API key del proyecto.");
       } else {
-        alert("No se pudo iniciar sesiÃ³n con Google. RevisÃ¡ la configuraciÃ³n de Firebase Authentication.");
+        alert("No se pudo iniciar sesi?n con Google. Revis? la configuraci?n de Firebase Authentication.");
       }
     } finally {
       setIsLoggingIn(false);
@@ -1146,32 +1146,32 @@ function AuditApp() {
     if (!selectedRole || !selectedAuditCategory) return;
 
     if (selectedRole === "Ordenes" && !/^\d{6}$/.test(session.orderNumber?.trim() || "")) {
-      alert("IngresÃ¡ un nÃºmero de OR vÃ¡lido de 6 dÃ­gitos.");
+      alert("Ingres? un n?mero de OR v?lido de 6 d?gitos.");
       return;
     }
 
     if (selectedRole === "Ordenes" && !session.participants?.asesorServicio?.trim()) {
-      alert("CompletÃ¡ el asesor de servicio antes de cerrar la OR.");
+      alert("Complet? el asesor de servicio antes de cerrar la OR.");
       return;
     }
 
     if (selectedRole === "Asesores de servicio" && !selectedStaff.trim()) {
-      alert("SeleccionÃ¡ el asesor de servicio antes de cerrar la auditorÃ­a.");
+      alert("Seleccion? el asesor de servicio antes de cerrar la auditor?a.");
       return;
     }
 
     if (selectedRole === "Asesores de servicio" && !session.clientIdentifier?.trim()) {
-      alert("IngresÃ¡ el nombre o VIN del cliente auditado.");
+      alert("Ingres? el nombre o VIN del cliente auditado.");
       return;
     }
 
-    if (selectedRole === "TÃ©cnicos" && !selectedStaff.trim()) {
-      alert("SeleccionÃ¡ el tÃ©cnico antes de cerrar la auditorÃ­a.");
+    if (selectedRole === "T?cnicos" && !selectedStaff.trim()) {
+      alert("Seleccion? el t?cnico antes de cerrar la auditor?a.");
       return;
     }
 
     if (failItemsWithoutCommentCount > 0) {
-      alert(`Hay ${failItemsWithoutCommentCount} desvÃ­os que requieren observaciÃ³n obligatoria antes del cierre.`);
+      alert(`Hay ${failItemsWithoutCommentCount} desv?os que requieren observaci?n obligatoria antes del cierre.`);
       return;
     }
 
@@ -1246,7 +1246,7 @@ function AuditApp() {
     };
     const shouldKeepOrdersAdvisor = completeSession.role === "Ordenes" && submitMode === "continue";
     const shouldKeepServiceAdvisor = completeSession.role === "Asesores de servicio" && submitMode === "continue";
-    const shouldKeepTechnicianFlow = completeSession.role === "TÃ©cnicos" && submitMode === "continue";
+    const shouldKeepTechnicianFlow = completeSession.role === "T?cnicos" && submitMode === "continue";
     const nextOrdersParticipants = shouldKeepOrdersAdvisor
       ? {
           asesorServicio: completeSession.participants?.asesorServicio?.trim() || "",
@@ -1292,7 +1292,7 @@ function AuditApp() {
           if (!hasWebhookUrl) {
             throw error;
           }
-          syncWarning = "La auditorÃ­a se enviÃ³, pero no quedÃ³ guardada en la persistencia secundaria.";
+          syncWarning = "La auditor?a se envi?, pero no qued? guardada en la persistencia secundaria.";
         }
       }
 
@@ -1343,7 +1343,7 @@ function AuditApp() {
         items: [],
       });
 
-      if (!((completeSession.role === "Ordenes" || completeSession.role === "Asesores de servicio" || completeSession.role === "TÃ©cnicos") && submitMode === "continue")) {
+      if (!((completeSession.role === "Ordenes" || completeSession.role === "Asesores de servicio" || completeSession.role === "T?cnicos") && submitMode === "continue")) {
         setSelectedRole(null);
       }
 
@@ -1352,11 +1352,11 @@ function AuditApp() {
       }
 
       if (!savedRemotely) {
-        alert("AuditorÃ­a guardada en este dispositivo.");
+        alert("Auditor? guardada en este dispositivo.");
       } else if (syncWarning) {
         alert(syncWarning);
       } else if (hasWebhookUrl) {
-        alert("AuditorÃ­a guardada correctamente.");
+        alert("Auditor? guardada correctamente.");
       }
     } catch (error) {
       console.error("Submit audit failed:", error);
@@ -1408,7 +1408,7 @@ function AuditApp() {
         items: [],
       });
 
-      if (!((completeSession.role === "Ordenes" || completeSession.role === "Asesores de servicio" || completeSession.role === "TÃ©cnicos") && submitMode === "continue")) {
+      if (!((completeSession.role === "Ordenes" || completeSession.role === "Asesores de servicio" || completeSession.role === "T?cnicos") && submitMode === "continue")) {
         setSelectedRole(null);
       }
 
@@ -1417,7 +1417,7 @@ function AuditApp() {
       }
 
       if (isFirebaseEnabled && (errorMessage.includes("Missing or insufficient permissions") || errorMessage.includes("insufficient permissions"))) {
-        const shouldLogin = window.confirm("Se guardÃ³ en este dispositivo. Firebase rechazÃ³ el acceso. Â¿QuerÃ©s iniciar sesiÃ³n con Google ahora?");
+        const shouldLogin = window.confirm("Se guard? en este dispositivo. Firebase rechaz? el acceso. ?Quer?s iniciar sesi?n con Google ahora?");
         if (shouldLogin) {
           void handleLogin();
         }
@@ -1425,7 +1425,7 @@ function AuditApp() {
       }
 
       if (isFirebaseEnabled && errorMessage.includes("authInfo") && errorMessage.includes('"userId":undefined')) {
-        const shouldLogin = window.confirm("Se guardÃ³ en este dispositivo. No hay una sesiÃ³n activa. Â¿QuerÃ©s iniciar sesiÃ³n con Google ahora?");
+        const shouldLogin = window.confirm("Se guard? en este dispositivo. No hay una sesi?n activa. ?Quer?s iniciar sesi?n con Google ahora?");
         if (shouldLogin) {
           void handleLogin();
         }
@@ -1433,11 +1433,11 @@ function AuditApp() {
       }
 
       if (hasWebhookUrl) {
-        alert(`No se pudo enviar la auditorÃ­a a Apps Script. Se guardÃ³ en este dispositivo.\n\nDetalle: ${errorMessage}`);
+        alert(`No se pudo enviar la auditor?a a Apps Script. Se guard? en este dispositivo.\n\nDetalle: ${errorMessage}`);
         return;
       }
 
-      alert("La auditorÃ­a se guardÃ³ en este dispositivo.");
+      alert("La auditor?a se guard? en este dispositivo.");
     }
   };
 
@@ -1543,7 +1543,7 @@ function AuditApp() {
 
   const syncData = async () => {
     if (!isHistorySyncConfigured) {
-      alert("ConfigurÃ¡ Apps Script o una URL CSV publicada para sincronizar datos.");
+      alert("Configur? Apps Script o una URL CSV publicada para sincronizar datos.");
       return;
     }
 
@@ -1560,8 +1560,8 @@ function AuditApp() {
         setLastSyncMessage(syncMessage);
         alert(
           externalAudits.length > 0
-            ? `Historial cargado desde Google Sheets. Se importaron ${externalAudits.length} auditorÃ­as.`
-            : "La fuente externa respondiÃ³ correctamente, pero no encontrÃ³ auditorÃ­as para importar."
+            ? `Historial cargado desde Google Sheets. Se importaron ${externalAudits.length} auditor?as.`
+            : "La fuente externa respondi? correctamente, pero no encontr? auditor?as para importar."
         );
         setIsSyncing(false);
         return;
@@ -1588,7 +1588,7 @@ function AuditApp() {
             persistMeta(SYNC_META_STORAGE_KEY, { timestamp, message: syncMessage });
             setLastSyncAt(timestamp);
             setLastSyncMessage(syncMessage);
-            alert("La fuente CSV respondiÃ³, pero tiene un formato invÃ¡lido o incompleto.");
+            alert("La fuente CSV respondi?, pero tiene un formato inv?lido o incompleto.");
             setIsSyncing(false);
             return;
           }
@@ -1609,7 +1609,7 @@ function AuditApp() {
       persistMeta(SYNC_META_STORAGE_KEY, { timestamp, message: syncMessage });
       setLastSyncAt(timestamp);
       setLastSyncMessage(syncMessage);
-      alert("No se pudo leer la fuente CSV publicada. RevisÃ¡ la URL y el acceso pÃºblico.");
+      alert("No se pudo leer la fuente CSV publicada. Revis? la URL y el acceso p?blico.");
       setIsSyncing(false);
     }
   };
@@ -1649,7 +1649,7 @@ function AuditApp() {
         onCloseMobileNav={() => setIsMobileNavOpen(false)}
         onBack={handleTopbarBack}
         onStartAudit={startNewAudit}
-        backLabel={view === "audit" ? "Volver a áreas" : undefined}
+        backLabel={view === "audit" ? "Volver a ?reas" : undefined}
       >
         <AnimatePresence mode="wait">
           {view === "dashboard" && (
@@ -1740,10 +1740,10 @@ function AuditApp() {
                       <div className="space-y-4">
                         <span className="inline-flex items-center gap-2 rounded-full bg-white/85 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 shadow-sm">
                           <div className="h-2 w-2 rounded-full bg-blue-600" />
-                          CategorÃ­as
+                          Categor?s
                         </span>
                         <div className="space-y-2">
-                          <h2 className="text-2xl font-black tracking-tight text-slate-950 lg:text-3xl">ElegÃ­ el Ã¡rea.</h2>
+                          <h2 className="text-2xl font-black tracking-tight text-slate-950 lg:text-3xl">Eleg? el ?rea.</h2>
                           {auditBatchDisplayName && (
                             <p className="text-sm font-bold text-slate-600">{auditBatchDisplayName}</p>
                           )}
@@ -1776,7 +1776,7 @@ function AuditApp() {
                           auditEntryTab === "areas" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"
                         )}
                       >
-                        ElegÃ­ el Ã¡rea
+                        Eleg? el ?rea
                       </button>
                       <button
                         type="button"
@@ -1823,14 +1823,14 @@ function AuditApp() {
                         >
                           <div className="w-10 h-10 bg-gray-50 rounded-[1rem] flex items-center justify-center group-hover:bg-blue-50 transition-colors">
                             {category.name.includes("Asesor") && <UserCheck className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
-                            {category.name.includes("TÃ©cnico") && <Wrench className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
+                            {category.name.includes("T?cnico") && <Wrench className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
                             {category.name.includes("Jefe") && <ShieldCheck className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
                             {category.name.includes("Lavadero") && <Droplets className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
-                            {category.name.includes("GarantÃ­a") && <FileCheck className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
+                            {category.name.includes("Garant?a") && <FileCheck className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
                             {category.name.includes("Repuestos") && <Package className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
                             {category.name.includes("Pre Entrega") && <Truck className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
                             {category.name.includes("Ordenes") && <FileText className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
-                            {![("Asesor"), ("TÃ©cnico"), ("Jefe"), ("Lavadero"), ("GarantÃ­a"), ("Repuestos"), ("Pre Entrega"), ("Ordenes")].some(k => category.name.includes(k)) && (
+                            {![("Asesor"), ("T?cnico"), ("Jefe"), ("Lavadero"), ("Garant?a"), ("Repuestos"), ("Pre Entrega"), ("Ordenes")].some(k => category.name.includes(k)) && (
                               <ClipboardList className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />
                             )}
                           </div>
@@ -1856,9 +1856,9 @@ function AuditApp() {
                             <thead>
                               <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
                                 <th className="px-2 py-2">Asesor</th>
-                                <th className="px-2 py-2">Ãreas incluidas</th>
+                                <th className="px-2 py-2">?reas incluidas</th>
                                 <th className="px-2 py-2 text-center">Resultado</th>
-                                <th className="px-2 py-2 text-center">AuditorÃ­as</th>
+                                <th className="px-2 py-2 text-center">Auditor?s</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1880,7 +1880,7 @@ function AuditApp() {
                                 </tr>
                               )) : (
                                 <tr>
-                                  <td className="px-2 py-3 text-xs font-bold text-slate-500" colSpan={4}>TodavÃ­a no hay auditorÃ­as de asesores para este proceso (OR y Asesores de servicio).</td>
+                                  <td className="px-2 py-3 text-xs font-bold text-slate-500" colSpan={4}>Todav?a no hay auditor?as de asesores para este proceso (OR y Asesores de servicio).</td>
                                 </tr>
                               )}
                             </tbody>
@@ -1891,8 +1891,8 @@ function AuditApp() {
                       <div className="rounded-[1.6rem] border border-slate-200 bg-white p-4 shadow-sm">
                         <div className="mb-3 flex items-center justify-between gap-3">
                           <div>
-                            <p className="text-sm font-black text-slate-900">TÃ©cnicos</p>
-                            <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Final = promedio simple entre OR y AuditorÃ­a TÃ©cnicos</p>
+                            <p className="text-sm font-black text-slate-900">T?cnicos</p>
+                            <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Final = promedio simple entre OR y Auditor? T?cnicos</p>
                           </div>
                           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600">{blendedTechnicianScoreRows.length} personas</span>
                         </div>
@@ -1900,11 +1900,11 @@ function AuditApp() {
                           <table className="min-w-full text-sm">
                             <thead>
                               <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-                                <th className="px-2 py-2">TÃ©cnico</th>
+                                <th className="px-2 py-2">T?cnico</th>
                                 <th className="px-2 py-2 text-center">OR</th>
-                                <th className="px-2 py-2 text-center">Aud. TÃ©cnicos</th>
+                                <th className="px-2 py-2 text-center">Aud. T?cnicos</th>
                                 <th className="px-2 py-2 text-center">Final</th>
-                                <th className="px-2 py-2 text-center">AuditorÃ­as</th>
+                                <th className="px-2 py-2 text-center">Auditor?s</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1918,7 +1918,7 @@ function AuditApp() {
                                 </tr>
                               )) : (
                                 <tr>
-                                  <td className="px-2 py-3 text-xs font-bold text-slate-500" colSpan={5}>TodavÃ­a no hay auditorÃ­as de tÃ©cnicos para este proceso.</td>
+                                  <td className="px-2 py-3 text-xs font-bold text-slate-500" colSpan={5}>Todav?a no hay auditor?as de t?cnicos para este proceso.</td>
                                 </tr>
                               )}
                             </tbody>
@@ -1928,16 +1928,16 @@ function AuditApp() {
 
                       <div className="rounded-[1.6rem] border border-slate-200 bg-white p-4 shadow-sm">
                         <div className="mb-3 flex items-center justify-between gap-3">
-                          <p className="text-sm font-black text-slate-900">Resultado por Ã¡rea</p>
-                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600">{areaScoreRows.length} Ã¡reas</span>
+                          <p className="text-sm font-black text-slate-900">Resultado por ?rea</p>
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600">{areaScoreRows.length} ?reas</span>
                         </div>
                         <div className="overflow-x-auto">
                           <table className="min-w-full text-sm">
                             <thead>
                               <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-                                <th className="px-2 py-2">Ãrea</th>
+                                <th className="px-2 py-2">?rea</th>
                                 <th className="px-2 py-2 text-center">Resultado</th>
-                                <th className="px-2 py-2 text-center">AuditorÃ­as</th>
+                                <th className="px-2 py-2 text-center">Auditor?s</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1975,20 +1975,20 @@ function AuditApp() {
                 <div className="audit-field-mobile-hero lg:hidden rounded-[1.6rem] border border-slate-200 bg-[linear-gradient(135deg,#081222_0%,#12345d_100%)] p-3.5 text-white shadow-[0_14px_34px_rgba(12,35,64,0.18)]">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">AuditorÃ­a en campo</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Auditor? en campo</p>
                       <h2 className="mt-1.5 text-lg font-black tracking-[-0.03em] text-white">{selectedRole}</h2>
                       <p className="mt-1.5 text-sm font-medium text-slate-300">
                         {isOrdersAudit
-                          ? `OR ${session.orderNumber || "sin nÃºmero"} Â· ${sessionParticipants.asesorServicio || "Sin asesor"}`
+                          ? `OR ${session.orderNumber || "sin n?mero"} ? ${sessionParticipants.asesorServicio || "Sin asesor"}`
                           : isServiceAdvisorAudit
-                            ? `${selectedStaff || "Sin asesor"} Â· ${session.clientIdentifier?.trim() || "Sin cliente/VIN"}`
+                            ? `${selectedStaff || "Sin asesor"} ? ${session.clientIdentifier?.trim() || "Sin cliente/VIN"}`
                           : isPreDeliveryAudit
                             ? `${auditedFileNames.filter((name) => name.trim()).length}/6 legajos cargados`
                             : (selectedStaff || "Sin personal asignado")}
                       </p>
                       {isOrdersAudit && (
                         <p className="mt-2 text-xs font-medium leading-relaxed text-slate-300">
-                          TÃ©cnico: {sessionParticipants.tecnico || "-"} Â· Controller: {sessionParticipants.controller || "-"} Â· Lavador: {sessionParticipants.lavador || "-"}
+                          T?cnico: {sessionParticipants.tecnico || "-"} ? Controller: {sessionParticipants.controller || "-"} ? Lavador: {sessionParticipants.lavador || "-"}
                         </p>
                       )}
                     </div>
@@ -2036,14 +2036,14 @@ function AuditApp() {
                               selectedRole === "Ordenes" ? "text-blue-100/80" : "text-gray-400"
                             )}>
                               {selectedRole === "Ordenes"
-                                ? `OR ${session.orderNumber || "sin nÃºmero"}`
+                                ? `OR ${session.orderNumber || "sin n?mero"}`
                                 : isServiceAdvisorAudit
                                   ? `Cliente/VIN ${session.clientIdentifier?.trim() || "sin dato"}`
-                                  : (auditBatchDisplayName || "AuditorÃ­a en curso")}
+                                  : (auditBatchDisplayName || "Auditor? en curso")}
                             </p>
                             {selectedRole === "Ordenes" && (
                               <p className="mt-1.5 max-w-[180px] text-[11px] font-medium leading-relaxed text-blue-100/80">
-                                Asesor {sessionParticipants.asesorServicio || "-"} Â· TÃ©cnico {sessionParticipants.tecnico || "-"}
+                                Asesor {sessionParticipants.asesorServicio || "-"} ? T?cnico {sessionParticipants.tecnico || "-"}
                               </p>
                             )}
                           </div>
@@ -2087,7 +2087,7 @@ function AuditApp() {
                             <p className="mt-1 text-sm font-black text-emerald-800">{sessionItems.filter(i => i.status === 'pass').length}</p>
                           </div>
                           <div className="rounded-lg bg-red-50 px-2 py-2 text-center">
-                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-red-700">DesvÃ­o</p>
+                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-red-700">Desv?o</p>
                             <p className="mt-1 text-sm font-black text-red-800">{sessionItems.filter(i => i.status === 'fail').length}</p>
                           </div>
                           <div className="rounded-lg bg-slate-100 px-2 py-2 text-center">
@@ -2211,8 +2211,8 @@ function AuditApp() {
                     {isTechnicianAudit && (technicianReviewSessions.length > 0 || technicianDraftSessions.length > 0) && (
                       <div className="audit-sidebar-card rounded-[1.3rem] border border-slate-200 bg-white px-3.5 py-3.5 shadow-sm space-y-3">
                         <div className="flex items-center justify-between gap-3">
-                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Evaluaciones de tÃ©cnicos</p>
-                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-700">{technicianDraftSessions.length + technicianReviewSessions.length} tÃ©cnicos</p>
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Evaluaciones de t?cnicos</p>
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-700">{technicianDraftSessions.length + technicianReviewSessions.length} t?cnicos</p>
                         </div>
                         <div className="space-y-2">
                           {technicianDraftSessions.map((draft) => (
@@ -2230,7 +2230,7 @@ function AuditApp() {
                               )}
                             >
                               <p className="text-xs font-black text-amber-950">{draft.staffName || "Sin nombre"}</p>
-                              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700">ðŸ“ Borrador Â· {draft.date}</p>
+                              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700">Y/o Borrador ? {draft.date}</p>
                             </button>
                           ))}
                           {technicianReviewSessions.map((auditSession) => (
@@ -2241,7 +2241,7 @@ function AuditApp() {
                               className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-left transition hover:border-emerald-300"
                             >
                               <p className="text-xs font-black text-slate-900">{auditSession.staffName}</p>
-                              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">{auditSession.totalScore}% Â· {auditSession.date}</p>
+                              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">{auditSession.totalScore}% ? {auditSession.date}</p>
                             </button>
                           ))}
                         </div>
@@ -2307,7 +2307,7 @@ function AuditApp() {
                     {isOrdersAudit && (
                       <div className="audit-sidebar-card rounded-[1.3rem] border border-slate-200 bg-white px-3.5 py-3.5 shadow-sm space-y-3">
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">NÃºmero de OR</label>
+                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">N?mero de OR</label>
                           <input
                             type="text"
                             inputMode="numeric"
@@ -2322,7 +2322,7 @@ function AuditApp() {
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
                           {([
                             ["asesorServicio", "Asesor de servicio", OR_PARTICIPANTS.asesorServicio, true],
-                            ["tecnico", "TÃ©cnico", OR_PARTICIPANTS.tecnico, false],
+                            ["tecnico", "T?cnico", OR_PARTICIPANTS.tecnico, false],
                             ["controller", "Controller", OR_PARTICIPANTS.controller, false],
                             ["lavador", "Lavador", OR_PARTICIPANTS.lavador, false],
                             ["repuestos", "Repuestos", OR_PARTICIPANTS.repuestos, false],
@@ -2398,7 +2398,7 @@ function AuditApp() {
                     {isPreDeliveryAudit && (
                       <div className="rounded-[1.3rem] border border-slate-200 bg-white px-3.5 py-3.5 shadow-sm space-y-3">
                         <div className="space-y-2">
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">SecciÃ³n activa</p>
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Secci?n activa</p>
                           <div className="grid grid-cols-2 gap-2">
                             <button
                               type="button"
@@ -2567,7 +2567,7 @@ function AuditApp() {
                                 : "border-slate-200 bg-white text-slate-600"
                             )}
                           >
-                            {isQuickAuditMode ? "Modo rÃ¡pido" : "Modo completo"}
+                            {isQuickAuditMode ? "Modo r?pido" : "Modo completo"}
                           </button>
                         </div>
 
@@ -2575,7 +2575,7 @@ function AuditApp() {
                           <div>
                             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Checklist</p>
                             <h3 className="mt-1 text-base font-black text-slate-950">
-                              {isOrdersAudit ? "OR Postventa" : isPreDeliveryAudit ? `Controles Â· ${preDeliverySection === "general" ? "General" : "Legajos"}` : "Controles"}
+                              {isOrdersAudit ? "OR Postventa" : isPreDeliveryAudit ? `Controles ? ${preDeliverySection === "general" ? "General" : "Legajos"}` : "Controles"}
                             </h3>
                           </div>
                           <div className="flex items-center gap-2">
@@ -2593,7 +2593,7 @@ function AuditApp() {
                                   : "border-slate-200 bg-white text-slate-600"
                               )}
                             >
-                              {isQuickAuditMode ? "Modo rÃ¡pido" : "Modo completo"}
+                              {isQuickAuditMode ? "Modo r?pido" : "Modo completo"}
                             </button>
                           </div>
                         </div>
@@ -2668,7 +2668,7 @@ function AuditApp() {
                                   </div>
                                 ) : (
                                   <div className="rounded-[1.2rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center">
-                                    <p className="text-sm font-bold text-slate-600">IngresÃ¡ un nombre en el legajo activo para ver sus controles.</p>
+                                    <p className="text-sm font-bold text-slate-600">Ingres? un nombre en el legajo activo para ver sus controles.</p>
                                   </div>
                                 )
                               )}
@@ -2726,7 +2726,7 @@ function AuditApp() {
                               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Cierre</p>
                               <p className="mt-2 text-sm font-black text-slate-900">Enviar</p>
                               {failItemsWithoutCommentCount > 0 && (
-                                <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">Faltan {failItemsWithoutCommentCount} observaciones obligatorias en desvÃ­os.</p>
+                                <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">Faltan {failItemsWithoutCommentCount} observaciones obligatorias en desv?os.</p>
                               )}
                             </div>
 
@@ -2750,7 +2750,7 @@ function AuditApp() {
                                   ) : (
                                     <>
                                       <Save className="w-4 h-4" />
-                                      {isServiceAdvisorAudit ? "Guardar y seguir con otro cliente" : isTechnicianAudit ? "Guardar y seguir con otro tÃ©cnico" : "Guardar y seguir con otra OR"}
+                                      {isServiceAdvisorAudit ? "Guardar y seguir con otro cliente" : isTechnicianAudit ? "Guardar y seguir con otro t?cnico" : "Guardar y seguir con otra OR"}
                                     </>
                                   )}
                                 </button>
@@ -2811,7 +2811,7 @@ function AuditApp() {
                             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Cierre</p>
                             <p className="mt-2 text-sm font-black text-slate-900">Enviar</p>
                             {failItemsWithoutCommentCount > 0 && (
-                              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">Faltan {failItemsWithoutCommentCount} observaciones obligatorias en desvÃ­os.</p>
+                              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">Faltan {failItemsWithoutCommentCount} observaciones obligatorias en desv?os.</p>
                             )}
                           </div>
 
@@ -2835,7 +2835,7 @@ function AuditApp() {
                                 ) : (
                                   <>
                                     <Save className="w-4 h-4" />
-                                    {isServiceAdvisorAudit ? "Guardar y seguir con otro cliente" : isTechnicianAudit ? "Guardar y seguir con otro tÃ©cnico" : "Guardar y seguir con otra OR"}
+                                    {isServiceAdvisorAudit ? "Guardar y seguir con otro cliente" : isTechnicianAudit ? "Guardar y seguir con otro t?cnico" : "Guardar y seguir con otra OR"}
                                   </>
                                 )}
                               </button>
@@ -3116,14 +3116,14 @@ function AuditApp() {
         onConfirm={() => submitAudit(pendingOrdersSubmitMode)}
         title={pendingOrdersSubmitMode === "continue"
           ? (isServiceAdvisorAudit
-            ? "Â¿Guardar y continuar con otro cliente?"
+            ? "?Guardar y continuar con otro cliente?"
             : isTechnicianAudit
-              ? "Â¿Guardar y continuar con otro tÃ©cnico?"
-              : "Â¿Guardar y continuar con otra OR?")
-          : "Â¿Guardar y finalizar auditorÃ­a?"}
+              ? "?Guardar y continuar con otro t?cnico?"
+              : "?Guardar y continuar con otra OR?")
+          : "¿Guardar y finalizar auditoría?"}
         message={pendingOrdersSubmitMode === "continue"
-          ? `Quedan ${optionalPendingCount} Ã­tems opcionales sin responder. Â¿DeseÃ¡s guardar esta evaluaciÃ³n y continuar igualmente?`
-          : `Quedan ${optionalPendingCount} Ã­tems opcionales sin responder. Â¿DeseÃ¡s finalizar igualmente?`}
+          ? `Quedan ${optionalPendingCount} ?tems opcionales sin responder. ?Dese?s guardar esta evaluaci?n y continuar igualmente?`
+          : `Quedan ${optionalPendingCount} ?tems opcionales sin responder. ?Dese?s finalizar igualmente?`}
       />
 
       <AnimatePresence>
@@ -3165,7 +3165,7 @@ function AuditApp() {
                         <div>
                           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{report.session.location}</p>
                           <h4 className="mt-2 text-xl font-black text-slate-950">{report.role}</h4>
-                          <p className="mt-1 text-sm font-bold text-slate-500">{report.session.staffName || report.auditorName} Â· {report.session.date}</p>
+                          <p className="mt-1 text-sm font-bold text-slate-500">{report.session.staffName || report.auditorName} ? {report.session.date}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-center text-emerald-700">
@@ -3261,7 +3261,7 @@ function AuditApp() {
             >
               <div className="p-8 border-b border-gray-100 flex justify-between items-start">
                 <div>
-                  <h3 className="text-xl font-black text-gray-900 leading-tight">Detalles de AuditorÃ­a</h3>
+                  <h3 className="text-xl font-black text-gray-900 leading-tight">Detalles de Auditor?</h3>
                   <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-1">
                     {selectedAudit.role || selectedAudit.items[0]?.category} - {selectedAudit.date}
                   </p>
@@ -3282,19 +3282,19 @@ function AuditApp() {
                     <p className="text-sm font-bold text-gray-700">{selectedAudit.staffName || "N/A"}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">UbicaciÃ³n</p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Ubicaci?n</p>
                     <p className="text-sm font-bold text-gray-700">{selectedAudit.location}</p>
                   </div>
                   {selectedAudit.orderNumber && (
                     <div>
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">NÃºmero de OR</p>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">N?mero de OR</p>
                       <p className="text-sm font-bold text-blue-600">{selectedAudit.orderNumber}</p>
                     </div>
                   )}
                 </div>
 
                 <div className="space-y-3">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Resultados por Ãtem</p>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Resultados por ?tem</p>
                   {selectedAudit.items.map((item, idx) => (
                     <div key={idx} className="p-4 bg-gray-50 rounded-2xl space-y-2">
                       <div className="flex justify-between items-start gap-4">
@@ -3335,7 +3335,7 @@ function AuditApp() {
         )}
       </AnimatePresence>
 
-      {/* Modal de confirmaciÃ³n de eliminaciÃ³n */}
+      {/* Modal de confirmaci?n de eliminaci?n */}
       <AnimatePresence>
         {deleteConfirmModal.show && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
@@ -3353,17 +3353,17 @@ function AuditApp() {
               className="relative bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl p-8 space-y-6"
             >
               <div>
-                <h3 className="text-xl font-black text-gray-900">Eliminar AuditorÃ­a</h3>
-                <p className="text-sm font-bold text-gray-600 mt-2">Â¿EstÃ¡s seguro de que deseas eliminar esta auditorÃ­a?</p>
+                <h3 className="text-xl font-black text-gray-900">Eliminar Auditor?</h3>
+                <p className="text-sm font-bold text-gray-600 mt-2">¿Estás seguro de que deseas eliminar esta auditoría?</p>
               </div>
 
               <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-2">
-                <p className="text-xs font-black text-red-700 uppercase">AuditorÃ­a a eliminar:</p>
+                <p className="text-xs font-black text-red-700 uppercase">Auditor? a eliminar:</p>
                 <p className="text-sm font-bold text-red-900 break-words">{deleteConfirmModal.auditName}</p>
               </div>
 
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
-                <p className="text-xs font-bold text-amber-700">âš ï¸ Esta acciÃ³n eliminarÃ¡ la auditorÃ­a de forma permanente de todos los sistemas (borradores y guardadas).</p>
+                <p className="text-xs font-bold text-amber-700">S?. Esta acci?n eliminar? la auditor?a de forma permanente de todos los sistemas (borradores y guardadas).</p>
               </div>
 
               <div className="flex gap-3">
@@ -3397,3 +3397,4 @@ export default function App() {
     </ErrorBoundary>
   );
 }
+

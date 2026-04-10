@@ -99,7 +99,7 @@ export function useAuditSync({ isAuthReady, user, hasWebhookUrl, webhookUrl, has
 
   const saveToFirestore = useCallback(async (newSession: AuditSession) => {
     if (!db) {
-      throw new Error("Firebase no está configurado.");
+      throw new Error("Firebase no est? configurado.");
     }
 
     try {

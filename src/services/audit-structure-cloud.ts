@@ -33,7 +33,7 @@ export async function saveAuditCategoriesToCloud(
   updatedByEmail?: string | null
 ) {
   if (!db) {
-    throw new Error("Firebase no está configurado para guardar estructura en la nube.");
+    throw new Error("Firebase no est? configurado para guardar estructura en la nube.");
   }
 
   const docPath = getAuditStructureDocPath(scope);

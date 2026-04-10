@@ -32,9 +32,9 @@ export function HistoryAuditDetailModal({ audit, isOpen, onClose }: HistoryAudit
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Detalle</p>
-                  <h3 className="mt-2 text-2xl font-black tracking-[-0.04em] text-slate-950">Detalle de auditoría</h3>
+                  <h3 className="mt-2 text-2xl font-black tracking-[-0.04em] text-slate-950">Detalle de auditor?a</h3>
                   <p className="mt-2 text-sm font-bold text-slate-500">
-                    {(audit.role || audit.items[0]?.category || "General")} · {audit.date}
+                    {(audit.role || audit.items[0]?.category || "General")} ? {audit.date}
                   </p>
                 </div>
                 <div
@@ -59,19 +59,19 @@ export function HistoryAuditDetailModal({ audit, isOpen, onClose }: HistoryAudit
                   <p className="mt-2 text-sm font-bold text-slate-800">{audit.staffName || "Sin asignar"}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Ubicación</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Ubicaci?n</p>
                   <p className="mt-2 text-sm font-bold text-slate-800">{audit.location}</p>
                 </div>
                 {audit.orderNumber && (
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Número de OR</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">N?mero de OR</p>
                     <p className="mt-2 text-sm font-bold text-blue-700">{audit.orderNumber}</p>
                   </div>
                 )}
               </div>
 
               <div className="space-y-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Resultados por ítem</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Resultados por ?tem</p>
                 {audit.items.map((item) => (
                   <article key={item.id} className="rounded-[1.3rem] border border-slate-200 bg-white px-4 py-4 shadow-[0_12px_30px_rgba(15,23,42,0.04)]">
                     <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
@@ -115,3 +115,4 @@ export function HistoryAuditDetailModal({ audit, isOpen, onClose }: HistoryAudit
     </AnimatePresence>
   );
 }
+

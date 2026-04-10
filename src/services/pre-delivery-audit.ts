@@ -7,7 +7,7 @@ function normalizeWeight(value?: number) {
 }
 
 function buildLegajoQuestionLabel(legajoName: string, question: string) {
-  return `${legajoName} · ${question}`;
+  return `${legajoName} ? ${question}`;
 }
 
 export function buildPreDeliveryTemplateItems(templateItems: AuditTemplateItem[], auditedFileNames: string[]): AuditTemplateItem[] {
@@ -62,3 +62,4 @@ export function buildPreDeliveryAuditItems(
     };
   });
 }
+

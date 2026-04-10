@@ -88,7 +88,7 @@ export function AuditMobileSections({
                       />
                     )) : (
                       <div className="rounded-[1.2rem] border border-dashed border-slate-300 bg-white px-4 py-6 text-center">
-                        <p className="text-sm font-bold text-slate-500">Sin ítems en este bloque.</p>
+                        <p className="text-sm font-bold text-slate-500">Sin ?tems en este bloque.</p>
                       </div>
                     )}
                   </div>

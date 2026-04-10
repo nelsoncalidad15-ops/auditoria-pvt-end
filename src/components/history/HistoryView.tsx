@@ -159,7 +159,7 @@ export function HistoryView({
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="rounded-[1.4rem] border border-slate-200 bg-white px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Lectura</p><p className="mt-2 text-sm font-black text-slate-900">Listado maestro</p><p className="mt-2 text-sm font-medium text-slate-500">Selecciona un registro para abrir el detalle completo.</p></div>
                   <div className="rounded-[1.4rem] border border-slate-200 bg-white px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Filtro</p><p className="mt-2 text-sm font-black text-slate-900">Busqueda unificada</p><p className="mt-2 text-sm font-medium text-slate-500">Soporta asesor, categoria, ubicacion y OR.</p></div>
-                  <div className="rounded-[1.4rem] border border-slate-200 bg-white px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Accion</p><p className="mt-2 text-sm font-black text-slate-900">Exportar o sincronizar</p><p className="mt-2 text-sm font-medium text-slate-500">Pasa a la segunda pestaña para salida y verificacion externa.</p></div>
+                  <div className="rounded-[1.4rem] border border-slate-200 bg-white px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Accion</p><p className="mt-2 text-sm font-black text-slate-900">Exportar o sincronizar</p><p className="mt-2 text-sm font-medium text-slate-500">Pasa a la segunda pesta?a para salida y verificacion externa.</p></div>
                 </div>
               </div>
 
@@ -203,7 +203,7 @@ export function HistoryView({
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Detalle</p>
                       <h3 className="mt-2 text-xl font-black text-slate-950">{selectedHistoryAudit.location}</h3>
-                      <p className="mt-1 text-xs font-bold uppercase tracking-widest text-slate-500">{selectedHistoryAudit.role || selectedHistoryAudit.items[0]?.category} · {selectedHistoryAudit.date}</p>
+                      <p className="mt-1 text-xs font-bold uppercase tracking-widest text-slate-500">{selectedHistoryAudit.role || selectedHistoryAudit.items[0]?.category} ? {selectedHistoryAudit.date}</p>
                     </div>
                     <div className={cn("rounded-2xl px-4 py-3 text-lg font-black", selectedHistoryAudit.totalScore >= 90 ? "bg-green-50 text-green-600" : selectedHistoryAudit.totalScore >= 70 ? "bg-yellow-50 text-yellow-600" : "bg-red-50 text-red-600")}>{selectedHistoryAudit.totalScore}%</div>
                   </div>
@@ -215,7 +215,7 @@ export function HistoryView({
                     {selectedHistoryAudit.auditedFileNames?.some((name) => name?.trim()) && (
                       <div className="col-span-2 rounded-[1.4rem] border border-slate-200 bg-white px-4 py-4">
                         <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Legajos auditados</p>
-                        <p className="mt-2 text-sm font-black text-slate-900">{selectedHistoryAudit.auditedFileNames.filter((name) => name?.trim()).join(" · ")}</p>
+                        <p className="mt-2 text-sm font-black text-slate-900">{selectedHistoryAudit.auditedFileNames.filter((name) => name?.trim()).join(" ? ")}</p>
                       </div>
                     )}
                   </div>
@@ -307,3 +307,4 @@ export function HistoryView({
     </>
   );
 }
+

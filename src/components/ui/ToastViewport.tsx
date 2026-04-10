@@ -79,7 +79,7 @@ function ToastCard({
         <button
           onClick={() => onDismiss(toast.id)}
           className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-current/60 transition-colors hover:bg-white/70 hover:text-current"
-          aria-label="Cerrar notificación"
+          aria-label="Cerrar notificaci?n"
         >
           <X className="h-4 w-4" />
         </button>
@@ -101,3 +101,4 @@ export function ToastViewport({ toasts, onDismiss }: ToastViewportProps) {
     </div>
   );
 }
+

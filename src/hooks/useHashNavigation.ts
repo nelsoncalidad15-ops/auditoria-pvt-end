@@ -44,7 +44,7 @@ export function useHashNavigation({ view, selectedRole, setView, setSelectedRole
     }
 
     if (normalizedSegment === "tecnicos") {
-      return "Técnicos";
+      return "T?cnicos";
     }
 
     if (normalizedSegment === "pre-entrega") {
@@ -56,7 +56,7 @@ export function useHashNavigation({ view, selectedRole, setView, setSelectedRole
     }
 
     if (normalizedSegment === "garantia") {
-      return "Garantía";
+      return "Garant?a";
     }
 
     if (normalizedSegment === "repuestos") {
@@ -266,3 +266,4 @@ export function useHashNavigation({ view, selectedRole, setView, setSelectedRole
     handleTopbarBack,
   };
 }
+

@@ -3,7 +3,7 @@ import autoTable from "jspdf-autotable";
 
 import { AuditSession, AuditTemplateItem } from "../types";
 
-// ─── Colores corporativos ──────────────────────────────────────────────────────
+// ?"??"??"? Colores corporativos ?"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"?
 const COLOR_DARK_BLUE: [number, number, number] = [12, 35, 64];
 const COLOR_MID_BLUE: [number, number, number] = [30, 64, 120];
 const COLOR_LIGHT_GRAY: [number, number, number] = [241, 245, 249];
@@ -14,7 +14,7 @@ const COLOR_FAIL: [number, number, number] = [220, 38, 38];
 const COLOR_NA: [number, number, number] = [100, 116, 139];
 const COLOR_PENDING: [number, number, number] = [234, 88, 12];
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
+// ?"??"??"? Helpers ?"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"?
 
 function sanitizeFileName(value: string) {
   return value
@@ -72,17 +72,17 @@ function drawPageFooter(pdf: jsPDF, sessionId: string) {
   pdf.setFontSize(7.5);
   pdf.setTextColor(...COLOR_TEXT_MUTED);
   pdf.setFont("helvetica", "normal");
-  pdf.text(`Auditoría ${sessionId}`, 14, pageHeight - 5);
-  pdf.text(`Página ${pdf.getCurrentPageInfo().pageNumber}`, pageWidth - 14, pageHeight - 5, { align: "right" });
+  pdf.text(`Auditor?a ${sessionId}`, 14, pageHeight - 5);
+  pdf.text(`P?gina ${pdf.getCurrentPageInfo().pageNumber}`, pageWidth - 14, pageHeight - 5, { align: "right" });
 }
 
 function drawSectionHeader(pdf: jsPDF, title: string, score: number, y: number) {
   const pageWidth = pdf.internal.pageSize.getWidth();
-  // Barra azul de sección
+  // Barra azul de secci?n
   pdf.setFillColor(...COLOR_DARK_BLUE);
   pdf.roundedRect(14, y, pageWidth - 28, 10, 1.5, 1.5, "F");
 
-  // Nombre sección
+  // Nombre secci?n
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(10);
   pdf.setTextColor(255, 255, 255);
@@ -107,7 +107,7 @@ function drawScoreBar(pdf: jsPDF, score: number, x: number, y: number, w: number
   pdf.rect(x, y, fillW, h, "F");
 }
 
-// ─── Página 1: Portada y resumen ───────────────────────────────────────────────
+// ?"??"??"? P?gina 1: Portada y resumen ?"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"?
 
 function drawCoverPage(
   pdf: jsPDF,
@@ -123,7 +123,7 @@ function drawCoverPage(
   const pageWidth = pdf.internal.pageSize.getWidth();
   const createdAt = new Date();
 
-  // ── Cabecera ────────────────
+  // ?"??"? Cabecera ?"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"?
   pdf.setFillColor(...COLOR_DARK_BLUE);
   pdf.rect(0, 0, pageWidth, 38, "F");
 
@@ -134,7 +134,7 @@ function drawCoverPage(
 
   pdf.setFontSize(10);
   pdf.setFont("helvetica", "normal");
-  pdf.text("Reporte de Auditoría", 14, 22);
+  pdf.text("Reporte de Auditor?a", 14, 22);
   pdf.text(`Generado: ${createdAt.toLocaleString("es-AR")}`, 14, 28);
 
   // Score total grande arriba a la derecha
@@ -150,11 +150,11 @@ function drawCoverPage(
   pdf.setFont("helvetica", "normal");
   pdf.text("PUNTAJE TOTAL", pageWidth - 14 - 17, 27, { align: "center" });
 
-  // ── Datos generales ─────────
+  // ?"??"? Datos generales ?"??"??"??"??"??"??"??"??"?
   pdf.setTextColor(...COLOR_TEXT_DARK);
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(11);
-  pdf.text("Datos de la auditoría", 14, 50);
+  pdf.text("Datos de la auditor?a", 14, 50);
 
   autoTable(pdf, {
     startY: 54,
@@ -164,7 +164,7 @@ function drawCoverPage(
       ["Fecha", session.date],
       ["Sucursal", session.location],
       ["Auditor", auditorName],
-      ["Puesto / Área", session.role || "General"],
+      ["Puesto / ?rea", session.role || "General"],
       ...(session.role === "Pre Entrega"
         ? []
         : [["Personal auditado", session.staffName || "Sin asignar"]]),
@@ -180,12 +180,12 @@ function drawCoverPage(
     },
   });
 
-  // ── Resumen por sección ─────
+  // ?"??"? Resumen por secci?n ?"??"??"??"??"?
   const afterInfoY = getLastY(pdf as PdfWithTable, 100);
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(11);
   pdf.setTextColor(...COLOR_TEXT_DARK);
-  pdf.text("Resumen por sección", 14, afterInfoY + 10);
+  pdf.text("Resumen por secci?n", 14, afterInfoY + 10);
 
   const sectionRows = groupedSections.map(([sectionName, items]) => {
     const m = getSectionMetrics(items, session);
@@ -196,7 +196,7 @@ function drawCoverPage(
     startY: afterInfoY + 14,
     theme: "grid",
     styles: { fontSize: 9, cellPadding: 3, textColor: [51, 65, 85] },
-    head: [["Sección", "Items", "✓ Cumple", "✗ No cumple", "— N/A", "⏳ Pendiente", "Score"]],
+    head: [["Seccion", "Items", "Cumple", "No cumple", "N/A", "Pendiente", "Score"]],
     headStyles: {
       fillColor: COLOR_DARK_BLUE,
       textColor: [255, 255, 255],
@@ -248,14 +248,14 @@ function drawCoverPage(
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(9);
     pdf.setTextColor(...COLOR_TEXT_DARK);
-    pdf.text("Índice visual de cumplimiento", 14, afterTableY + 8);
+    pdf.text("?ndice visual de cumplimiento", 14, afterTableY + 8);
 
     sectionRows.forEach(({ sectionName, m }, i) => {
       const rowY = afterTableY + 13 + i * barRowH;
       pdf.setFontSize(7.5);
       pdf.setFont("helvetica", "normal");
       pdf.setTextColor(...COLOR_TEXT_DARK);
-      const label = sectionName.length > 35 ? sectionName.slice(0, 33) + "…" : sectionName;
+      const label = sectionName.length > 35 ? sectionName.slice(0, 33) + "???" : sectionName;
       pdf.text(label, 14, rowY + 2.5);
       drawScoreBar(pdf, m.score, 90, rowY, 80);
       const scoreCol = m.score >= 85 ? COLOR_PASS : m.score >= 60 ? COLOR_PENDING : COLOR_FAIL;
@@ -269,7 +269,7 @@ function drawCoverPage(
   drawPageFooter(pdf, session.id);
 }
 
-// ─── Páginas de detalle por sección ────────────────────────────────────────────
+// ?"??"??"? P?ginas de detalle por secci?n ?"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"?
 
 function drawSectionDetailPage(
   pdf: jsPDF,
@@ -286,10 +286,10 @@ function drawSectionDetailPage(
 
   const metrics = getSectionMetrics(items, session);
 
-  // Encabezado de sección
+  // Encabezado de secci?n
   drawSectionHeader(pdf, sectionName, metrics.score, 14);
 
-  // Mini-resumen de la sección
+  // Mini-resumen de la secci?n
   const pageWidth = pdf.internal.pageSize.getWidth();
   const statItems = [
     { label: "Cumple", value: metrics.passCount, color: COLOR_PASS },
@@ -313,12 +313,12 @@ function drawSectionDetailPage(
     pdf.text(label, bx + boxW / 2, 38.5, { align: "center" });
   });
 
-  // Tabla de ítems
+  // Tabla de ?tems
   autoTable(pdf, {
     startY: 46,
     theme: "striped",
     styles: { fontSize: 8.5, cellPadding: 2.6, textColor: [51, 65, 85], overflow: "linebreak" },
-    head: [["#", "Ítem evaluado", "Estado", "Observación"]],
+    head: [["#", "?tem evaluado", "Estado", "Observaci?n"]],
     headStyles: {
       fillColor: COLOR_MID_BLUE,
       textColor: [255, 255, 255],
@@ -357,7 +357,7 @@ function drawSectionDetailPage(
   drawPageFooter(pdf, session.id);
 }
 
-// ─── Export principal ──────────────────────────────────────────────────────────
+// ?"??"??"? Export principal ?"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"?
 
 export function generateAuditPdfReport(params: {
   appTitle: string;
@@ -379,10 +379,10 @@ export function generateAuditPdfReport(params: {
     }, new Map<string, AuditTemplateItem[]>())
   );
 
-  // Página 1: portada + resumen completo
+  // P?gina 1: portada + resumen completo
   drawCoverPage(pdf, { appTitle, session, auditorName, auditedFileNames, groupedSections });
 
-  // Páginas siguientes: una por sección
+  // P?ginas siguientes: una por secci?n
   groupedSections.forEach(([sectionName, items], index) => {
     drawSectionDetailPage(pdf, sectionName, items, session, index === 0);
   });

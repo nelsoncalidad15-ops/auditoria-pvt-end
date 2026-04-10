@@ -66,7 +66,7 @@ export function ContinueAuditsView({ audits, onResume, onDelete }: ContinueAudit
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-black text-slate-900 break-words">{audit.auditBatchName || "Auditoria sin nombre"}</p>
-                    <p className="mt-1 text-xs font-bold text-slate-500">{progress.badgeLabel} · {audit.date}</p>
+                    <p className="mt-1 text-xs font-bold text-slate-500">{progress.badgeLabel} ? {audit.date}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <button
@@ -142,3 +142,4 @@ export function ContinueAuditsView({ audits, onResume, onDelete }: ContinueAudit
     </div>
   );
 }
+

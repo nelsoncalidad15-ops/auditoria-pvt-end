@@ -97,7 +97,7 @@ export function useAuditSessionActions({
       notes: auditSession.notes,
       items: auditSession.items,
     });
-    setSelectedRole("Técnicos");
+    setSelectedRole("T?cnicos");
     setSelectedStaff(auditSession.staffName?.trim() || "");
     setActiveAuditItemId(null);
     setFocusedAuditItemId(null);
@@ -106,7 +106,7 @@ export function useAuditSessionActions({
 
   const startNewAudit = React.useCallback(() => {
     if (!canRunAudits) {
-      alert("El perfil Consulta no puede iniciar ni editar auditorías.");
+      alert("El perfil Consulta no puede iniciar ni editar auditor?as.");
       return;
     }
 
@@ -148,7 +148,7 @@ export function useAuditSessionActions({
 
   const handleSetupSubmit = React.useCallback(() => {
     if (!canRunAudits) {
-      alert("El perfil Consulta no puede iniciar auditorías.");
+      alert("El perfil Consulta no puede iniciar auditor?as.");
       return;
     }
 
@@ -211,3 +211,4 @@ export function useAuditSessionActions({
     handleRequestDeleteIncompleteAudit,
   };
 }
+

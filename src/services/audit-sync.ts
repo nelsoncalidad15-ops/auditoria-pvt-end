@@ -190,7 +190,7 @@ export async function sendAuditToWebhook(webhookUrl: string, payload: AuditSyncP
   });
 
   if (!response.ok) {
-    throw new Error(`No se pudo enviar la auditoría (${response.status}).`);
+    throw new Error(`No se pudo enviar la auditor?a (${response.status}).`);
   }
 
   const responseText = await response.text();
@@ -199,11 +199,11 @@ export async function sendAuditToWebhook(webhookUrl: string, payload: AuditSyncP
   try {
     parsedResponse = JSON.parse(responseText) as AuditWebhookResponse;
   } catch {
-    throw new Error("Apps Script respondió con un formato inválido.");
+    throw new Error("Apps Script respondi? con un formato inv?lido.");
   }
 
   if (!parsedResponse.ok) {
-    throw new Error(parsedResponse.error || "Apps Script rechazó la auditoría.");
+    throw new Error(parsedResponse.error || "Apps Script rechaz? la auditor?a.");
   }
 
   return parsedResponse;
@@ -253,7 +253,7 @@ export async function fetchAuditHistoryFromWebhook(webhookUrl: string): Promise<
 
   const payload = (await response.json()) as AuditHistoryResponse;
   if (!payload.ok) {
-    throw new Error(payload.error || "La fuente externa devolvió una respuesta inválida.");
+    throw new Error(payload.error || "La fuente externa devolvi? una respuesta inv?lida.");
   }
 
   const summaryRows = Array.isArray(payload.summaryRows) ? payload.summaryRows : [];
@@ -334,3 +334,4 @@ export async function fetchAuditHistoryFromWebhook(webhookUrl: string): Promise<
     })
     .sort((left, right) => right.date.localeCompare(left.date));
 }
+

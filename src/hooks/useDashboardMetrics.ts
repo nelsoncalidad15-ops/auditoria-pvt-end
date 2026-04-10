@@ -69,7 +69,7 @@ export function useDashboardMetrics(history: AuditSession[]) {
     const sparePartsRanking = calculatePersonScores(ordersHistory, "repuestos", "repuestos");
     const rankingPanels = [
       { id: "asesor", label: "Asesores", data: advisorRanking },
-      { id: "tecnico", label: "Técnicos", data: technicianRanking },
+      { id: "tecnico", label: "T?cnicos", data: technicianRanking },
       { id: "controller", label: "Controllers", data: controllerRanking },
       { id: "lavador", label: "Lavadores", data: washerRanking },
       { id: "repuestos", label: "Repuestos", data: sparePartsRanking },
@@ -187,25 +187,25 @@ export function useDashboardMetrics(history: AuditSession[]) {
       {
         label: "Cobertura mensual",
         value: `${currentMonthDashboard.totalAudits} evaluaciones`,
-        detail: `${coveredLocationsThisMonth}/${LOCATIONS.length} sedes con actividad. ${currentMonthDashboard.pendingTarget > 0 ? `Falta cobertura mensual en ${pendingLocationsThisMonth.join(" y ")}.` : "Salta y Jujuy ya tuvieron evaluación este mes."}`,
+        detail: `${coveredLocationsThisMonth}/${LOCATIONS.length} sedes con actividad. ${currentMonthDashboard.pendingTarget > 0 ? `Falta cobertura mensual en ${pendingLocationsThisMonth.join(" y ")}.` : "Salta y Jujuy ya tuvieron evaluaci?n este mes."}`,
         tone: coveredLocationsThisMonth === LOCATIONS.length ? "success" : currentMonthDashboard.totalAudits > 0 ? "warning" : "danger",
       },
       {
-        label: "Área a seguir",
-        value: currentMonthLowestRole ? `${currentMonthLowestRole.role} · ${currentMonthLowestRole.averageScore}%` : "Sin datos",
-        detail: currentMonthLowestRole ? `${currentMonthLowestRole.evaluations} evaluaciones en el mes actual.` : "Todavía no hay áreas evaluadas este mes.",
+        label: "?rea a seguir",
+        value: currentMonthLowestRole ? `${currentMonthLowestRole.role} ? ${currentMonthLowestRole.averageScore}%` : "Sin datos",
+        detail: currentMonthLowestRole ? `${currentMonthLowestRole.evaluations} evaluaciones en el mes actual.` : "Todav?a no hay ?reas evaluadas este mes.",
         tone: currentMonthLowestRole ? currentMonthLowestRole.averageScore >= 90 ? "success" : currentMonthLowestRole.averageScore >= 70 ? "warning" : "danger" : "warning",
       },
       {
         label: "Colaborador a revisar",
-        value: currentMonthLowestStaff ? `${currentMonthLowestStaff.staffName} · ${currentMonthLowestStaff.averageScore}%` : "Sin datos",
-        detail: currentMonthLowestStaff ? `${currentMonthLowestStaff.role} · ${currentMonthLowestStaff.location} · ${currentMonthLowestStaff.count} evaluación(es).` : "Todavía no hay colaboradores evaluados este mes.",
+        value: currentMonthLowestStaff ? `${currentMonthLowestStaff.staffName} ? ${currentMonthLowestStaff.averageScore}%` : "Sin datos",
+        detail: currentMonthLowestStaff ? `${currentMonthLowestStaff.role} ? ${currentMonthLowestStaff.location} ? ${currentMonthLowestStaff.count} evaluaci?n(es).` : "Todav?a no hay colaboradores evaluados este mes.",
         tone: currentMonthLowestStaff ? currentMonthLowestStaff.averageScore >= 90 ? "success" : currentMonthLowestStaff.averageScore >= 70 ? "warning" : "danger" : "warning",
       },
       {
         label: "Promedio del mes",
         value: currentMonthDashboard.totalAudits > 0 ? `${currentMonthDashboard.averageScore}%` : "Sin datos",
-        detail: currentMonthDashboard.totalAudits > 0 ? `${currentMonthDashboard.approvedCount} aprobadas y ${monthlyCriticalAudits} críticas.` : "Todavía no hay cierres registrados en el mes actual.",
+        detail: currentMonthDashboard.totalAudits > 0 ? `${currentMonthDashboard.approvedCount} aprobadas y ${monthlyCriticalAudits} cr?ticas.` : "Todav?a no hay cierres registrados en el mes actual.",
         tone: currentMonthDashboard.averageScore >= 90 ? "success" : currentMonthDashboard.averageScore >= 70 ? "warning" : "danger",
       },
     ] as const;

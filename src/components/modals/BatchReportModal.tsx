@@ -78,7 +78,7 @@ export function BatchReportModal({
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{report.session.location}</p>
                         <h4 className="mt-2 text-xl font-black text-slate-950">{report.role}</h4>
-                        <p className="mt-1 text-sm font-bold text-slate-500">{report.session.staffName || report.auditorName} · {report.session.date}</p>
+                        <p className="mt-1 text-sm font-bold text-slate-500">{report.session.staffName || report.auditorName} ? {report.session.date}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-center text-emerald-700">
@@ -159,3 +159,4 @@ export function BatchReportModal({
     </AnimatePresence>
   );
 }
+

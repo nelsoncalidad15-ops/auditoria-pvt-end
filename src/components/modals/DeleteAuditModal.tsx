@@ -33,16 +33,16 @@ export function DeleteAuditModal({ isOpen, auditName, onClose, onConfirm }: Dele
                 <AlertTriangle className="h-6 w-6" />
               </div>
               <div className="space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-red-500">Acción sensible</p>
-                <h3 className="text-2xl font-black tracking-[-0.04em] text-slate-950">Eliminar auditoría</h3>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-red-500">Acci?n sensible</p>
+                <h3 className="text-2xl font-black tracking-[-0.04em] text-slate-950">Eliminar auditor?a</h3>
                 <p className="text-sm font-medium leading-relaxed text-slate-500">
-                  Esta acción quita el borrador de forma permanente del dispositivo actual.
+                  Esta acci?n quita el borrador de forma permanente del dispositivo actual.
                 </p>
               </div>
             </div>
 
             <div className="rounded-[1.4rem] border border-red-100 bg-red-50/80 px-4 py-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-red-600">Auditoría seleccionada</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-red-600">Auditor?a seleccionada</p>
               <p className="mt-2 text-sm font-bold leading-relaxed text-red-950 break-words">{auditName}</p>
             </div>
 
@@ -60,3 +60,4 @@ export function DeleteAuditModal({ isOpen, auditName, onClose, onConfirm }: Dele
     </AnimatePresence>
   );
 }
+

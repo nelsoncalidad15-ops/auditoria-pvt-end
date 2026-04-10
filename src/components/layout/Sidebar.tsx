@@ -35,7 +35,7 @@ export function Sidebar({ appTitle, show, view, isMobileOpen, items, user, onNav
 
       <nav className="flex-1 min-h-0 overflow-y-auto px-4 py-5 space-y-2 sidebar-scroll">
         <div className="px-3 pb-2">
-          <p className="text-[10px] font-black text-blue-200/65 uppercase tracking-[0.2em]">Operación</p>
+          <p className="text-[10px] font-black text-blue-200/65 uppercase tracking-[0.2em]">Operaci?n</p>
         </div>
 
         {items.map((item) => (
@@ -141,3 +141,4 @@ export function Sidebar({ appTitle, show, view, isMobileOpen, items, user, onNav
     </>
   );
 }
+

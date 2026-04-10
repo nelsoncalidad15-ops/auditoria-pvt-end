@@ -626,7 +626,7 @@ export function StructurePanel({
 
               <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-3 lg:hidden">
                 <p className="text-xs font-semibold text-slate-500">
-                  En celular no se muestra la matriz de puntaje. Usá computadora para asignar vínculos.
+                  En celular no se muestra la matriz de puntaje. Us? computadora para asignar v?nculos.
                 </p>
               </div>
 
@@ -637,7 +637,7 @@ export function StructurePanel({
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Matriz de preguntas</p>
                   </div>
                   <p className="mt-1 text-xs font-semibold text-slate-500">
-                    Fila = pregunta origen. Columna = pregunta destino. Tocá la celda para vincularlas.
+                    Fila = pregunta origen. Columna = pregunta destino. Toc? la celda para vincularlas.
                   </p>
                 </div>
 
@@ -756,7 +756,7 @@ export function StructurePanel({
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Editor simple</p>
                   </div>
                   <p className="mt-1 text-xs font-semibold text-slate-500">
-                    Seleccioná una pregunta y ajustá el peso de cada destino con un deslizador.
+                    Seleccion? una pregunta y ajust? el peso de cada destino con un deslizador.
                   </p>
                 </div>
 
@@ -836,7 +836,7 @@ export function StructurePanel({
                               </p>
                             </div>
                             <div className="rounded-2xl bg-slate-50 px-3 py-2 text-right">
-                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Guía</p>
+                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Gu?a</p>
                               <p className="mt-1 text-xs font-semibold text-slate-500">100% = peso completo.</p>
                             </div>
                           </div>
@@ -957,14 +957,14 @@ export function StructurePanel({
                             </div>
                           ) : (
                             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center text-sm font-bold text-slate-500">
-                              Aún no hay vínculos cargados.
+                              A?n no hay v?nculos cargados.
                             </div>
                           )}
                         </div>
                       </>
                     ) : (
                       <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-                        <p className="text-sm font-black text-slate-700">Elegí una pregunta para editar sus vínculos.</p>
+                        <p className="text-sm font-black text-slate-700">Eleg? una pregunta para editar sus v?nculos.</p>
                       </div>
                     )}
                   </div>
@@ -980,6 +980,7 @@ export function StructurePanel({
     </div>
   );
 }
+
 
 
 

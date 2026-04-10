@@ -145,7 +145,7 @@ export function useAuditStructure({
     }
 
     if (auditCategories.some((category) => category.name.toLowerCase() === trimmedName.toLowerCase())) {
-      alert("Ya existe una categoría con ese nombre.");
+      alert("Ya existe una categor?a con ese nombre.");
       return;
     }
 
@@ -167,7 +167,7 @@ export function useAuditStructure({
 
   const handleDeleteCategory = useCallback((categoryId: string) => {
     if (auditCategories.length === 1) {
-      alert("Necesitás al menos una categoría activa.");
+      alert("Necesit?s al menos una categor?a activa.");
       return;
     }
 
@@ -239,17 +239,17 @@ export function useAuditStructure({
     setSelectedStructureCategoryId(defaults[0]?.id || "");
     setReportFilter((current) => ({ ...current, role: defaults[0]?.name || current.role }));
     setStructureStorageLabel("local");
-    alert("Estructura restablecida a la configuración inicial.");
+    alert("Estructura restablecida a la configuraci?n inicial.");
   }, [selectedStructureScope]);
 
   const handleLoadStructureFromCloud = useCallback(async () => {
     if (!isCloudStructureAvailable) {
-      alert("Firebase está desactivado en este entorno. La estructura se administra solo en modo local.");
+      alert("Firebase est? desactivado en este entorno. La estructura se administra solo en modo local.");
       return;
     }
 
     if (!hasAuthenticatedUser) {
-      alert("Iniciá sesión para cargar la estructura compartida desde Firestore.");
+      alert("Inici? sesi?n para cargar la estructura compartida desde Firestore.");
       return;
     }
 
@@ -257,7 +257,7 @@ export function useAuditStructure({
     try {
       const cloudCategories = await loadAuditCategoriesFromCloud(selectedStructureScope);
       if (!cloudCategories) {
-        alert("Todavía no existe una estructura guardada en Firestore.");
+        alert("Todav?a no existe una estructura guardada en Firestore.");
         return;
       }
 
@@ -278,12 +278,12 @@ export function useAuditStructure({
 
   const handleSaveStructureToCloud = useCallback(async () => {
     if (!isCloudStructureAvailable) {
-      alert("Firebase está desactivado en este entorno. La estructura se guarda solo en este dispositivo.");
+      alert("Firebase est? desactivado en este entorno. La estructura se guarda solo en este dispositivo.");
       return;
     }
 
     if (!hasAuthenticatedUser) {
-      alert("Iniciá sesión para guardar la estructura en Firestore.");
+      alert("Inici? sesi?n para guardar la estructura en Firestore.");
       return;
     }
 
@@ -294,7 +294,7 @@ export function useAuditStructure({
       alert("Estructura guardada en Firestore.");
     } catch (error) {
       console.error("Save structure to cloud failed:", error);
-      alert("No se pudo guardar la estructura en Firestore. Verificá que tu usuario tenga permisos de administración.");
+      alert("No se pudo guardar la estructura en Firestore. Verific? que tu usuario tenga permisos de administraci?n.");
     } finally {
       setIsSavingStructureToCloud(false);
     }
@@ -432,3 +432,4 @@ export function useAuditStructure({
     handleSaveStructureToCloud,
   };
 }
+

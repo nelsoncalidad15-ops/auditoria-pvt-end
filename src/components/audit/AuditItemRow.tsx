@@ -210,7 +210,7 @@ export function AuditItemRow({
               </p>
             )}
             {requiresCommentOnFail && (
-              <p className="text-[11px] font-bold text-amber-700">Nota obligatoria en desvíos.</p>
+              <p className="text-[11px] font-bold text-amber-700">Nota obligatoria en desv?os.</p>
             )}
           </div>
         </div>
@@ -477,3 +477,4 @@ export function AuditItemRow({
     </motion.div>
   );
 }
+
