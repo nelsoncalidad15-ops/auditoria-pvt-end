@@ -447,33 +447,6 @@ export function StructurePanel({
               </div>
             </div>
 
-            <div className="hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_16px_36px_rgba(15,23,42,0.05)] lg:block">
-              <div className="flex items-center gap-2">
-                <Link2 className="h-4 w-4 text-slate-500" />
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-                  Matriz de puntaje
-                </p>
-              </div>
-              <p className="mt-1 text-xs font-semibold text-slate-500">
-                Los numeros son las areas que reciben el promedio adicional.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {scoreAreaEntries.length > 0 ? scoreAreaEntries.map((entry) => (
-                  <div
-                    key={`legend-${entry.areaName}`}
-                    className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2"
-                  >
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-[10px] font-black uppercase tracking-[0.14em] text-white">
-                      {entry.number}
-                    </span>
-                    <span className="text-xs font-bold text-slate-700">{entry.areaName}</span>
-                  </div>
-                )) : (
-                  <p className="text-xs font-semibold text-slate-500">No hay areas disponibles para vincular.</p>
-                )}
-              </div>
-            </div>
-
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 lg:hidden">
               <p className="font-black text-slate-900">Configuracion de puntaje</p>
               <p className="mt-1 text-xs font-semibold text-slate-500">
@@ -691,7 +664,7 @@ export function StructurePanel({
 
                         <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Agregar destino</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Elegi area fuente</p>
                             {scoreAreaEntries
                               .filter((entry) => !(selectedScoreItem.scoreLinks ?? []).some((link) => link.area === entry.areaName))
                               .map((entry) => (
@@ -706,14 +679,14 @@ export function StructurePanel({
                               ))}
                           </div>
                           <p className="mt-3 text-xs font-semibold text-slate-500">
-                            Luego elegi la pregunta exacta del area destino en cada vinculo.
+                            Primero elegi el area y despues la pregunta exacta que alimenta este requisito.
                           </p>
                         </div>
 
                         <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_12px_24px_rgba(15,23,42,0.04)]">
                           <div className="flex items-center gap-2">
                             <Link2 className="h-4 w-4 text-slate-500" />
-                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Vínculos actuales</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Preguntas vinculadas</p>
                           </div>
 
                           {(selectedScoreItem.scoreLinks ?? []).length > 0 ? (
@@ -911,3 +884,4 @@ export function StructurePanel({
     </div>
   );
 }
+
