@@ -42,6 +42,7 @@ export interface AuditSheetItemRow {
   sector: string;
   responsibleRoles: string;
   scoreAreas: string;
+  scoreLinks: string;
   weight: number;
   allowsNa: string;
   status: "pass" | "fail" | "na";
@@ -162,6 +163,9 @@ export function buildAuditSyncPayload(params: {
         sector: item.sector ?? "",
         responsibleRoles: Array.isArray(item.responsibleRoles) ? item.responsibleRoles.join(",") : "",
         scoreAreas: Array.isArray(item.scoreAreas) ? item.scoreAreas.join(",") : "",
+        scoreLinks: Array.isArray(item.scoreLinks)
+          ? item.scoreLinks.map((link) => `${link.area}:${link.weight}`).join("|")
+          : "",
         weight: item.weight ?? 1,
         allowsNa: item.allowsNa === false ? "false" : "true",
         status: item.status,
@@ -301,6 +305,12 @@ export async function fetchAuditHistoryFromWebhook(webhookUrl: string): Promise<
             sector: itemRow.sector && isOrAuditSector(itemRow.sector) ? itemRow.sector : undefined,
             responsibleRoles: itemRow.responsibleRoles ? itemRow.responsibleRoles.split(",").filter(isResponsibleRole) : [],
             scoreAreas: itemRow.scoreAreas ? itemRow.scoreAreas.split(",").map((value) => value.trim()).filter(Boolean) : [],
+            scoreLinks: itemRow.scoreLinks
+              ? itemRow.scoreLinks.split("|").map((entry) => {
+                  const [area, weight] = entry.split(":");
+                  return { area: area?.trim() ?? "", weight: parseNumber(weight) || 0 };
+                }).filter((link) => Boolean(link.area) && link.weight > 0)
+              : undefined,
             weight: parseNumber(itemRow.weight) || 1,
             allowsNa: itemRow.allowsNa !== "false",
             photoUrl: itemRow.photoUrl || undefined,

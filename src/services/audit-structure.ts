@@ -1,6 +1,6 @@
 import { AUDIT_QUESTIONS, OR_CHECKLIST_ITEMS, PRE_DELIVERY_CHECKLIST_ITEMS, STAFF } from "../constants";
 import { createClientId } from "../lib/utils";
-import { AuditCategory, AuditStructureScope, AuditTemplateItem } from "../types";
+import { AuditCategory, AuditStructureScope, AuditTemplateItem, ScoreLink } from "../types";
 
 function getStorageKey(scope: AuditStructureScope) {
   return `audit-structure-v1:${scope}`;
@@ -29,29 +29,53 @@ function normalizeText(value: string) {
 }
 
 const DEFAULT_SCORE_AREA_RULES = [
-  { category: "TÃ©cnicos", questionIncludes: "firma en cada campo de diagnostico y reparacion realizada", scoreAreas: ["Jefe de Taller"] },
-  { category: "TÃ©cnicos", questionIncludes: "informa al jefe de taller", scoreAreas: ["Jefe de Taller"] },
-  { category: "TÃ©cnicos", questionIncludes: "se llevan a cabo todas las tareas descriptas en el check list de mantenimiento", scoreAreas: ["Jefe de Taller"] },
-  { category: "TÃ©cnicos", questionIncludes: "bidones de aceite con tapa", scoreAreas: ["Jefe de Taller"] },
-  { category: "TÃ©cnicos", questionIncludes: "productos toxicos y o inflamables rotulados", scoreAreas: ["Jefe de Taller"] },
-  { category: "Pre Entrega", questionIncludes: "bidones de aceite con tapa", scoreAreas: ["Jefe de Taller"] },
+  { category: "TÃ©cnicos", questionIncludes: "firma en cada campo de diagnostico y reparacion realizada", scoreLinks: [{ area: "Jefe de Taller", weight: 100 }] },
+  { category: "TÃ©cnicos", questionIncludes: "informa al jefe de taller", scoreLinks: [{ area: "Jefe de Taller", weight: 100 }] },
+  { category: "TÃ©cnicos", questionIncludes: "se llevan a cabo todas las tareas descriptas en el check list de mantenimiento", scoreLinks: [{ area: "Jefe de Taller", weight: 100 }] },
+  { category: "TÃ©cnicos", questionIncludes: "bidones de aceite con tapa", scoreLinks: [{ area: "Jefe de Taller", weight: 100 }] },
+  { category: "TÃ©cnicos", questionIncludes: "productos toxicos y o inflamables rotulados", scoreLinks: [{ area: "Jefe de Taller", weight: 100 }] },
+  { category: "Pre Entrega", questionIncludes: "bidones de aceite con tapa", scoreLinks: [{ area: "Jefe de Taller", weight: 100 }] },
 ] as const;
 
-function getDefaultScoreAreas(categoryName: string, question: string) {
+function getDefaultScoreLinks(categoryName: string, question: string): ScoreLink[] {
   const normalizedCategory = normalizeText(categoryName);
   const normalizedQuestion = normalizeText(question);
 
   return DEFAULT_SCORE_AREA_RULES
     .filter((rule) => normalizeText(rule.category) === normalizedCategory && normalizedQuestion.includes(rule.questionIncludes))
-    .flatMap((rule) => rule.scoreAreas);
+    .flatMap((rule) => rule.scoreLinks)
+    .map((link) => ({ area: link.area, weight: link.weight }));
 }
 
-function buildScoreAreas(categoryName: string, question: string, scoreAreas: unknown) {
-  if (Array.isArray(scoreAreas)) {
-    return scoreAreas.filter(isNonEmptyString);
+function normalizeScoreLinks(categoryName: string, question: string, scoreLinks: unknown, scoreAreas: unknown) {
+  if (Array.isArray(scoreLinks)) {
+    return scoreLinks
+      .map((link: any) => ({
+        area: typeof link?.area === "string" ? link.area.trim() : "",
+        weight: Number(link?.weight),
+      }))
+      .filter((link) => isNonEmptyString(link.area) && Number.isFinite(link.weight) && link.weight > 0)
+      .map((link) => ({
+        area: link.area,
+        weight: Math.min(100, Math.max(1, Math.round(link.weight))),
+      }));
   }
 
-  return getDefaultScoreAreas(categoryName, question);
+  if (Array.isArray(scoreAreas) && scoreAreas.length > 0) {
+    const defaultWeight = Math.max(1, Math.round(100 / scoreAreas.length));
+    return scoreAreas.filter(isNonEmptyString).map((area) => ({ area, weight: defaultWeight }));
+  }
+
+  return getDefaultScoreLinks(categoryName, question);
+}
+
+function buildScoreAreas(scoreLinks: ScoreLink[]) {
+  return scoreLinks.map((link) => link.area);
+}
+
+function buildScoreLinks(categoryName: string, question: string, scoreLinks: unknown, scoreAreas: unknown) {
+  const normalizedLinks = normalizeScoreLinks(categoryName, question, scoreLinks, scoreAreas);
+  return normalizedLinks.length > 0 ? normalizedLinks : getDefaultScoreLinks(categoryName, question);
 }
 
 function buildTemplateItems(name: string, items: AuditTemplateItem[]): AuditTemplateItem[] {
@@ -71,7 +95,14 @@ function buildTemplateItems(name: string, items: AuditTemplateItem[]): AuditTemp
     weight: typeof item.weight === "number" ? item.weight : 1,
     order: typeof item.order === "number" ? item.order : index + 1,
     active: typeof item.active === "boolean" ? item.active : true,
-    scoreAreas: buildScoreAreas(name, item.text, item.scoreAreas),
+    scoreLinks: (() => {
+      const normalizedLinks = buildScoreLinks(name, item.text, item.scoreLinks, item.scoreAreas);
+      return normalizedLinks;
+    })(),
+    scoreAreas: (() => {
+      const normalizedLinks = buildScoreLinks(name, item.text, item.scoreLinks, item.scoreAreas);
+      return buildScoreAreas(normalizedLinks);
+    })(),
   }));
 }
 
@@ -99,7 +130,8 @@ function getCategoryDefaultItems(name: string, questions: string[]): AuditTempla
     weight: 1,
     order: index + 1,
     active: true,
-    scoreAreas: getDefaultScoreAreas(name, question),
+    scoreLinks: getDefaultScoreLinks(name, question),
+    scoreAreas: getDefaultScoreLinks(name, question).map((link) => link.area),
   }));
 }
 
@@ -159,7 +191,14 @@ export function normalizeAuditCategories(categories: AuditCategory[] | unknown):
           weight: typeof item.weight === "number" ? item.weight : 1,
           order: typeof item.order === "number" ? item.order : index + 1,
           active: typeof item.active === "boolean" ? item.active : true,
-          scoreAreas: buildScoreAreas(category.name, item.text, item.scoreAreas),
+          scoreLinks: (() => {
+            const normalizedLinks = buildScoreLinks(category.name, item.text, item.scoreLinks, item.scoreAreas);
+            return normalizedLinks;
+          })(),
+          scoreAreas: (() => {
+            const normalizedLinks = buildScoreLinks(category.name, item.text, item.scoreLinks, item.scoreAreas);
+            return buildScoreAreas(normalizedLinks);
+          })(),
         }))
       : [],
   });

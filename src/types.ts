@@ -24,6 +24,11 @@ export type OrAuditSector =
 
 export type Role = string;
 
+export interface ScoreLink {
+  area: string;
+  weight: number;
+}
+
 export interface Auditor {
   id: string;
   name: string;
@@ -45,6 +50,7 @@ export interface AuditTemplateItem {
   order?: number;
   active?: boolean;
   scoreAreas?: string[];
+  scoreLinks?: ScoreLink[];
 }
 
 export interface AuditCategory {
@@ -69,6 +75,7 @@ export interface AuditItem {
   allowsNa?: boolean;
   evidenceComment?: string;
   scoreAreas?: string[];
+  scoreLinks?: ScoreLink[];
 }
 
 export interface OrAuditParticipants {

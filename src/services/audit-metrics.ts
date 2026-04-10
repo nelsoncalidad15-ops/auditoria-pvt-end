@@ -1,5 +1,5 @@
 import { calculateAuditCompliance, calculatePersonScores } from "./or-audit";
-import { AuditCategory, AuditSession } from "../types";
+import { AuditCategory, AuditSession, ScoreLink } from "../types";
 
 export interface AdvisorSamplingProgressItem {
   advisorName: string;
@@ -116,6 +116,31 @@ function buildProgressRows(
 
     return right.sampledCount - left.sampledCount;
   });
+}
+
+function getItemScoreLinks(item: AuditSession["items"][number]): ScoreLink[] {
+  if (Array.isArray(item.scoreLinks) && item.scoreLinks.length > 0) {
+    return item.scoreLinks
+      .map((link) => ({
+        area: typeof link.area === "string" ? link.area.trim() : "",
+        weight: typeof link.weight === "number" && Number.isFinite(link.weight) ? link.weight : 0,
+      }))
+      .filter((link) => link.area && link.weight > 0)
+      .map((link) => ({
+        area: link.area,
+        weight: Math.min(100, Math.max(1, Math.round(link.weight))),
+      }));
+  }
+
+  if (Array.isArray(item.scoreAreas) && item.scoreAreas.length > 0) {
+    const evenWeight = Math.max(1, Math.round(100 / item.scoreAreas.length));
+    return item.scoreAreas
+      .map((area) => area.trim())
+      .filter(Boolean)
+      .map((area) => ({ area, weight: evenWeight }));
+  }
+
+  return [];
 }
 
 export function buildAuditHistorySummary({
@@ -400,7 +425,7 @@ export function buildAuditProcessMetrics({
   const linkedAreaNames = Array.from(
     new Set(
       processScoreSessions.flatMap((auditSession) =>
-        auditSession.items.flatMap((item) => Array.isArray(item.scoreAreas) ? item.scoreAreas : []),
+        auditSession.items.flatMap((item) => getItemScoreLinks(item).map((link) => link.area)),
       ),
     ),
   ).filter((value) => typeof value === "string" && value.trim());
@@ -413,53 +438,52 @@ export function buildAuditProcessMetrics({
   );
 
   const areaScoreMetrics = areaNames.reduce((acc, areaName) => {
-    acc.set(areaName, { total: 0, count: 0, linkedItems: 0 });
+    acc.set(areaName, { total: 0, weight: 0, linkedItems: 0, contributions: 0 });
     return acc;
-  }, new Map<string, { total: number; count: number; linkedItems: number }>());
+  }, new Map<string, { total: number; weight: number; linkedItems: number; contributions: number }>());
 
   processScoreSessions.forEach((auditSession) => {
     const sessionRoleName = auditSession.role || auditSession.items[0]?.category || "General";
     const sessionCompliance = calculateAuditCompliance(auditSession.items);
 
     areaNames.forEach((areaName) => {
-      const linkedItems = auditSession.items.filter((item) => Array.isArray(item.scoreAreas) && item.scoreAreas.includes(areaName));
-
-      if (linkedItems.length > 0) {
-        const linkedCompliance = calculateAuditCompliance(linkedItems);
-        if (linkedCompliance.totalApplicableWeight === 0) {
-          return;
-        }
-
-        const current = areaScoreMetrics.get(areaName);
-        if (!current) {
-          return;
-        }
-
-        current.total += linkedCompliance.compliance;
-        current.count += 1;
-        current.linkedItems += linkedItems.length;
-        return;
-      }
-
-      if (sessionRoleName !== areaName || sessionCompliance.totalApplicableWeight === 0) {
-        return;
-      }
-
       const current = areaScoreMetrics.get(areaName);
       if (!current) {
         return;
       }
 
-      current.total += sessionCompliance.compliance;
-      current.count += 1;
+      if (sessionRoleName === areaName && sessionCompliance.totalApplicableWeight > 0) {
+        current.total += sessionCompliance.compliance * 100;
+        current.weight += 100;
+        current.contributions += 1;
+      }
+
+      auditSession.items.forEach((item) => {
+        const itemLinks = getItemScoreLinks(item).filter((link) => link.area === areaName);
+        if (itemLinks.length === 0) {
+          return;
+        }
+
+        const itemCompliance = calculateAuditCompliance([item]);
+        if (itemCompliance.totalApplicableWeight === 0) {
+          return;
+        }
+
+        itemLinks.forEach((link) => {
+          current.total += itemCompliance.compliance * link.weight;
+          current.weight += link.weight;
+          current.linkedItems += 1;
+          current.contributions += 1;
+        });
+      });
     });
   });
 
   const areaScoreRows = Array.from(areaScoreMetrics.entries())
-    .map(([role, metrics]) => ({
+  .map(([role, metrics]) => ({
       role,
-      average: metrics.count > 0 ? Math.round(metrics.total / metrics.count) : null,
-      evaluations: metrics.count,
+      average: metrics.weight > 0 ? Math.round(metrics.total / metrics.weight) : null,
+      evaluations: metrics.contributions,
       linkedItems: metrics.linkedItems,
     }))
     .sort((left, right) => {

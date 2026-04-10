@@ -1460,7 +1460,8 @@ function AuditApp() {
         sector: templateItem?.sector,
         weight: templateItem?.weight,
         allowsNa: templateItem?.allowsNa,
-        scoreAreas: templateItem?.scoreAreas,
+        scoreLinks: templateItem?.scoreLinks,
+        scoreAreas: templateItem?.scoreLinks?.map((link) => link.area) ?? templateItem?.scoreAreas,
       });
     }
 
@@ -1504,7 +1505,8 @@ function AuditApp() {
         sector: templateItem?.sector,
         weight: templateItem?.weight,
         allowsNa: templateItem?.allowsNa,
-        scoreAreas: templateItem?.scoreAreas,
+        scoreLinks: templateItem?.scoreLinks,
+        scoreAreas: templateItem?.scoreLinks?.map((link) => link.area) ?? templateItem?.scoreAreas,
       });
     }
     
@@ -1530,7 +1532,8 @@ function AuditApp() {
         sector: templateItem?.sector,
         weight: templateItem?.weight,
         allowsNa: templateItem?.allowsNa,
-        scoreAreas: templateItem?.scoreAreas,
+        scoreLinks: templateItem?.scoreLinks,
+        scoreAreas: templateItem?.scoreLinks?.map((link) => link.area) ?? templateItem?.scoreAreas,
         photoUrl,
       });
     }

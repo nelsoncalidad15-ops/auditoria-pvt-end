@@ -67,7 +67,12 @@ export function buildOrderAuditItems(templateItems: AuditTemplateItem[], current
       weight: normalizeWeight(templateItem.weight ?? existingItem?.weight),
       allowsNa: typeof templateItem.allowsNa === "boolean" ? templateItem.allowsNa : existingItem?.allowsNa ?? true,
       evidenceComment: existingItem?.evidenceComment ?? "",
-      scoreAreas: Array.isArray(templateItem.scoreAreas) ? templateItem.scoreAreas : existingItem?.scoreAreas ?? [],
+      scoreLinks: Array.isArray(templateItem.scoreLinks) ? templateItem.scoreLinks : existingItem?.scoreLinks ?? [],
+      scoreAreas: Array.isArray(templateItem.scoreLinks)
+        ? templateItem.scoreLinks.map((link) => link.area)
+        : Array.isArray(existingItem?.scoreLinks)
+          ? existingItem.scoreLinks.map((link) => link.area)
+          : Array.isArray(templateItem.scoreAreas) ? templateItem.scoreAreas : existingItem?.scoreAreas ?? [],
     };
   });
 }
