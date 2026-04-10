@@ -44,6 +44,7 @@ export interface AuditTemplateItem {
   weight?: number;
   order?: number;
   active?: boolean;
+  scoreAreas?: string[];
 }
 
 export interface AuditCategory {
@@ -67,6 +68,7 @@ export interface AuditItem {
   weight?: number;
   allowsNa?: boolean;
   evidenceComment?: string;
+  scoreAreas?: string[];
 }
 
 export interface OrAuditParticipants {

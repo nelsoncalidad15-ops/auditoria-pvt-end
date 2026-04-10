@@ -1,4 +1,4 @@
-import { calculatePersonScores } from "./or-audit";
+import { calculateAuditCompliance, calculatePersonScores } from "./or-audit";
 import { AuditCategory, AuditSession } from "../types";
 
 export interface AdvisorSamplingProgressItem {
@@ -26,6 +26,7 @@ export interface AreaScoreRow {
   role: string;
   average: number | null;
   evaluations: number;
+  linkedItems: number;
 }
 
 export interface AuditHistorySummary {
@@ -396,28 +397,71 @@ export function buildAuditProcessMetrics({
     })
     .sort((left, right) => right.compliance - left.compliance);
 
-  const areaScoreRows = auditCategories
-    .map((category) => {
-      const categorySessions = processScoreSessions.filter((auditSession) => {
-        const roleName = auditSession.role || auditSession.items[0]?.category || "General";
-        return roleName === category.name;
-      });
+  const linkedAreaNames = Array.from(
+    new Set(
+      processScoreSessions.flatMap((auditSession) =>
+        auditSession.items.flatMap((item) => Array.isArray(item.scoreAreas) ? item.scoreAreas : []),
+      ),
+    ),
+  ).filter((value) => typeof value === "string" && value.trim());
 
-      if (categorySessions.length === 0) {
-        return {
-          role: category.name,
-          average: null as number | null,
-          evaluations: 0,
-        };
+  const areaNames = Array.from(
+    new Set([
+      ...auditCategories.map((category) => category.name),
+      ...linkedAreaNames,
+    ]),
+  );
+
+  const areaScoreMetrics = areaNames.reduce((acc, areaName) => {
+    acc.set(areaName, { total: 0, count: 0, linkedItems: 0 });
+    return acc;
+  }, new Map<string, { total: number; count: number; linkedItems: number }>());
+
+  processScoreSessions.forEach((auditSession) => {
+    const sessionRoleName = auditSession.role || auditSession.items[0]?.category || "General";
+    const sessionCompliance = calculateAuditCompliance(auditSession.items);
+
+    areaNames.forEach((areaName) => {
+      const linkedItems = auditSession.items.filter((item) => Array.isArray(item.scoreAreas) && item.scoreAreas.includes(areaName));
+
+      if (linkedItems.length > 0) {
+        const linkedCompliance = calculateAuditCompliance(linkedItems);
+        if (linkedCompliance.totalApplicableWeight === 0) {
+          return;
+        }
+
+        const current = areaScoreMetrics.get(areaName);
+        if (!current) {
+          return;
+        }
+
+        current.total += linkedCompliance.compliance;
+        current.count += 1;
+        current.linkedItems += linkedItems.length;
+        return;
       }
 
-      const total = categorySessions.reduce((acc, auditSession) => acc + (auditSession.totalScore || 0), 0);
-      return {
-        role: category.name,
-        average: Math.round(total / categorySessions.length),
-        evaluations: categorySessions.length,
-      };
-    })
+      if (sessionRoleName !== areaName || sessionCompliance.totalApplicableWeight === 0) {
+        return;
+      }
+
+      const current = areaScoreMetrics.get(areaName);
+      if (!current) {
+        return;
+      }
+
+      current.total += sessionCompliance.compliance;
+      current.count += 1;
+    });
+  });
+
+  const areaScoreRows = Array.from(areaScoreMetrics.entries())
+    .map(([role, metrics]) => ({
+      role,
+      average: metrics.count > 0 ? Math.round(metrics.total / metrics.count) : null,
+      evaluations: metrics.count,
+      linkedItems: metrics.linkedItems,
+    }))
     .sort((left, right) => {
       if (left.average === null && right.average === null) {
         return left.role.localeCompare(right.role);

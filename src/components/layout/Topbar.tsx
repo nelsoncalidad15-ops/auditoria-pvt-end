@@ -17,12 +17,13 @@ interface TopbarProps {
   authenticationEnabled?: boolean;
   showMenuButton?: boolean;
   showBackButton?: boolean;
+  backLabel?: string;
   onOpenMenu?: () => void;
   onBack?: () => void;
   onLogin: () => void;
 }
 
-export function Topbar({ appTitle, view, user, userProfile, showMenuButton = false, showBackButton = false, onOpenMenu, onBack }: TopbarProps) {
+export function Topbar({ appTitle, view, user, userProfile, showMenuButton = false, showBackButton = false, backLabel, onOpenMenu, onBack }: TopbarProps) {
   const isAuditView = view === "audit";
   const viewLabel =
     view === "dashboard"
@@ -55,9 +56,12 @@ export function Topbar({ appTitle, view, user, userProfile, showMenuButton = fal
           {showBackButton && onBack && (
             <button
               onClick={onBack}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white/90 text-slate-700 shadow-[0_10px_26px_rgba(15,23,42,0.05)]"
+              className="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-3 text-slate-700 shadow-[0_10px_26px_rgba(15,23,42,0.05)]"
             >
               <ArrowLeft className="h-5 w-5" />
+              <span className="text-[10px] font-black uppercase tracking-[0.16em]">
+                {backLabel || (isAuditView ? "Volver a áreas" : "Volver")}
+              </span>
             </button>
           )}
           {showMenuButton && (

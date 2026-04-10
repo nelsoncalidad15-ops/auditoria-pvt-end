@@ -44,6 +44,7 @@ interface AreaScoreRow {
   role: string;
   average: number | null;
   evaluations: number;
+  linkedItems?: number;
 }
 
 interface AuditLandingViewProps {
@@ -347,7 +348,16 @@ export function AuditLandingView({
                         <td className={cn("text-center font-black", resolveScoreTone(row.average))}>
                           {typeof row.average === "number" ? `${row.average}%` : "-"}
                         </td>
-                        <td className="text-center">{row.evaluations}</td>
+                        <td className="text-center">
+                          <div className="inline-flex flex-col items-center gap-1">
+                            <span>{row.evaluations}</span>
+                            {typeof row.linkedItems === "number" && row.linkedItems > 0 && (
+                              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-700">
+                                {row.linkedItems} vinculados
+                              </span>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

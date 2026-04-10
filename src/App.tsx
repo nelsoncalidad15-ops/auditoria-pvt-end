@@ -55,7 +55,12 @@ import Papa from "papaparse";
 import { AuditItemRow } from "./components/audit/AuditItemRow";
 import { Button } from "./components/ui/Button";
 import { AppModal } from "./components/ui/Modal";
+import { ToastItem, ToastViewport } from "./components/ui/ToastViewport";
+import { BatchReportModal } from "./components/modals/BatchReportModal";
+import { DeleteAuditModal } from "./components/modals/DeleteAuditModal";
+import { HistoryAuditDetailModal } from "./components/modals/HistoryAuditDetailModal";
 import { useAuditDrafts } from "./hooks/useAuditDrafts";
+import { useDashboardMetrics } from "./hooks/useDashboardMetrics";
 import { useHashNavigation } from "./hooks/useHashNavigation";
 import { useAuditStructure } from "./hooks/useAuditStructure";
 import { useAuditSync } from "./hooks/useAuditSync";
@@ -68,23 +73,22 @@ const IntegrationsView = React.lazy(() => import("./components/views/Integration
 const ContinueAuditsView = React.lazy(() => import("./components/views/ContinueAuditsView").then((module) => ({ default: module.ContinueAuditsView })));
 const HomeView = React.lazy(() => import("./components/views/HomeView").then((module) => ({ default: module.HomeView })));
 const SetupView = React.lazy(() => import("./components/views/SetupView").then((module) => ({ default: module.SetupView })));
-const AuditLandingView = React.lazy(() => import("./components/views/AuditLandingView").then((module) => ({ default: module.AuditLandingView })));
 
 function ErrorBoundary({ children }: { children: React.ReactNode }) {
   const [error, setError] = React.useState<any>(null);
 
   React.useEffect(() => {
     const handleError = (e: ErrorEvent) => setError(e.error);
-    window.addEventListener('error', handleError);
-    return () => window.removeEventListener('error', handleError);
+    window.addEventListener("error", handleError);
+    return () => window.removeEventListener("error", handleError);
   }, []);
 
   if (error) {
-    let errorMessage = "Ocurrió un error inesperado.";
+    let errorMessage = "OcurriÃ³ un error inesperado.";
     try {
       const parsed = JSON.parse(error.message);
       if (parsed.error && parsed.error.includes("insufficient permissions")) {
-        errorMessage = "Error de permisos: No tienes autorización para realizar esta operación.";
+        errorMessage = "Error de permisos: No tienes autorizaciÃ³n para realizar esta operaciÃ³n.";
       }
     } catch (e) {
       errorMessage = error.message || errorMessage;
@@ -94,7 +98,7 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
       <div className="min-h-screen flex items-center justify-center p-6 bg-red-50 text-center">
         <div className="space-y-4 max-w-sm">
           <XCircle className="w-16 h-16 text-red-500 mx-auto" />
-          <h1 className="text-xl font-bold text-red-900">Algo salió mal</h1>
+          <h1 className="text-xl font-bold text-red-900">Algo saliÃ³ mal</h1>
           <p className="text-red-700 text-sm">{errorMessage}</p>
           <button 
             onClick={() => window.location.reload()}
@@ -181,13 +185,13 @@ const DEFAULT_OBSERVATION_SUGGESTIONS = [
   "Falta sello",
   "Documento incompleto",
   "No coincide con la unidad",
-  "No aplica por operación",
+  "No aplica por operaciÃ³n",
 ];
 
 type OrdersSubmitMode = "continue" | "finish";
 
 function AuditApp() {
-  const appTitle = import.meta.env.VITE_APP_TITLE?.trim() || "Auditoría OR Postventa VW";
+  const appTitle = import.meta.env.VITE_APP_TITLE?.trim() || "AuditorÃ­a OR Postventa VW";
   const contentContainerRef = React.useRef<HTMLDivElement | null>(null);
   const envWebhookUrl = import.meta.env.VITE_APPS_SCRIPT_URL?.trim() || "";
   const envSheetCsvUrl = import.meta.env.VITE_SHEET_CSV_URL?.trim() || "";
@@ -213,7 +217,7 @@ function AuditApp() {
   const [isSendingToSheet, setIsSendingToSheet] = useState(false);
   const [lastIntegrationSavedAt, setLastIntegrationSavedAt] = useState<string | null>(storedIntegrationMeta?.timestamp ?? null);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(storedSyncMeta?.timestamp ?? null);
-  const [lastSyncMessage, setLastSyncMessage] = useState<string>(storedSyncMeta?.message || "TodavÃ­a no se ejecutÃ³ ninguna sincronizaciÃ³n manual.");
+  const [lastSyncMessage, setLastSyncMessage] = useState<string>(storedSyncMeta?.message || "TodavÃƒÂ­a no se ejecutÃƒÂ³ ninguna sincronizaciÃƒÂ³n manual.");
   const [lastExportedAt, setLastExportedAt] = useState<string | null>(storedExportMeta?.timestamp ?? null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [focusedAuditItemId, setFocusedAuditItemId] = useState<string | null>(null);
@@ -288,6 +292,7 @@ function AuditApp() {
     isLoadingStructureFromCloud,
     isSavingStructureToCloud,
     structureStorageLabel,
+    allAuditAreaNames,
     newCategoryName,
     setNewCategoryName,
     newCategoryDescription,
@@ -318,6 +323,8 @@ function AuditApp() {
     setNewItemActive,
     newItemRequiresCommentOnFail,
     setNewItemRequiresCommentOnFail,
+    newItemScoreAreas,
+    setNewItemScoreAreas,
     updateCategory,
     handleAddCategory,
     handleDeleteCategory,
@@ -351,7 +358,7 @@ function AuditApp() {
   });
   const isOrdersAudit = selectedRole === "Ordenes";
   const isServiceAdvisorAudit = selectedRole === "Asesores de servicio";
-  const isTechnicianAudit = selectedRole === "Técnicos";
+  const isTechnicianAudit = selectedRole === "TÃ©cnicos";
   const isPreDeliveryAudit = selectedRole === "Pre Entrega";
   const auditedFileNames = Array.from({ length: 6 }, (_, index) => session.auditedFileNames?.[index] ?? "");
   const trimmedAuditedFileNames = auditedFileNames.map((name) => name.trim());
@@ -389,7 +396,7 @@ function AuditApp() {
     ? `Legajo auditado ${preDeliveryActiveLegajoIndex + 1}: ${activePreDeliveryLegajoName}`
     : null;
   const formatPreDeliveryLegajoQuestion = (question: string) => {
-    const separatorIndex = question.indexOf(" · ");
+    const separatorIndex = question.indexOf(" Â· ");
     return separatorIndex >= 0 ? question.slice(separatorIndex + 3) : question;
   };
   const activePreDeliveryLegajoItems = isPreDeliveryAudit && activePreDeliveryLegajoTitle
@@ -494,6 +501,7 @@ function AuditApp() {
         totalApplicableWeight: 0,
         itemsCount: isPreDeliveryAudit ? sessionPreDeliveryItems.length : sessionItems.length,
       };
+  const auditWorkspaceToneClass = isAuditChecklistCompleted ? "is-complete" : "is-in-progress";
   const activeAuditItem = visibleAuditItems.find((auditItem) => auditItem.id === activeAuditItemId) ?? null;
   const activeAuditSessionItem = activeAuditItem ? getAnsweredAuditItem(activeAuditItem) : undefined;
   const activeAuditItemIndex = activeAuditItem ? visibleAuditItems.findIndex((auditItem) => auditItem.id === activeAuditItem.id) : -1;
@@ -508,7 +516,7 @@ function AuditApp() {
       ? [
           "Falta limpieza",
           "Detalle incompleto",
-          "No coincide con estándar",
+          "No coincide con estÃ¡ndar",
           "Elemento ausente",
           "Pendiente de corregir",
         ]
@@ -651,7 +659,7 @@ function AuditApp() {
     onResume: resumeDraftSession,
   });
 
-  // Filtrar solo borradores reales (excluir auditor�as ya guardadas en historial)
+  // Filtrar solo borradores reales (excluir auditorías ya guardadas en historial)
   const completedSessionIds = new Set([
     ...history.map((h) => h.id),
     ...completedAuditReports.map((r) => r.session.id),
@@ -659,7 +667,7 @@ function AuditApp() {
 
   const realDraftAudits = sortedDraftAudits.filter((draft) => !completedSessionIds.has(draft.id));
 
-  // Obtener auditor�as incompletas del historial (< 100%)
+  // Obtener auditorías incompletas del historial (< 100%)
   const incompletedHistoryAudits: IncompleteAuditListItem[] = history
     .filter((auditSession) => (auditSession.totalScore ?? 0) < 100)
     .map((auditSession) => ({
@@ -676,23 +684,104 @@ function AuditApp() {
     }))
     .sort((left, right) => right.date.localeCompare(left.date));
 
-  // Combinar borradores reales + auditor�as incompletas del historial
+  // Combinar borradores reales + auditorías incompletas del historial
   const allIncompleteAudits: IncompleteAuditListItem[] = [...realDraftAudits, ...incompletedHistoryAudits]
     .sort((left, right) => (right.updatedAt || "").localeCompare(left.updatedAt || ""));
 
-  // Actualizar sidebarItems para incluir "Continuar Auditor�a" solo si hay borradores reales
+  // Actualizar sidebarItems para incluir "Continuar Auditoría" solo si hay borradores reales
   const updatedSidebarItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    ...(canRunAudits ? [{ id: "home", label: "Nueva Auditor�a", icon: Plus }] : []),
-    ...(allIncompleteAudits.length > 0 ? [{ id: "continuar", label: "Continuar Auditor�a", icon: Activity }] : []),
+    ...(canRunAudits ? [{ id: "home", label: "Nueva Auditoría", icon: Plus }] : []),
+    ...(allIncompleteAudits.length > 0 ? [{ id: "continuar", label: "Continuar Auditoría", icon: Activity }] : []),
     { id: "history", label: "Historial", icon: History },
     ...(canAccessStructure ? [{ id: "structure", label: "Estructura", icon: Settings }] : []),
     ...(canAccessIntegrations ? [{ id: "integrations", label: "Integraciones", icon: ShieldCheck }] : []),
   ];
 
   const technicianDraftSessions = realDraftAudits
-    .filter((draft) => (draft.role || draft.items[0]?.category) === "Técnicos")
+    .filter((draft) => (draft.role || draft.items[0]?.category) === "TÃ©cnicos")
     .sort((left, right) => `${right.date}-${right.id}`.localeCompare(`${left.date}-${left.id}`));
+
+  const getTechnicianAuditState = React.useCallback((staffName: string) => {
+    const normalizedName = staffName.trim();
+
+    if (!normalizedName) {
+      return {
+        state: "idle" as const,
+        progressPercent: 0,
+        label: "Sin iniciar",
+      };
+    }
+
+    const currentDraft = technicianDraftSessions.find((draft) => draft.staffName?.trim() === normalizedName);
+    const completedSession = technicianReviewSessions.find((sessionItem) => sessionItem.staffName?.trim() === normalizedName);
+    const isCurrentSelection = selectedRole === "TÃ©cnicos" && selectedStaff.trim() === normalizedName;
+
+    const currentItems = isCurrentSelection
+      ? sessionItems
+      : currentDraft?.items ?? completedSession?.items ?? [];
+    const totalItems = displayedAuditItems.length || currentDraft?.items?.length || completedSession?.items?.length || 0;
+    const completedItems = currentItems.filter((item) => item.status).length;
+    const progressPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+
+    if (progressPercent >= 100 || completedSession) {
+      return {
+        state: "complete" as const,
+        progressPercent: 100,
+        label: "Completado",
+      };
+    }
+
+    if (progressPercent > 0 || currentDraft) {
+      return {
+        state: "in-progress" as const,
+        progressPercent,
+        label: "En proceso",
+      };
+    }
+
+    return {
+      state: "idle" as const,
+      progressPercent: 0,
+      label: "Sin iniciar",
+    };
+  }, [displayedAuditItems.length, selectedRole, selectedStaff, sessionItems, technicianDraftSessions, technicianReviewSessions]);
+
+  const handleTechnicianSelection = React.useCallback((nextStaff: string) => {
+    const trimmedStaff = nextStaff.trim();
+
+    if (!trimmedStaff) {
+      setSelectedStaff("");
+      return;
+    }
+
+    if (trimmedStaff === selectedStaff.trim()) {
+      setSelectedStaff(trimmedStaff);
+      return;
+    }
+
+    const existingDraft = technicianDraftSessions.find((draft) => draft.staffName?.trim() === trimmedStaff);
+    if (existingDraft) {
+      resumeDraftSession(existingDraft);
+      return;
+    }
+
+    setSession({
+      ...session,
+      id: createClientId(),
+      date: session.date || new Date().toISOString().split("T")[0],
+      items: [],
+      notes: undefined,
+      orderNumber: undefined,
+      clientIdentifier: undefined,
+      auditedFileNames: createEmptyAuditedFileNames(),
+      participants: undefined,
+    });
+    setSelectedRole("TÃ©cnicos");
+    setSelectedStaff(trimmedStaff);
+    setActiveAuditItemId(null);
+    setFocusedAuditItemId(null);
+  }, [resumeDraftSession, selectedStaff, session, setActiveAuditItemId, setFocusedAuditItemId, setSelectedRole, setSelectedStaff, setSession, technicianDraftSessions]);
 
   const {
     ensureSessionMetadata,
@@ -729,6 +818,7 @@ function AuditApp() {
     view,
     selectedRole,
     setView,
+    setSelectedRole,
     clearSelectedRole,
   });
 
@@ -1012,15 +1102,15 @@ function AuditApp() {
       console.error("Login failed:", error);
 
       if (error.code === 'auth/popup-blocked') {
-        alert("El navegador bloqueó la ventana de acceso. Permití popups e intentá de nuevo.");
+        alert("El navegador bloqueÃ³ la ventana de acceso. PermitÃ­ popups e intentÃ¡ de nuevo.");
       } else if (error.code === 'auth/unauthorized-domain') {
-        alert("Este dominio no está habilitado. Agregalo en Firebase Authentication > Settings > Authorized domains.");
+        alert("Este dominio no estÃ¡ habilitado. Agregalo en Firebase Authentication > Settings > Authorized domains.");
       } else if (error.code === 'auth/operation-not-allowed') {
-        alert("Google no está habilitado como método de acceso en Firebase Authentication.");
+        alert("Google no estÃ¡ habilitado como mÃ©todo de acceso en Firebase Authentication.");
       } else if (error.code === 'auth/invalid-api-key') {
-        alert("La configuración de Firebase es inválida. Revisá la API key del proyecto.");
+        alert("La configuraciÃ³n de Firebase es invÃ¡lida. RevisÃ¡ la API key del proyecto.");
       } else {
-        alert("No se pudo iniciar sesión con Google. Revisá la configuración de Firebase Authentication.");
+        alert("No se pudo iniciar sesiÃ³n con Google. RevisÃ¡ la configuraciÃ³n de Firebase Authentication.");
       }
     } finally {
       setIsLoggingIn(false);
@@ -1056,32 +1146,32 @@ function AuditApp() {
     if (!selectedRole || !selectedAuditCategory) return;
 
     if (selectedRole === "Ordenes" && !/^\d{6}$/.test(session.orderNumber?.trim() || "")) {
-      alert("Ingresá un número de OR válido de 6 dígitos.");
+      alert("IngresÃ¡ un nÃºmero de OR vÃ¡lido de 6 dÃ­gitos.");
       return;
     }
 
     if (selectedRole === "Ordenes" && !session.participants?.asesorServicio?.trim()) {
-      alert("Completá el asesor de servicio antes de cerrar la OR.");
+      alert("CompletÃ¡ el asesor de servicio antes de cerrar la OR.");
       return;
     }
 
     if (selectedRole === "Asesores de servicio" && !selectedStaff.trim()) {
-      alert("Seleccioná el asesor de servicio antes de cerrar la auditoría.");
+      alert("SeleccionÃ¡ el asesor de servicio antes de cerrar la auditorÃ­a.");
       return;
     }
 
     if (selectedRole === "Asesores de servicio" && !session.clientIdentifier?.trim()) {
-      alert("Ingresá el nombre o VIN del cliente auditado.");
+      alert("IngresÃ¡ el nombre o VIN del cliente auditado.");
       return;
     }
 
-    if (selectedRole === "Técnicos" && !selectedStaff.trim()) {
-      alert("Seleccioná el técnico antes de cerrar la auditoría.");
+    if (selectedRole === "TÃ©cnicos" && !selectedStaff.trim()) {
+      alert("SeleccionÃ¡ el tÃ©cnico antes de cerrar la auditorÃ­a.");
       return;
     }
 
     if (failItemsWithoutCommentCount > 0) {
-      alert(`Hay ${failItemsWithoutCommentCount} desvíos que requieren observación obligatoria antes del cierre.`);
+      alert(`Hay ${failItemsWithoutCommentCount} desvÃ­os que requieren observaciÃ³n obligatoria antes del cierre.`);
       return;
     }
 
@@ -1156,7 +1246,7 @@ function AuditApp() {
     };
     const shouldKeepOrdersAdvisor = completeSession.role === "Ordenes" && submitMode === "continue";
     const shouldKeepServiceAdvisor = completeSession.role === "Asesores de servicio" && submitMode === "continue";
-    const shouldKeepTechnicianFlow = completeSession.role === "Técnicos" && submitMode === "continue";
+    const shouldKeepTechnicianFlow = completeSession.role === "TÃ©cnicos" && submitMode === "continue";
     const nextOrdersParticipants = shouldKeepOrdersAdvisor
       ? {
           asesorServicio: completeSession.participants?.asesorServicio?.trim() || "",
@@ -1202,7 +1292,7 @@ function AuditApp() {
           if (!hasWebhookUrl) {
             throw error;
           }
-          syncWarning = "La auditoría se envió, pero no quedó guardada en la persistencia secundaria.";
+          syncWarning = "La auditorÃ­a se enviÃ³, pero no quedÃ³ guardada en la persistencia secundaria.";
         }
       }
 
@@ -1253,7 +1343,7 @@ function AuditApp() {
         items: [],
       });
 
-      if (!((completeSession.role === "Ordenes" || completeSession.role === "Asesores de servicio" || completeSession.role === "Técnicos") && submitMode === "continue")) {
+      if (!((completeSession.role === "Ordenes" || completeSession.role === "Asesores de servicio" || completeSession.role === "TÃ©cnicos") && submitMode === "continue")) {
         setSelectedRole(null);
       }
 
@@ -1262,11 +1352,11 @@ function AuditApp() {
       }
 
       if (!savedRemotely) {
-        alert("Auditoría guardada en este dispositivo.");
+        alert("AuditorÃ­a guardada en este dispositivo.");
       } else if (syncWarning) {
         alert(syncWarning);
       } else if (hasWebhookUrl) {
-        alert("Auditoría guardada correctamente.");
+        alert("AuditorÃ­a guardada correctamente.");
       }
     } catch (error) {
       console.error("Submit audit failed:", error);
@@ -1318,7 +1408,7 @@ function AuditApp() {
         items: [],
       });
 
-      if (!((completeSession.role === "Ordenes" || completeSession.role === "Asesores de servicio" || completeSession.role === "Técnicos") && submitMode === "continue")) {
+      if (!((completeSession.role === "Ordenes" || completeSession.role === "Asesores de servicio" || completeSession.role === "TÃ©cnicos") && submitMode === "continue")) {
         setSelectedRole(null);
       }
 
@@ -1327,7 +1417,7 @@ function AuditApp() {
       }
 
       if (isFirebaseEnabled && (errorMessage.includes("Missing or insufficient permissions") || errorMessage.includes("insufficient permissions"))) {
-        const shouldLogin = window.confirm("Se guardó en este dispositivo. Firebase rechazó el acceso. ¿Querés iniciar sesión con Google ahora?");
+        const shouldLogin = window.confirm("Se guardÃ³ en este dispositivo. Firebase rechazÃ³ el acceso. Â¿QuerÃ©s iniciar sesiÃ³n con Google ahora?");
         if (shouldLogin) {
           void handleLogin();
         }
@@ -1335,7 +1425,7 @@ function AuditApp() {
       }
 
       if (isFirebaseEnabled && errorMessage.includes("authInfo") && errorMessage.includes('"userId":undefined')) {
-        const shouldLogin = window.confirm("Se guardó en este dispositivo. No hay una sesión activa. ¿Querés iniciar sesión con Google ahora?");
+        const shouldLogin = window.confirm("Se guardÃ³ en este dispositivo. No hay una sesiÃ³n activa. Â¿QuerÃ©s iniciar sesiÃ³n con Google ahora?");
         if (shouldLogin) {
           void handleLogin();
         }
@@ -1343,11 +1433,11 @@ function AuditApp() {
       }
 
       if (hasWebhookUrl) {
-        alert(`No se pudo enviar la auditoría a Apps Script. Se guardó en este dispositivo.\n\nDetalle: ${errorMessage}`);
+        alert(`No se pudo enviar la auditorÃ­a a Apps Script. Se guardÃ³ en este dispositivo.\n\nDetalle: ${errorMessage}`);
         return;
       }
 
-      alert("La auditoría se guardó en este dispositivo.");
+      alert("La auditorÃ­a se guardÃ³ en este dispositivo.");
     }
   };
 
@@ -1370,6 +1460,7 @@ function AuditApp() {
         sector: templateItem?.sector,
         weight: templateItem?.weight,
         allowsNa: templateItem?.allowsNa,
+        scoreAreas: templateItem?.scoreAreas,
       });
     }
 
@@ -1413,6 +1504,7 @@ function AuditApp() {
         sector: templateItem?.sector,
         weight: templateItem?.weight,
         allowsNa: templateItem?.allowsNa,
+        scoreAreas: templateItem?.scoreAreas,
       });
     }
     
@@ -1438,6 +1530,7 @@ function AuditApp() {
         sector: templateItem?.sector,
         weight: templateItem?.weight,
         allowsNa: templateItem?.allowsNa,
+        scoreAreas: templateItem?.scoreAreas,
         photoUrl,
       });
     }
@@ -1447,7 +1540,7 @@ function AuditApp() {
 
   const syncData = async () => {
     if (!isHistorySyncConfigured) {
-      alert("Configurá Apps Script o una URL CSV publicada para sincronizar datos.");
+      alert("ConfigurÃ¡ Apps Script o una URL CSV publicada para sincronizar datos.");
       return;
     }
 
@@ -1464,8 +1557,8 @@ function AuditApp() {
         setLastSyncMessage(syncMessage);
         alert(
           externalAudits.length > 0
-            ? `Historial cargado desde Google Sheets. Se importaron ${externalAudits.length} auditorías.`
-            : "La fuente externa respondió correctamente, pero no encontró auditorías para importar."
+            ? `Historial cargado desde Google Sheets. Se importaron ${externalAudits.length} auditorÃ­as.`
+            : "La fuente externa respondiÃ³ correctamente, pero no encontrÃ³ auditorÃ­as para importar."
         );
         setIsSyncing(false);
         return;
@@ -1492,7 +1585,7 @@ function AuditApp() {
             persistMeta(SYNC_META_STORAGE_KEY, { timestamp, message: syncMessage });
             setLastSyncAt(timestamp);
             setLastSyncMessage(syncMessage);
-            alert("La fuente CSV respondió, pero tiene un formato inválido o incompleto.");
+            alert("La fuente CSV respondiÃ³, pero tiene un formato invÃ¡lido o incompleto.");
             setIsSyncing(false);
             return;
           }
@@ -1513,7 +1606,7 @@ function AuditApp() {
       persistMeta(SYNC_META_STORAGE_KEY, { timestamp, message: syncMessage });
       setLastSyncAt(timestamp);
       setLastSyncMessage(syncMessage);
-      alert("No se pudo leer la fuente CSV publicada. Revisá la URL y el acceso público.");
+      alert("No se pudo leer la fuente CSV publicada. RevisÃ¡ la URL y el acceso pÃºblico.");
       setIsSyncing(false);
     }
   };
@@ -1553,6 +1646,7 @@ function AuditApp() {
         onCloseMobileNav={() => setIsMobileNavOpen(false)}
         onBack={handleTopbarBack}
         onStartAudit={startNewAudit}
+        backLabel={view === "audit" ? "Volver a áreas" : undefined}
       >
         <AnimatePresence mode="wait">
           {view === "dashboard" && (
@@ -1637,42 +1731,16 @@ function AuditApp() {
             >
               {!selectedRole ? (
                 <>
-                  <Suspense fallback={<div className="rounded-[1.6rem] border border-slate-200 bg-white p-6 text-sm font-bold text-slate-500">Cargando cabina de auditoria...</div>}>
-                    <AuditLandingView
-                      auditBatchDisplayName={auditBatchDisplayName}
-                      selectedAuditorName={selectedAuditorOption?.name}
-                      selectedLocation={session.location}
-                      dateLabel={session.date}
-                      auditEntryTab={auditEntryTab}
-                      onChangeAuditEntryTab={setAuditEntryTab}
-                      auditCategories={auditCategories}
-                      completedAuditReports={completedAuditReports}
-                      sampledOrdersProgress={sampledOrdersProgress}
-                      sampledServiceAdvisorClientsProgress={sampledServiceAdvisorClientsProgress}
-                      blendedServiceAdvisorScoreRows={blendedServiceAdvisorScoreRows}
-                      blendedTechnicianScoreRows={blendedTechnicianScoreRows}
-                      areaScoreRows={areaScoreRows}
-                      onSelectCategory={(categoryName) => {
-                        setSelectedRole(categoryName);
-                        setAuditEntryTab("areas");
-                        if (categoryName === "Pre Entrega" || categoryName === "Ordenes") {
-                          setSelectedStaff("");
-                        }
-                      }}
-                      canGenerateReport={completedAuditReports.length > 0}
-                      onGenerateReport={() => setShowBatchReportModal(true)}
-                    />
-                  </Suspense>
                 <div className="space-y-6">
                   <div className="hero-shell rounded-[2.2rem] p-6 shadow-sm lg:p-7">
                     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
                       <div className="space-y-4">
                         <span className="inline-flex items-center gap-2 rounded-full bg-white/85 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 shadow-sm">
                           <div className="h-2 w-2 rounded-full bg-blue-600" />
-                          Categorías
+                          CategorÃ­as
                         </span>
                         <div className="space-y-2">
-                          <h2 className="text-2xl font-black tracking-tight text-slate-950 lg:text-3xl">Elegí el área.</h2>
+                          <h2 className="text-2xl font-black tracking-tight text-slate-950 lg:text-3xl">ElegÃ­ el Ã¡rea.</h2>
                           {auditBatchDisplayName && (
                             <p className="text-sm font-bold text-slate-600">{auditBatchDisplayName}</p>
                           )}
@@ -1705,7 +1773,7 @@ function AuditApp() {
                           auditEntryTab === "areas" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"
                         )}
                       >
-                        Elegí el área
+                        ElegÃ­ el Ã¡rea
                       </button>
                       <button
                         type="button"
@@ -1752,14 +1820,14 @@ function AuditApp() {
                         >
                           <div className="w-10 h-10 bg-gray-50 rounded-[1rem] flex items-center justify-center group-hover:bg-blue-50 transition-colors">
                             {category.name.includes("Asesor") && <UserCheck className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
-                            {category.name.includes("Técnico") && <Wrench className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
+                            {category.name.includes("TÃ©cnico") && <Wrench className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
                             {category.name.includes("Jefe") && <ShieldCheck className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
                             {category.name.includes("Lavadero") && <Droplets className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
-                            {category.name.includes("Garantía") && <FileCheck className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
+                            {category.name.includes("GarantÃ­a") && <FileCheck className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
                             {category.name.includes("Repuestos") && <Package className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
                             {category.name.includes("Pre Entrega") && <Truck className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
                             {category.name.includes("Ordenes") && <FileText className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
-                            {![("Asesor"), ("Técnico"), ("Jefe"), ("Lavadero"), ("Garantía"), ("Repuestos"), ("Pre Entrega"), ("Ordenes")].some(k => category.name.includes(k)) && (
+                            {![("Asesor"), ("TÃ©cnico"), ("Jefe"), ("Lavadero"), ("GarantÃ­a"), ("Repuestos"), ("Pre Entrega"), ("Ordenes")].some(k => category.name.includes(k)) && (
                               <ClipboardList className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />
                             )}
                           </div>
@@ -1785,9 +1853,9 @@ function AuditApp() {
                             <thead>
                               <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
                                 <th className="px-2 py-2">Asesor</th>
-                                <th className="px-2 py-2">Áreas incluidas</th>
+                                <th className="px-2 py-2">Ãreas incluidas</th>
                                 <th className="px-2 py-2 text-center">Resultado</th>
-                                <th className="px-2 py-2 text-center">Auditorías</th>
+                                <th className="px-2 py-2 text-center">AuditorÃ­as</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1796,11 +1864,20 @@ function AuditApp() {
                                   <td className="px-2 py-2.5 font-bold text-slate-800">{row.personName}</td>
                                   <td className="px-2 py-2.5 text-xs font-bold text-slate-600">{row.areas.join(" + ")}</td>
                                   <td className="px-2 py-2.5 text-center font-black text-emerald-700">{row.compliance}%</td>
-                                  <td className="px-2 py-2.5 text-center font-bold text-slate-600">{row.evaluations}</td>
+                                  <td className="px-2 py-2.5 text-center font-bold text-slate-600">
+                                    <div className="inline-flex flex-col items-center gap-1">
+                                      <span>{row.evaluations}</span>
+                                      {typeof row.linkedItems === "number" && row.linkedItems > 0 && (
+                                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-700">
+                                          {row.linkedItems} vinculados
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
                                 </tr>
                               )) : (
                                 <tr>
-                                  <td className="px-2 py-3 text-xs font-bold text-slate-500" colSpan={4}>Todavía no hay auditorías de asesores para este proceso (OR y Asesores de servicio).</td>
+                                  <td className="px-2 py-3 text-xs font-bold text-slate-500" colSpan={4}>TodavÃ­a no hay auditorÃ­as de asesores para este proceso (OR y Asesores de servicio).</td>
                                 </tr>
                               )}
                             </tbody>
@@ -1811,8 +1888,8 @@ function AuditApp() {
                       <div className="rounded-[1.6rem] border border-slate-200 bg-white p-4 shadow-sm">
                         <div className="mb-3 flex items-center justify-between gap-3">
                           <div>
-                            <p className="text-sm font-black text-slate-900">Técnicos</p>
-                            <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Final = promedio simple entre OR y Auditoría Técnicos</p>
+                            <p className="text-sm font-black text-slate-900">TÃ©cnicos</p>
+                            <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Final = promedio simple entre OR y AuditorÃ­a TÃ©cnicos</p>
                           </div>
                           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600">{blendedTechnicianScoreRows.length} personas</span>
                         </div>
@@ -1820,11 +1897,11 @@ function AuditApp() {
                           <table className="min-w-full text-sm">
                             <thead>
                               <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-                                <th className="px-2 py-2">Técnico</th>
+                                <th className="px-2 py-2">TÃ©cnico</th>
                                 <th className="px-2 py-2 text-center">OR</th>
-                                <th className="px-2 py-2 text-center">Aud. Técnicos</th>
+                                <th className="px-2 py-2 text-center">Aud. TÃ©cnicos</th>
                                 <th className="px-2 py-2 text-center">Final</th>
-                                <th className="px-2 py-2 text-center">Auditorías</th>
+                                <th className="px-2 py-2 text-center">AuditorÃ­as</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1838,7 +1915,7 @@ function AuditApp() {
                                 </tr>
                               )) : (
                                 <tr>
-                                  <td className="px-2 py-3 text-xs font-bold text-slate-500" colSpan={5}>Todavía no hay auditorías de técnicos para este proceso.</td>
+                                  <td className="px-2 py-3 text-xs font-bold text-slate-500" colSpan={5}>TodavÃ­a no hay auditorÃ­as de tÃ©cnicos para este proceso.</td>
                                 </tr>
                               )}
                             </tbody>
@@ -1848,16 +1925,16 @@ function AuditApp() {
 
                       <div className="rounded-[1.6rem] border border-slate-200 bg-white p-4 shadow-sm">
                         <div className="mb-3 flex items-center justify-between gap-3">
-                          <p className="text-sm font-black text-slate-900">Resultado por área</p>
-                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600">{areaScoreRows.length} áreas</span>
+                          <p className="text-sm font-black text-slate-900">Resultado por Ã¡rea</p>
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600">{areaScoreRows.length} Ã¡reas</span>
                         </div>
                         <div className="overflow-x-auto">
                           <table className="min-w-full text-sm">
                             <thead>
                               <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-                                <th className="px-2 py-2">Área</th>
+                                <th className="px-2 py-2">Ãrea</th>
                                 <th className="px-2 py-2 text-center">Resultado</th>
-                                <th className="px-2 py-2 text-center">Auditorías</th>
+                                <th className="px-2 py-2 text-center">AuditorÃ­as</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1891,24 +1968,24 @@ function AuditApp() {
                 </div>
                 </>
               ) : (
-                <div className="audit-workspace-shell space-y-6">
+                <div className={cn("audit-workspace-shell space-y-6", auditWorkspaceToneClass)}>
                 <div className="audit-field-mobile-hero lg:hidden rounded-[1.6rem] border border-slate-200 bg-[linear-gradient(135deg,#081222_0%,#12345d_100%)] p-3.5 text-white shadow-[0_14px_34px_rgba(12,35,64,0.18)]">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Auditoría en campo</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">AuditorÃ­a en campo</p>
                       <h2 className="mt-1.5 text-lg font-black tracking-[-0.03em] text-white">{selectedRole}</h2>
                       <p className="mt-1.5 text-sm font-medium text-slate-300">
                         {isOrdersAudit
-                          ? `OR ${session.orderNumber || "sin número"} · ${sessionParticipants.asesorServicio || "Sin asesor"}`
+                          ? `OR ${session.orderNumber || "sin nÃºmero"} Â· ${sessionParticipants.asesorServicio || "Sin asesor"}`
                           : isServiceAdvisorAudit
-                            ? `${selectedStaff || "Sin asesor"} · ${session.clientIdentifier?.trim() || "Sin cliente/VIN"}`
+                            ? `${selectedStaff || "Sin asesor"} Â· ${session.clientIdentifier?.trim() || "Sin cliente/VIN"}`
                           : isPreDeliveryAudit
                             ? `${auditedFileNames.filter((name) => name.trim()).length}/6 legajos cargados`
                             : (selectedStaff || "Sin personal asignado")}
                       </p>
                       {isOrdersAudit && (
                         <p className="mt-2 text-xs font-medium leading-relaxed text-slate-300">
-                          Técnico: {sessionParticipants.tecnico || "-"} · Controller: {sessionParticipants.controller || "-"} · Lavador: {sessionParticipants.lavador || "-"}
+                          TÃ©cnico: {sessionParticipants.tecnico || "-"} Â· Controller: {sessionParticipants.controller || "-"} Â· Lavador: {sessionParticipants.lavador || "-"}
                         </p>
                       )}
                     </div>
@@ -1956,14 +2033,14 @@ function AuditApp() {
                               selectedRole === "Ordenes" ? "text-blue-100/80" : "text-gray-400"
                             )}>
                               {selectedRole === "Ordenes"
-                                ? `OR ${session.orderNumber || "sin número"}`
+                                ? `OR ${session.orderNumber || "sin nÃºmero"}`
                                 : isServiceAdvisorAudit
                                   ? `Cliente/VIN ${session.clientIdentifier?.trim() || "sin dato"}`
-                                  : (auditBatchDisplayName || "Auditoría en curso")}
+                                  : (auditBatchDisplayName || "AuditorÃ­a en curso")}
                             </p>
                             {selectedRole === "Ordenes" && (
                               <p className="mt-1.5 max-w-[180px] text-[11px] font-medium leading-relaxed text-blue-100/80">
-                                Asesor {sessionParticipants.asesorServicio || "-"} · Técnico {sessionParticipants.tecnico || "-"}
+                                Asesor {sessionParticipants.asesorServicio || "-"} Â· TÃ©cnico {sessionParticipants.tecnico || "-"}
                               </p>
                             )}
                           </div>
@@ -2007,7 +2084,7 @@ function AuditApp() {
                             <p className="mt-1 text-sm font-black text-emerald-800">{sessionItems.filter(i => i.status === 'pass').length}</p>
                           </div>
                           <div className="rounded-lg bg-red-50 px-2 py-2 text-center">
-                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-red-700">Desvío</p>
+                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-red-700">DesvÃ­o</p>
                             <p className="mt-1 text-sm font-black text-red-800">{sessionItems.filter(i => i.status === 'fail').length}</p>
                           </div>
                           <div className="rounded-lg bg-slate-100 px-2 py-2 text-center">
@@ -2019,30 +2096,110 @@ function AuditApp() {
 
                   </div>
 
-                    {!isOrdersAudit && !isPreDeliveryAudit && (
+                    {!isOrdersAudit && !isPreDeliveryAudit && selectedRole !== "Jefe de Repuestos" && (
                       <div className="audit-sidebar-card space-y-2 rounded-[1.3rem] border border-slate-200 bg-white p-3.5 shadow-sm">
                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">Personal Auditado</label>
                         {selectedAuditStaffOptions.length > 0 ? (
-                          <div className="relative">
-                            <select 
-                              value={selectedStaff}
-                              onChange={(e) => setSelectedStaff(e.target.value)}
-                              className="w-full p-3.5 bg-slate-50 border border-gray-200 rounded-2xl font-bold text-sm appearance-none focus:outline-none shadow-sm"
-                            >
-                              <option value="">Seleccionar nombre...</option>
-                              {selectedAuditStaffOptions.map(name => (
-                                <option key={name} value={name}>{name}</option>
-                              ))}
-                            </select>
-                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                          <div className="space-y-2">
+                            <div className="relative">
+                              <select
+                                value={selectedStaff}
+                                onChange={(e) => handleTechnicianSelection(e.target.value)}
+                                className={cn(
+                                  "w-full appearance-none rounded-2xl border p-3.5 pr-10 text-sm font-bold shadow-sm focus:outline-none",
+                                  getTechnicianAuditState(selectedStaff).state === "complete"
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-950"
+                                    : getTechnicianAuditState(selectedStaff).state === "in-progress"
+                                      ? "border-amber-200 bg-amber-50 text-amber-950"
+                                      : "border-gray-200 bg-slate-50 text-slate-900"
+                                )}
+                              >
+                                <option value="">Seleccionar nombre...</option>
+                                {selectedAuditStaffOptions.map((name) => (
+                                  <option key={name} value={name}>{name}</option>
+                                ))}
+                              </select>
+                              <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                            </div>
+
+                            <div className="max-h-[280px] space-y-2 overflow-y-auto pr-1">
+                              {selectedAuditStaffOptions.map((name) => {
+                                const technicianState = getTechnicianAuditState(name);
+                                const isActiveTechnician = selectedStaff.trim() === name.trim();
+
+                                return (
+                                  <button
+                                    key={`technician-picker-${name}`}
+                                    type="button"
+                                    onClick={() => handleTechnicianSelection(name)}
+                                    className={cn(
+                                      "w-full rounded-2xl border px-3 py-3 text-left transition",
+                                      technicianState.state === "complete"
+                                        ? "border-emerald-200 bg-emerald-50 hover:border-emerald-300"
+                                        : technicianState.state === "in-progress"
+                                          ? "border-amber-200 bg-amber-50 hover:border-amber-300"
+                                          : "border-slate-200 bg-slate-50 hover:border-slate-300",
+                                      isActiveTechnician && "ring-4 ring-slate-900/10 shadow-[0_14px_28px_rgba(15,23,42,0.08)]"
+                                    )}
+                                  >
+                                    <div className="flex items-center justify-between gap-3">
+                                      <p className={cn(
+                                        "text-xs font-black",
+                                        technicianState.state === "complete"
+                                          ? "text-emerald-950"
+                                          : technicianState.state === "in-progress"
+                                            ? "text-amber-950"
+                                            : "text-slate-500"
+                                      )}>{name}</p>
+                                      <span className={cn(
+                                        "rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em]",
+                                        technicianState.state === "complete"
+                                          ? "bg-emerald-100 text-emerald-700"
+                                          : technicianState.state === "in-progress"
+                                            ? "bg-amber-100 text-amber-700"
+                                            : "bg-slate-100 text-slate-400"
+                                      )}>
+                                        {technicianState.label}
+                                      </span>
+                                    </div>
+                                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                                      <div
+                                        className={cn(
+                                          "h-full rounded-full transition-all",
+                                          technicianState.state === "complete"
+                                            ? "bg-emerald-500"
+                                            : technicianState.state === "in-progress"
+                                              ? "bg-amber-500"
+                                              : "bg-slate-300"
+                                        )}
+                                        style={{ width: `${technicianState.progressPercent}%` }}
+                                      />
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
                         ) : (
                           <input
                             type="text"
                             value={selectedStaff}
                             onChange={(e) => setSelectedStaff(e.target.value)}
+                            onBlur={() => handleTechnicianSelection(selectedStaff)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                handleTechnicianSelection(selectedStaff);
+                              }
+                            }}
                             placeholder="Ingresar nombre"
-                            className="w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3.5 font-bold text-sm focus:outline-none shadow-sm"
+                            className={cn(
+                              "w-full rounded-2xl border px-4 py-3.5 text-sm font-bold shadow-sm focus:outline-none",
+                              getTechnicianAuditState(selectedStaff).state === "complete"
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-950"
+                                : getTechnicianAuditState(selectedStaff).state === "in-progress"
+                                  ? "border-amber-200 bg-amber-50 text-amber-950"
+                                  : "border-gray-200 bg-slate-50 text-slate-500"
+                            )}
                           />
                         )}
                       </div>
@@ -2051,8 +2208,8 @@ function AuditApp() {
                     {isTechnicianAudit && (technicianReviewSessions.length > 0 || technicianDraftSessions.length > 0) && (
                       <div className="audit-sidebar-card rounded-[1.3rem] border border-slate-200 bg-white px-3.5 py-3.5 shadow-sm space-y-3">
                         <div className="flex items-center justify-between gap-3">
-                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Evaluaciones de técnicos</p>
-                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-700">{technicianDraftSessions.length + technicianReviewSessions.length} técnicos</p>
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Evaluaciones de tÃ©cnicos</p>
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-700">{technicianDraftSessions.length + technicianReviewSessions.length} tÃ©cnicos</p>
                         </div>
                         <div className="space-y-2">
                           {technicianDraftSessions.map((draft) => (
@@ -2060,10 +2217,17 @@ function AuditApp() {
                               key={`technician-draft-${draft.id}`}
                               type="button"
                               onClick={() => resumeDraftSession(draft)}
-                              className="w-full rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-left transition hover:border-amber-300"
+                              className={cn(
+                                "w-full rounded-xl border px-3 py-2.5 text-left transition",
+                                getTechnicianAuditState(draft.staffName || "").state === "complete"
+                                  ? "border-emerald-200 bg-emerald-50 hover:border-emerald-300"
+                                  : getTechnicianAuditState(draft.staffName || "").state === "in-progress"
+                                    ? "border-amber-200 bg-amber-50 hover:border-amber-300"
+                                    : "border-slate-200 bg-slate-50 hover:border-slate-300"
+                              )}
                             >
                               <p className="text-xs font-black text-amber-950">{draft.staffName || "Sin nombre"}</p>
-                              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700">📝 Borrador · {draft.date}</p>
+                              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700">ðŸ“ Borrador Â· {draft.date}</p>
                             </button>
                           ))}
                           {technicianReviewSessions.map((auditSession) => (
@@ -2071,10 +2235,10 @@ function AuditApp() {
                               key={`technician-resume-${auditSession.id}`}
                               type="button"
                               onClick={() => handleResumeTechnicianEvaluation(auditSession)}
-                              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-left transition hover:border-slate-300"
+                              className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-left transition hover:border-emerald-300"
                             >
                               <p className="text-xs font-black text-slate-900">{auditSession.staffName}</p>
-                              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">{auditSession.totalScore}% · {auditSession.date}</p>
+                              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">{auditSession.totalScore}% Â· {auditSession.date}</p>
                             </button>
                           ))}
                         </div>
@@ -2140,7 +2304,7 @@ function AuditApp() {
                     {isOrdersAudit && (
                       <div className="audit-sidebar-card rounded-[1.3rem] border border-slate-200 bg-white px-3.5 py-3.5 shadow-sm space-y-3">
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">Número de OR</label>
+                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">NÃºmero de OR</label>
                           <input
                             type="text"
                             inputMode="numeric"
@@ -2155,7 +2319,7 @@ function AuditApp() {
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
                           {([
                             ["asesorServicio", "Asesor de servicio", OR_PARTICIPANTS.asesorServicio, true],
-                            ["tecnico", "Técnico", OR_PARTICIPANTS.tecnico, false],
+                            ["tecnico", "TÃ©cnico", OR_PARTICIPANTS.tecnico, false],
                             ["controller", "Controller", OR_PARTICIPANTS.controller, false],
                             ["lavador", "Lavador", OR_PARTICIPANTS.lavador, false],
                             ["repuestos", "Repuestos", OR_PARTICIPANTS.repuestos, false],
@@ -2231,7 +2395,7 @@ function AuditApp() {
                     {isPreDeliveryAudit && (
                       <div className="rounded-[1.3rem] border border-slate-200 bg-white px-3.5 py-3.5 shadow-sm space-y-3">
                         <div className="space-y-2">
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Sección activa</p>
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">SecciÃ³n activa</p>
                           <div className="grid grid-cols-2 gap-2">
                             <button
                               type="button"
@@ -2400,7 +2564,7 @@ function AuditApp() {
                                 : "border-slate-200 bg-white text-slate-600"
                             )}
                           >
-                            {isQuickAuditMode ? "Modo rápido" : "Modo completo"}
+                            {isQuickAuditMode ? "Modo rÃ¡pido" : "Modo completo"}
                           </button>
                         </div>
 
@@ -2408,7 +2572,7 @@ function AuditApp() {
                           <div>
                             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Checklist</p>
                             <h3 className="mt-1 text-base font-black text-slate-950">
-                              {isOrdersAudit ? "OR Postventa" : isPreDeliveryAudit ? `Controles · ${preDeliverySection === "general" ? "General" : "Legajos"}` : "Controles"}
+                              {isOrdersAudit ? "OR Postventa" : isPreDeliveryAudit ? `Controles Â· ${preDeliverySection === "general" ? "General" : "Legajos"}` : "Controles"}
                             </h3>
                           </div>
                           <div className="flex items-center gap-2">
@@ -2426,7 +2590,7 @@ function AuditApp() {
                                   : "border-slate-200 bg-white text-slate-600"
                               )}
                             >
-                              {isQuickAuditMode ? "Modo rápido" : "Modo completo"}
+                              {isQuickAuditMode ? "Modo rÃ¡pido" : "Modo completo"}
                             </button>
                           </div>
                         </div>
@@ -2447,6 +2611,7 @@ function AuditApp() {
                                       block={auditItem.block}
                                       description={auditItem.description}
                                       responsibleRoles={auditItem.responsibleRoles}
+                                      scoreAreas={auditItem.scoreAreas}
                                       allowsNa={auditItem.allowsNa}
                                       priority={auditItem.priority}
                                       guidance={auditItem.guidance}
@@ -2480,6 +2645,7 @@ function AuditApp() {
                                         block={auditItem.block}
                                         description={auditItem.description}
                                         responsibleRoles={auditItem.responsibleRoles}
+                                        scoreAreas={auditItem.scoreAreas}
                                         allowsNa={auditItem.allowsNa}
                                         priority={auditItem.priority}
                                         guidance={auditItem.guidance}
@@ -2499,7 +2665,7 @@ function AuditApp() {
                                   </div>
                                 ) : (
                                   <div className="rounded-[1.2rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center">
-                                    <p className="text-sm font-bold text-slate-600">Ingresá un nombre en el legajo activo para ver sus controles.</p>
+                                    <p className="text-sm font-bold text-slate-600">IngresÃ¡ un nombre en el legajo activo para ver sus controles.</p>
                                   </div>
                                 )
                               )}
@@ -2516,6 +2682,7 @@ function AuditApp() {
                                 block={auditItem.block}
                                 description={auditItem.description}
                                 responsibleRoles={auditItem.responsibleRoles}
+                                scoreAreas={auditItem.scoreAreas}
                                 allowsNa={auditItem.allowsNa}
                                 priority={auditItem.priority}
                                 guidance={auditItem.guidance}
@@ -2556,7 +2723,7 @@ function AuditApp() {
                               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Cierre</p>
                               <p className="mt-2 text-sm font-black text-slate-900">Enviar</p>
                               {failItemsWithoutCommentCount > 0 && (
-                                <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">Faltan {failItemsWithoutCommentCount} observaciones obligatorias en desvíos.</p>
+                                <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">Faltan {failItemsWithoutCommentCount} observaciones obligatorias en desvÃ­os.</p>
                               )}
                             </div>
 
@@ -2580,7 +2747,7 @@ function AuditApp() {
                                   ) : (
                                     <>
                                       <Save className="w-4 h-4" />
-                                      {isServiceAdvisorAudit ? "Guardar y seguir con otro cliente" : isTechnicianAudit ? "Guardar y seguir con otro técnico" : "Guardar y seguir con otra OR"}
+                                      {isServiceAdvisorAudit ? "Guardar y seguir con otro cliente" : isTechnicianAudit ? "Guardar y seguir con otro tÃ©cnico" : "Guardar y seguir con otra OR"}
                                     </>
                                   )}
                                 </button>
@@ -2641,7 +2808,7 @@ function AuditApp() {
                             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Cierre</p>
                             <p className="mt-2 text-sm font-black text-slate-900">Enviar</p>
                             {failItemsWithoutCommentCount > 0 && (
-                              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">Faltan {failItemsWithoutCommentCount} observaciones obligatorias en desvíos.</p>
+                              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">Faltan {failItemsWithoutCommentCount} observaciones obligatorias en desvÃ­os.</p>
                             )}
                           </div>
 
@@ -2665,7 +2832,7 @@ function AuditApp() {
                                 ) : (
                                   <>
                                     <Save className="w-4 h-4" />
-                                    {isServiceAdvisorAudit ? "Guardar y seguir con otro cliente" : isTechnicianAudit ? "Guardar y seguir con otro técnico" : "Guardar y seguir con otra OR"}
+                                    {isServiceAdvisorAudit ? "Guardar y seguir con otro cliente" : isTechnicianAudit ? "Guardar y seguir con otro tÃ©cnico" : "Guardar y seguir con otra OR"}
                                   </>
                                 )}
                               </button>
@@ -2814,6 +2981,7 @@ function AuditApp() {
                   handleAddCategory={handleAddCategory}
                   newItemText={newItemText}
                   setNewItemText={setNewItemText}
+                  availableScoreAreas={allAuditAreaNames}
                   newItemDescription={newItemDescription}
                   setNewItemDescription={setNewItemDescription}
                   newItemGuidance={newItemGuidance}
@@ -2836,6 +3004,8 @@ function AuditApp() {
                   setNewItemActive={setNewItemActive}
                   newItemRequiresCommentOnFail={newItemRequiresCommentOnFail}
                   setNewItemRequiresCommentOnFail={setNewItemRequiresCommentOnFail}
+                  newItemScoreAreas={newItemScoreAreas}
+                  setNewItemScoreAreas={setNewItemScoreAreas}
                   handleAddItem={handleAddItem}
                 />
               </Suspense>
@@ -2943,14 +3113,14 @@ function AuditApp() {
         onConfirm={() => submitAudit(pendingOrdersSubmitMode)}
         title={pendingOrdersSubmitMode === "continue"
           ? (isServiceAdvisorAudit
-            ? "¿Guardar y continuar con otro cliente?"
+            ? "Â¿Guardar y continuar con otro cliente?"
             : isTechnicianAudit
-              ? "¿Guardar y continuar con otro técnico?"
-              : "¿Guardar y continuar con otra OR?")
-          : "¿Guardar y finalizar auditoría?"}
+              ? "Â¿Guardar y continuar con otro tÃ©cnico?"
+              : "Â¿Guardar y continuar con otra OR?")
+          : "Â¿Guardar y finalizar auditorÃ­a?"}
         message={pendingOrdersSubmitMode === "continue"
-          ? `Quedan ${optionalPendingCount} ítems opcionales sin responder. ¿Deseás guardar esta evaluación y continuar igualmente?`
-          : `Quedan ${optionalPendingCount} ítems opcionales sin responder. ¿Deseás finalizar igualmente?`}
+          ? `Quedan ${optionalPendingCount} Ã­tems opcionales sin responder. Â¿DeseÃ¡s guardar esta evaluaciÃ³n y continuar igualmente?`
+          : `Quedan ${optionalPendingCount} Ã­tems opcionales sin responder. Â¿DeseÃ¡s finalizar igualmente?`}
       />
 
       <AnimatePresence>
@@ -2992,7 +3162,7 @@ function AuditApp() {
                         <div>
                           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{report.session.location}</p>
                           <h4 className="mt-2 text-xl font-black text-slate-950">{report.role}</h4>
-                          <p className="mt-1 text-sm font-bold text-slate-500">{report.session.staffName || report.auditorName} · {report.session.date}</p>
+                          <p className="mt-1 text-sm font-bold text-slate-500">{report.session.staffName || report.auditorName} Â· {report.session.date}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-center text-emerald-700">
@@ -3088,7 +3258,7 @@ function AuditApp() {
             >
               <div className="p-8 border-b border-gray-100 flex justify-between items-start">
                 <div>
-                  <h3 className="text-xl font-black text-gray-900 leading-tight">Detalles de Auditoría</h3>
+                  <h3 className="text-xl font-black text-gray-900 leading-tight">Detalles de AuditorÃ­a</h3>
                   <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-1">
                     {selectedAudit.role || selectedAudit.items[0]?.category} - {selectedAudit.date}
                   </p>
@@ -3109,19 +3279,19 @@ function AuditApp() {
                     <p className="text-sm font-bold text-gray-700">{selectedAudit.staffName || "N/A"}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Ubicación</p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">UbicaciÃ³n</p>
                     <p className="text-sm font-bold text-gray-700">{selectedAudit.location}</p>
                   </div>
                   {selectedAudit.orderNumber && (
                     <div>
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Número de OR</p>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">NÃºmero de OR</p>
                       <p className="text-sm font-bold text-blue-600">{selectedAudit.orderNumber}</p>
                     </div>
                   )}
                 </div>
 
                 <div className="space-y-3">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Resultados por Ítem</p>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Resultados por Ãtem</p>
                   {selectedAudit.items.map((item, idx) => (
                     <div key={idx} className="p-4 bg-gray-50 rounded-2xl space-y-2">
                       <div className="flex justify-between items-start gap-4">
@@ -3162,7 +3332,7 @@ function AuditApp() {
         )}
       </AnimatePresence>
 
-      {/* Modal de confirmación de eliminación */}
+      {/* Modal de confirmaciÃ³n de eliminaciÃ³n */}
       <AnimatePresence>
         {deleteConfirmModal.show && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
@@ -3180,17 +3350,17 @@ function AuditApp() {
               className="relative bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl p-8 space-y-6"
             >
               <div>
-                <h3 className="text-xl font-black text-gray-900">Eliminar Auditoría</h3>
-                <p className="text-sm font-bold text-gray-600 mt-2">¿Estás seguro de que deseas eliminar esta auditoría?</p>
+                <h3 className="text-xl font-black text-gray-900">Eliminar AuditorÃ­a</h3>
+                <p className="text-sm font-bold text-gray-600 mt-2">Â¿EstÃ¡s seguro de que deseas eliminar esta auditorÃ­a?</p>
               </div>
 
               <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-2">
-                <p className="text-xs font-black text-red-700 uppercase">Auditoría a eliminar:</p>
+                <p className="text-xs font-black text-red-700 uppercase">AuditorÃ­a a eliminar:</p>
                 <p className="text-sm font-bold text-red-900 break-words">{deleteConfirmModal.auditName}</p>
               </div>
 
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
-                <p className="text-xs font-bold text-amber-700">⚠️ Esta acción eliminará la auditoría de forma permanente de todos los sistemas (borradores y guardadas).</p>
+                <p className="text-xs font-bold text-amber-700">âš ï¸ Esta acciÃ³n eliminarÃ¡ la auditorÃ­a de forma permanente de todos los sistemas (borradores y guardadas).</p>
               </div>
 
               <div className="flex gap-3">

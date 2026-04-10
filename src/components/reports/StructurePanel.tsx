@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FolderKanban, ListChecks, PlusCircle, Settings2, Trash2 } from "lucide-react";
+import { FolderKanban, Link2, ListChecks, PlusCircle, Settings2, Trash2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import {
   AuditCategory,
@@ -33,6 +33,7 @@ interface StructurePanelProps {
   handleAddCategory: () => void;
   newItemText: string;
   setNewItemText: (value: string) => void;
+  availableScoreAreas: string[];
   newItemDescription: string;
   setNewItemDescription: (value: string) => void;
   newItemGuidance: string;
@@ -55,6 +56,8 @@ interface StructurePanelProps {
   setNewItemActive: (value: boolean) => void;
   newItemRequiresCommentOnFail: boolean;
   setNewItemRequiresCommentOnFail: (value: boolean) => void;
+  newItemScoreAreas: string[];
+  setNewItemScoreAreas: (updater: string[] | ((current: string[]) => string[])) => void;
   handleAddItem: () => void;
 }
 
@@ -76,6 +79,9 @@ export function StructurePanel({
   handleAddCategory,
   newItemText,
   setNewItemText,
+  availableScoreAreas,
+  newItemScoreAreas,
+  setNewItemScoreAreas,
   handleAddItem,
 }: StructurePanelProps) {
   const [mode, setMode] = useState<"create" | "edit">("edit");
@@ -86,6 +92,41 @@ export function StructurePanel({
       setSelectedStructureCategoryId(auditCategories[0].id);
     }
   }, [auditCategories, mode, selectedStructureCategory, setSelectedStructureCategoryId]);
+
+  const scoreAreaOptions = availableScoreAreas.filter((area) => area !== selectedStructureCategory?.name);
+
+  const toggleNewItemScoreArea = (areaName: string) => {
+    setNewItemScoreAreas((current) => (
+      current.includes(areaName)
+        ? current.filter((value) => value !== areaName)
+        : [...current, areaName]
+    ));
+  };
+
+  const toggleStructureItemScoreArea = (itemId: string, areaName: string) => {
+    if (!selectedStructureCategory) {
+      return;
+    }
+
+    updateCategory(selectedStructureCategory.id, (category) => ({
+      ...category,
+      items: category.items.map((item) => {
+        if (item.id !== itemId) {
+          return item;
+        }
+
+        const currentScoreAreas = Array.isArray(item.scoreAreas) ? item.scoreAreas : [];
+        const nextScoreAreas = currentScoreAreas.includes(areaName)
+          ? currentScoreAreas.filter((value) => value !== areaName)
+          : [...currentScoreAreas, areaName];
+
+        return {
+          ...item,
+          scoreAreas: nextScoreAreas,
+        };
+      }),
+    }));
+  };
 
   return (
     <div className="space-y-6 rounded-[30px] border border-white/80 bg-white/90 p-5 shadow-sm backdrop-blur lg:p-6">
@@ -390,6 +431,40 @@ export function StructurePanel({
                 </button>
               </div>
 
+              <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-3">
+                <div className="flex items-center gap-2">
+                  <Link2 className="h-4 w-4 text-blue-600" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                    Puntaje compartido
+                  </p>
+                </div>
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  El item sumara a la categoria actual y ademas a las areas que marques abajo.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {scoreAreaOptions.length > 0 ? scoreAreaOptions.map((areaName) => {
+                    const isSelected = newItemScoreAreas.includes(areaName);
+                    return (
+                      <button
+                        key={`new-item-score-${areaName}`}
+                        type="button"
+                        onClick={() => toggleNewItemScoreArea(areaName)}
+                        className={cn(
+                          "rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] transition",
+                          isSelected
+                            ? "border-blue-500 bg-blue-500 text-white shadow-sm"
+                            : "border-slate-200 bg-white text-slate-500 hover:border-blue-200 hover:text-blue-600"
+                        )}
+                      >
+                        {areaName}
+                      </button>
+                    );
+                  }) : (
+                    <p className="text-xs font-semibold text-slate-500">No hay areas disponibles para vincular.</p>
+                  )}
+                </div>
+              </div>
+
               <div className="space-y-2">
                 {selectedStructureCategory.items.map((structureItem, index) => (
                   <div key={structureItem.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.03)]">
@@ -414,6 +489,39 @@ export function StructurePanel({
                       }))}
                       className="min-h-[88px] w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none transition focus:border-blue-300"
                     />
+                    <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3">
+                      <div className="flex items-center gap-2">
+                        <Link2 className="h-4 w-4 text-amber-500" />
+                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                          Puntaje compartido
+                        </p>
+                      </div>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        Este item ya suma a su propia categoria. Elegi otras areas que tambien recibiran el promedio.
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {scoreAreaOptions.length > 0 ? scoreAreaOptions.map((areaName) => {
+                          const isSelected = Array.isArray(structureItem.scoreAreas) && structureItem.scoreAreas.includes(areaName);
+                          return (
+                            <button
+                              key={`${structureItem.id}-score-${areaName}`}
+                              type="button"
+                              onClick={() => toggleStructureItemScoreArea(structureItem.id, areaName)}
+                              className={cn(
+                                "rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] transition",
+                                isSelected
+                                  ? "border-amber-500 bg-amber-500 text-white shadow-sm"
+                                  : "border-slate-200 bg-white text-slate-500 hover:border-amber-200 hover:text-amber-600"
+                              )}
+                            >
+                              {areaName}
+                            </button>
+                          );
+                        }) : (
+                          <p className="text-xs font-semibold text-slate-500">No hay areas disponibles para vincular.</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ))}
 

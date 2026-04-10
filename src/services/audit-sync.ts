@@ -41,6 +41,7 @@ export interface AuditSheetItemRow {
   description: string;
   sector: string;
   responsibleRoles: string;
+  scoreAreas: string;
   weight: number;
   allowsNa: string;
   status: "pass" | "fail" | "na";
@@ -160,6 +161,7 @@ export function buildAuditSyncPayload(params: {
         description: item.description ?? "",
         sector: item.sector ?? "",
         responsibleRoles: Array.isArray(item.responsibleRoles) ? item.responsibleRoles.join(",") : "",
+        scoreAreas: Array.isArray(item.scoreAreas) ? item.scoreAreas.join(",") : "",
         weight: item.weight ?? 1,
         allowsNa: item.allowsNa === false ? "false" : "true",
         status: item.status,
@@ -298,6 +300,7 @@ export async function fetchAuditHistoryFromWebhook(webhookUrl: string): Promise<
             description: itemRow.description || "",
             sector: itemRow.sector && isOrAuditSector(itemRow.sector) ? itemRow.sector : undefined,
             responsibleRoles: itemRow.responsibleRoles ? itemRow.responsibleRoles.split(",").filter(isResponsibleRole) : [],
+            scoreAreas: itemRow.scoreAreas ? itemRow.scoreAreas.split(",").map((value) => value.trim()).filter(Boolean) : [],
             weight: parseNumber(itemRow.weight) || 1,
             allowsNa: itemRow.allowsNa !== "false",
             photoUrl: itemRow.photoUrl || undefined,

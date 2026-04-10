@@ -5,15 +5,70 @@ interface UseHashNavigationParams {
   view: AppView;
   selectedRole: Role | null;
   setView: (view: AppView) => void;
+  setSelectedRole: (role: Role | null) => void;
   clearSelectedRole: () => void;
 }
 
-export function useHashNavigation({ view, selectedRole, setView, clearSelectedRole }: UseHashNavigationParams) {
+export function useHashNavigation({ view, selectedRole, setView, setSelectedRole, clearSelectedRole }: UseHashNavigationParams) {
   const isApplyingHashRef = useRef(false);
   const initialHashRef = useRef<string | null>(null);
   const previousEntryRef = useRef<{ view: AppView } | null>(null);
   const navigationHistoryRef = useRef<Array<{ view: AppView }>>([]);
   const isGoingBackRef = useRef(false);
+
+  const AUDIT_SELECTION_SEGMENT = "seleccion";
+
+  const encodeAuditRole = useCallback((role: string) => (
+    role
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+  ), []);
+
+  const decodeAuditRole = useCallback((segment: string) => {
+    const normalizedSegment = segment
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
+    if (normalizedSegment === "ordenes") {
+      return "Ordenes";
+    }
+
+    if (normalizedSegment === "asesores-de-servicio") {
+      return "Asesores de servicio";
+    }
+
+    if (normalizedSegment === "tecnicos") {
+      return "Técnicos";
+    }
+
+    if (normalizedSegment === "pre-entrega") {
+      return "Pre Entrega";
+    }
+
+    if (normalizedSegment === "lavadero") {
+      return "Lavadero";
+    }
+
+    if (normalizedSegment === "garantia") {
+      return "Garantía";
+    }
+
+    if (normalizedSegment === "repuestos") {
+      return "Repuestos";
+    }
+
+    if (normalizedSegment === "jefe") {
+      return "Jefe";
+    }
+
+    return null;
+  }, []);
 
   const applyNavigationFromHash = useCallback(() => {
     if (typeof window === "undefined") {
@@ -21,7 +76,7 @@ export function useHashNavigation({ view, selectedRole, setView, clearSelectedRo
     }
 
     const rawHash = window.location.hash.replace(/^#\/?/, "").trim();
-    const [section] = rawHash.split("/");
+    const [section, subSection] = rawHash.split("/");
 
     isApplyingHashRef.current = true;
 
@@ -37,6 +92,18 @@ export function useHashNavigation({ view, selectedRole, setView, clearSelectedRo
 
     if (section === "audit" || section === "auditoria") {
       setView("audit");
+      if (!subSection || subSection === AUDIT_SELECTION_SEGMENT) {
+        clearSelectedRole();
+        return;
+      }
+
+      const resolvedRole = decodeAuditRole(subSection);
+      if (resolvedRole) {
+        setSelectedRole(resolvedRole);
+        return;
+      }
+
+      clearSelectedRole();
       return;
     }
 
@@ -66,7 +133,7 @@ export function useHashNavigation({ view, selectedRole, setView, clearSelectedRo
     }
 
     setView("dashboard");
-  }, [setView]);
+  }, [AUDIT_SELECTION_SEGMENT, clearSelectedRole, decodeAuditRole, setSelectedRole, setView]);
 
   const buildHashForView = useCallback(() => {
     if (view === "setup") {
@@ -74,7 +141,11 @@ export function useHashNavigation({ view, selectedRole, setView, clearSelectedRo
     }
 
     if (view === "audit") {
-      return "#/auditoria";
+      if (selectedRole) {
+        return `#/auditoria/${encodeAuditRole(selectedRole)}`;
+      }
+
+      return "#/auditoria/seleccion";
     }
 
     if (view === "history") {
@@ -98,7 +169,7 @@ export function useHashNavigation({ view, selectedRole, setView, clearSelectedRo
     }
 
     return "#/inicio";
-  }, [view]);
+  }, [encodeAuditRole, selectedRole, view]);
 
   if (initialHashRef.current === null) {
     initialHashRef.current = buildHashForView();

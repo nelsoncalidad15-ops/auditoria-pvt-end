@@ -67,6 +67,7 @@ export function buildOrderAuditItems(templateItems: AuditTemplateItem[], current
       weight: normalizeWeight(templateItem.weight ?? existingItem?.weight),
       allowsNa: typeof templateItem.allowsNa === "boolean" ? templateItem.allowsNa : existingItem?.allowsNa ?? true,
       evidenceComment: existingItem?.evidenceComment ?? "",
+      scoreAreas: Array.isArray(templateItem.scoreAreas) ? templateItem.scoreAreas : existingItem?.scoreAreas ?? [],
     };
   });
 }

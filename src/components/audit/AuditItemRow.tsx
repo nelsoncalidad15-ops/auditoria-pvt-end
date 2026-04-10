@@ -13,6 +13,7 @@ interface AuditItemRowProps {
   block?: string;
   description?: string;
   responsibleRoles?: OrResponsibleRole[];
+  scoreAreas?: string[];
   allowsNa?: boolean;
   priority?: AuditItemPriority;
   guidance?: string;
@@ -68,6 +69,7 @@ export function AuditItemRow({
   block: _block,
   description,
   responsibleRoles: _responsibleRoles = [],
+  scoreAreas = [],
   allowsNa = true,
   priority: _priority = "medium",
   guidance: _guidance,
@@ -98,6 +100,7 @@ export function AuditItemRow({
   const normalizedDescription = description?.trim() || "";
   const hasComment = Boolean(item?.comment?.trim());
   const hasPhoto = Boolean(item?.photoUrl);
+  const linkedScoreAreas = scoreAreas.filter((area) => area.trim());
   const isAuxPanelOpen = showComment;
   const notePreview = item?.comment?.trim().slice(0, 72) || "";
   const shouldShowExpandedContent = !quickMode || isActive || hasComment || hasPhoto || item?.status === "fail";
@@ -224,6 +227,27 @@ export function AuditItemRow({
           </span>
         )}
       </div>
+
+      {linkedScoreAreas.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-amber-700">
+            Suma a
+          </span>
+          {linkedScoreAreas.map((areaName) => (
+            <span
+              key={`${question}-${areaName}`}
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em]",
+                isOrdersStyle
+                  ? "border-amber-200 bg-amber-50 text-amber-700"
+                  : "border-amber-100 bg-amber-50/80 text-amber-700"
+              )}
+            >
+              {areaName}
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className={cn("grid grid-cols-3 gap-2", quickMode && "hidden lg:grid")}>
         <button

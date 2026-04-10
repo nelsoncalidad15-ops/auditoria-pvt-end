@@ -15,6 +15,45 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, "") || createClientId();
 }
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function normalizeText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+const DEFAULT_SCORE_AREA_RULES = [
+  { category: "TÃ©cnicos", questionIncludes: "firma en cada campo de diagnostico y reparacion realizada", scoreAreas: ["Jefe de Taller"] },
+  { category: "TÃ©cnicos", questionIncludes: "informa al jefe de taller", scoreAreas: ["Jefe de Taller"] },
+  { category: "TÃ©cnicos", questionIncludes: "se llevan a cabo todas las tareas descriptas en el check list de mantenimiento", scoreAreas: ["Jefe de Taller"] },
+  { category: "TÃ©cnicos", questionIncludes: "bidones de aceite con tapa", scoreAreas: ["Jefe de Taller"] },
+  { category: "TÃ©cnicos", questionIncludes: "productos toxicos y o inflamables rotulados", scoreAreas: ["Jefe de Taller"] },
+  { category: "Pre Entrega", questionIncludes: "bidones de aceite con tapa", scoreAreas: ["Jefe de Taller"] },
+] as const;
+
+function getDefaultScoreAreas(categoryName: string, question: string) {
+  const normalizedCategory = normalizeText(categoryName);
+  const normalizedQuestion = normalizeText(question);
+
+  return DEFAULT_SCORE_AREA_RULES
+    .filter((rule) => normalizeText(rule.category) === normalizedCategory && normalizedQuestion.includes(rule.questionIncludes))
+    .flatMap((rule) => rule.scoreAreas);
+}
+
+function buildScoreAreas(categoryName: string, question: string, scoreAreas: unknown) {
+  if (Array.isArray(scoreAreas)) {
+    return scoreAreas.filter(isNonEmptyString);
+  }
+
+  return getDefaultScoreAreas(categoryName, question);
+}
+
 function buildTemplateItems(name: string, items: AuditTemplateItem[]): AuditTemplateItem[] {
   return items.map((item, index) => ({
     ...item,
@@ -32,6 +71,7 @@ function buildTemplateItems(name: string, items: AuditTemplateItem[]): AuditTemp
     weight: typeof item.weight === "number" ? item.weight : 1,
     order: typeof item.order === "number" ? item.order : index + 1,
     active: typeof item.active === "boolean" ? item.active : true,
+    scoreAreas: buildScoreAreas(name, item.text, item.scoreAreas),
   }));
 }
 
@@ -59,6 +99,7 @@ function getCategoryDefaultItems(name: string, questions: string[]): AuditTempla
     weight: 1,
     order: index + 1,
     active: true,
+    scoreAreas: getDefaultScoreAreas(name, question),
   }));
 }
 
@@ -118,6 +159,7 @@ export function normalizeAuditCategories(categories: AuditCategory[] | unknown):
           weight: typeof item.weight === "number" ? item.weight : 1,
           order: typeof item.order === "number" ? item.order : index + 1,
           active: typeof item.active === "boolean" ? item.active : true,
+          scoreAreas: buildScoreAreas(category.name, item.text, item.scoreAreas),
         }))
       : [],
   });

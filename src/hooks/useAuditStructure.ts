@@ -63,6 +63,7 @@ export function useAuditStructure({
   const [newItemWeight, setNewItemWeight] = useState(1);
   const [newItemActive, setNewItemActive] = useState(true);
   const [newItemRequiresCommentOnFail, setNewItemRequiresCommentOnFail] = useState(false);
+  const [newItemScoreAreas, setNewItemScoreAreas] = useState<string[]>([]);
   const [isLoadingStructureFromCloud, setIsLoadingStructureFromCloud] = useState(false);
   const [isSavingStructureToCloud, setIsSavingStructureToCloud] = useState(false);
   const [structureStorageLabel, setStructureStorageLabel] = useState<"local" | "cloud">("local");
@@ -86,6 +87,9 @@ export function useAuditStructure({
   const configuredCategoryCount = Array.from(
     new Set(Object.values(auditCategoryScopes).flatMap((categories) => categories.map((category) => category.name)))
   ).length;
+  const allAuditAreaNames = Array.from(
+    new Set(Object.values(auditCategoryScopes).flatMap((categories) => categories.map((category) => category.name)))
+  ).sort((left, right) => left.localeCompare(right));
 
   const resetNewItemForm = useCallback(() => {
     setNewItemText("");
@@ -100,6 +104,7 @@ export function useAuditStructure({
     setNewItemWeight(1);
     setNewItemActive(true);
     setNewItemRequiresCommentOnFail(false);
+    setNewItemScoreAreas([]);
   }, []);
 
   const persistAuditCategories = useCallback((nextCategories: AuditCategory[]) => {
@@ -217,12 +222,13 @@ export function useAuditStructure({
           active: newItemActive,
           order: category.items.length + 1,
           requiresCommentOnFail: newItemRequiresCommentOnFail,
+          scoreAreas: newItemScoreAreas,
         },
       ],
     }));
 
     resetNewItemForm();
-  }, [newItemActive, newItemAllowsNa, newItemBlock, newItemDescription, newItemGuidance, newItemPriority, newItemRequired, newItemRequiresCommentOnFail, newItemResponsibleRoles, newItemSector, newItemText, newItemWeight, resetNewItemForm, selectedStructureCategory, updateCategory]);
+  }, [newItemActive, newItemAllowsNa, newItemBlock, newItemDescription, newItemGuidance, newItemPriority, newItemRequired, newItemRequiresCommentOnFail, newItemResponsibleRoles, newItemScoreAreas, newItemSector, newItemText, newItemWeight, resetNewItemForm, selectedStructureCategory, updateCategory]);
 
   const handleResetStructure = useCallback(() => {
     const defaults = resetAuditCategories(selectedStructureScope);
@@ -414,6 +420,9 @@ export function useAuditStructure({
     setNewItemActive,
     newItemRequiresCommentOnFail,
     setNewItemRequiresCommentOnFail,
+    newItemScoreAreas,
+    setNewItemScoreAreas,
+    allAuditAreaNames,
     updateCategory,
     handleAddCategory,
     handleDeleteCategory,

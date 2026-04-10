@@ -29,6 +29,7 @@ interface AppShellProps {
   onCloseMobileNav: () => void;
   onBack: () => void;
   onStartAudit: () => void;
+  backLabel?: string;
   children: React.ReactNode;
 }
 
@@ -59,6 +60,7 @@ export function AppShell({
   onCloseMobileNav,
   onBack,
   onStartAudit,
+  backLabel,
   children,
 }: AppShellProps) {
   return (
@@ -85,6 +87,7 @@ export function AppShell({
           authenticationEnabled={authenticationEnabled}
           showMenuButton={showSidebar}
           showBackButton={view !== "dashboard"}
+          backLabel={backLabel}
           onOpenMenu={onOpenMobileNav}
           onBack={onBack}
           onLogin={() => {}}
