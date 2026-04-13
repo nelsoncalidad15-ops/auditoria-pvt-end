@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { ArrowLeft, ClipboardCheck, Menu } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { AuditUserProfile } from "../../types";
@@ -23,7 +24,7 @@ interface TopbarProps {
   onLogin: () => void;
 }
 
-export function Topbar({ appTitle, view, user, userProfile, showMenuButton = false, showBackButton = false, backLabel, onOpenMenu, onBack }: TopbarProps) {
+function TopbarBase({ appTitle, view, user, userProfile, showMenuButton = false, showBackButton = false, backLabel, onOpenMenu, onBack }: TopbarProps) {
   const isAuditView = view === "audit";
   const viewLabel =
     view === "dashboard"
@@ -36,13 +37,13 @@ export function Topbar({ appTitle, view, user, userProfile, showMenuButton = fal
           ? "Continuar"
         : view === "structure"
           ? "Estructura"
-          : view === "integrations"
+        : view === "integrations"
             ? "Integraciones"
         : view === "setup"
-            ? "Configuraci?n"
+            ? "Configuración"
             : view === "audit"
-              ? "Auditor?a"
-              : "Nueva auditor?a";
+              ? "Auditoría"
+              : "Nueva auditoría";
 
   return (
     <header className={cn("sticky top-0 z-40 border-b border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(248,250,252,0.88))] px-4 backdrop-blur-xl md:px-6", isAuditView ? "py-3" : "py-4")}>
@@ -60,7 +61,7 @@ export function Topbar({ appTitle, view, user, userProfile, showMenuButton = fal
             >
               <ArrowLeft className="h-5 w-5" />
               <span className="text-[10px] font-black uppercase tracking-[0.16em]">
-                {backLabel || (isAuditView ? "Volver a ?reas" : "Volver")}
+                {backLabel || (isAuditView ? "Volver a áreas" : "Volver")}
               </span>
             </button>
           )}
@@ -101,4 +102,6 @@ export function Topbar({ appTitle, view, user, userProfile, showMenuButton = fal
     </header>
   );
 }
+
+export const Topbar = memo(TopbarBase);
 

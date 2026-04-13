@@ -148,7 +148,7 @@ export function LoginView({
             </div>
           )}
 
-          <p className="mt-10 text-xs font-medium text-slate-300">Autosol ? {new Date().getFullYear()}</p>
+          <p className="mt-10 text-xs font-medium text-slate-300">Autosol · {new Date().getFullYear()}</p>
         </section>
       </div>
     </div>

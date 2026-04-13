@@ -29,6 +29,8 @@ export interface ScoreLink {
   weight: number;
   sourceItemId?: string;
   sourceItemText?: string;
+  destinationItemId?: string;
+  destinationItemText?: string;
 }
 
 export interface Auditor {

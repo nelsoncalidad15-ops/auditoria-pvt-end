@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import { motion } from "motion/react";
 import {
   Area,
@@ -38,7 +38,7 @@ function monthLabel(month: string) {
   return date.toLocaleDateString("es-AR", { month: "short" });
 }
 
-export function DashboardView({ history }: DashboardViewProps) {
+export const DashboardView = memo(function DashboardView({ history }: DashboardViewProps) {
   const sectionTransition = { duration: 0.38, ease: "easeOut" as const };
   const [activeFilterPulse, setActiveFilterPulse] = React.useState<"year" | "month" | "city" | null>(null);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
@@ -200,7 +200,7 @@ export function DashboardView({ history }: DashboardViewProps) {
               className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-blue-700"
             >
               <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
-              Actualizando m?tricas
+              Actualizando mÃ©tricas
             </motion.span>
           )}
         </div>
@@ -219,7 +219,7 @@ export function DashboardView({ history }: DashboardViewProps) {
               className="dashboard-filter"
             >
               {yearOptions.map((year) => (
-                <option key={year} value={year}>A?o {year}</option>
+                <option key={year} value={year}>AÃ±o {year}</option>
               ))}
             </select>
           </motion.div>
@@ -272,10 +272,10 @@ export function DashboardView({ history }: DashboardViewProps) {
         className="grid grid-cols-2 gap-3 md:grid-cols-4"
       >
         {[
-          { label: "Auditor?as", value: String(kpis.total) },
+          { label: "Auditorías", value: String(kpis.total) },
           { label: "Promedio", value: kpis.total > 0 ? `${kpis.average}%` : "-" },
-          { label: "Aprobaci?n", value: kpis.total > 0 ? `${kpis.approvedRate}%` : "-" },
-          { label: "Cr?ticas", value: String(kpis.critical) },
+          { label: "Aprobación", value: kpis.total > 0 ? `${kpis.approvedRate}%` : "-" },
+          { label: "Críticas", value: String(kpis.critical) },
         ].map((kpi, index) => (
           <motion.article
             key={kpi.label}
@@ -302,7 +302,7 @@ export function DashboardView({ history }: DashboardViewProps) {
         className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]"
       >
         <motion.article whileHover={{ y: -2 }} transition={{ duration: 0.18 }} className="dashboard-card">
-          <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500">Evoluci?n mensual</h3>
+          <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500">Evolución mensual</h3>
           <div className="mt-3 h-[280px] w-full">
             {isRefreshing ? (
               <div className="h-full w-full rounded-2xl border border-blue-100/80 bg-blue-50/35 p-4">
@@ -334,7 +334,7 @@ export function DashboardView({ history }: DashboardViewProps) {
         </motion.article>
 
         <motion.article whileHover={{ y: -2 }} transition={{ duration: 0.18 }} className="dashboard-card">
-          <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500">Distribuci?n de puntajes</h3>
+          <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500">Distribución de puntajes</h3>
           <div className="mt-3 h-[280px] w-full">
             {isRefreshing ? (
               <div className="flex h-full items-center justify-center">
@@ -364,7 +364,7 @@ export function DashboardView({ history }: DashboardViewProps) {
         className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]"
       >
         <motion.article whileHover={{ y: -2 }} transition={{ duration: 0.18 }} className="dashboard-card">
-          <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500">Auditor?as por ciudad</h3>
+          <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500">Auditorías por ciudad</h3>
           <div className="mt-3 h-[260px] w-full">
             {isRefreshing ? (
               <div className="h-full w-full rounded-2xl border border-blue-100/80 bg-blue-50/35 p-4">
@@ -393,7 +393,7 @@ export function DashboardView({ history }: DashboardViewProps) {
         </motion.article>
 
         <motion.article whileHover={{ y: -2 }} transition={{ duration: 0.18 }} className="dashboard-card">
-          <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500">Cumplimiento por ?rea</h3>
+          <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500">Cumplimiento por Ã¡rea</h3>
           <div className="mt-3 h-[260px] w-full">
             {isRefreshing ? (
               <div className="space-y-3">
@@ -422,4 +422,6 @@ export function DashboardView({ history }: DashboardViewProps) {
       </motion.section>
     </div>
   );
-}
+});
+
+

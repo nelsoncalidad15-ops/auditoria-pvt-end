@@ -35,7 +35,7 @@ export function SetupView({
       <section className="setup-hero">
         <div className="setup-hero-copy">
           <p className="setup-kicker">Setup</p>
-          <h2 className="setup-title">Configura la auditoria.</h2>
+          <h2 className="setup-title">Configura la auditoría.</h2>
           <p className="setup-description">Auditor y sucursal.</p>
         </div>
         <div className="setup-meta-grid">
@@ -118,7 +118,7 @@ export function SetupView({
         <div className="setup-footer">
           <div className="setup-batch-card">
             <p className="setup-meta-label">Auditoria</p>
-            <p className="setup-batch-value">{selectedLocation ? auditBatchDisplayName || "Automatica" : "Selecciona una sucursal"}</p>
+            <p className="setup-batch-value">{selectedLocation ? auditBatchDisplayName || "Automática" : "Selecciona una sucursal"}</p>
           </div>
 
           <div className="setup-actions">

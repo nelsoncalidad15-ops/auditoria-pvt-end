@@ -64,7 +64,7 @@ export function AppShell({
   children,
 }: AppShellProps) {
   return (
-    <div className="app-shell min-h-screen lg:min-h-[180vh] 2xl:min-h-[220vh] lg:flex">
+    <div className="app-shell min-h-screen lg:flex">
       <Sidebar
         appTitle={appTitle}
         show={showSidebar}
@@ -77,7 +77,7 @@ export function AppShell({
         onLogout={onLogout}
       />
 
-      <div ref={contentContainerRef} className="flex-1 flex flex-col min-h-[100dvh] lg:min-h-[180vh] 2xl:min-h-[220vh] overflow-y-visible lg:overflow-y-auto">
+      <div ref={contentContainerRef} className="flex-1 flex flex-col min-h-[100dvh] overflow-y-visible lg:overflow-y-auto">
         <Topbar
           appTitle={appTitle}
           view={view}
@@ -93,7 +93,7 @@ export function AppShell({
           onLogin={() => {}}
         />
 
-        <main className={cn("p-4 md:p-8 transition-all duration-500", getMainClassName(view))}>
+        <main className={cn("p-4 md:p-8 transition-[padding,max-width] duration-300 ease-out", getMainClassName(view))}>
           {children}
         </main>
 

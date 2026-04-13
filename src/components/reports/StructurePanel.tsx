@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { FolderKanban, Link2, ListChecks, PlusCircle, Settings2, Trash2 } from "lucide-react";
+﻿import { useEffect, useState } from "react";
+import { ArrowDown, ArrowUp, FolderKanban, Link2, ListChecks, PlusCircle, Settings2, Trash2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import {
   AuditCategory,
@@ -23,6 +23,7 @@ interface StructurePanelProps {
   selectedStructureCategoryId: string;
   setSelectedStructureCategoryId: (categoryId: string) => void;
   updateCategory: (categoryId: string, updater: (category: AuditCategory) => AuditCategory) => void;
+  handleDuplicateCategory: (categoryId: string) => void;
   handleDeleteCategory: (categoryId: string) => void;
   newCategoryName: string;
   setNewCategoryName: (value: string) => void;
@@ -59,6 +60,8 @@ interface StructurePanelProps {
   newItemScoreAreas: string[];
   setNewItemScoreAreas: (updater: string[] | ((current: string[]) => string[])) => void;
   handleAddItem: () => void;
+  handleMoveItem: (itemId: string, direction: "up" | "down") => void;
+  lastStructureSavedAt: string | null;
 }
 
 export function StructurePanel({
@@ -69,6 +72,7 @@ export function StructurePanel({
   selectedStructureCategoryId,
   setSelectedStructureCategoryId,
   updateCategory,
+  handleDuplicateCategory,
   handleDeleteCategory,
   newCategoryName,
   setNewCategoryName,
@@ -83,6 +87,8 @@ export function StructurePanel({
   newItemScoreAreas,
   setNewItemScoreAreas,
   handleAddItem,
+  handleMoveItem,
+  lastStructureSavedAt,
 }: StructurePanelProps) {
   const [mode, setMode] = useState<"create" | "edit">("edit");
   const [selectedScoreItemId, setSelectedScoreItemId] = useState("");
@@ -94,6 +100,9 @@ export function StructurePanel({
     areaName,
     number: index + 1,
   }));
+  const savedLabel = lastStructureSavedAt
+    ? new Date(lastStructureSavedAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })
+    : null;
 
   useEffect(() => {
     if (mode === "edit" && !selectedStructureCategory && auditCategories.length > 0) {
@@ -180,39 +189,12 @@ export function StructurePanel({
     }));
   };
 
-  const selectedMatrixSourceItem = sourceMatrixItems.find((item) => item.id === selectedScoreItemId) ?? sourceMatrixItems[0] ?? null;
-
   const toggleNewItemScoreArea = (areaName: string) => {
     setNewItemScoreAreas((current) => (
       current.includes(areaName)
         ? current.filter((value) => value !== areaName)
         : [...current, areaName]
     ));
-  };
-
-  const toggleStructureItemScoreArea = (itemId: string, areaName: string) => {
-    if (!selectedStructureCategory) {
-      return;
-    }
-
-    updateCategory(selectedStructureCategory.id, (category) => ({
-      ...category,
-      items: category.items.map((item) => {
-        if (item.id !== itemId) {
-          return item;
-        }
-
-        const currentScoreAreas = Array.isArray(item.scoreAreas) ? item.scoreAreas : [];
-        const nextScoreAreas = currentScoreAreas.includes(areaName)
-          ? currentScoreAreas.filter((value) => value !== areaName)
-          : [...currentScoreAreas, areaName];
-
-        return {
-          ...item,
-          scoreAreas: nextScoreAreas,
-        };
-      }),
-    }));
   };
 
   const selectedScoreItem = selectedStructureCategory?.items.find((item) => item.id === selectedScoreItemId) ?? null;
@@ -439,26 +421,34 @@ export function StructurePanel({
           <h4 className="mt-1 text-base font-black text-slate-900">Categorias y preguntas</h4>
         </div>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
+      <div className="space-y-5">
         <div className="space-y-3 rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 shadow-[0_16px_32px_rgba(15,23,42,0.04)]">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Categorias del perfil</p>
               <p className="mt-1 text-sm font-black text-slate-900">{auditCategories.length} categorias disponibles</p>
             </div>
-            <div className="rounded-2xl bg-slate-900 px-3 py-2 text-right text-white">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-300">Perfil</p>
-              <p className="mt-1 text-xs font-black">{selectedStructureScope === "global" ? "General" : selectedStructureScope}</p>
+            <div className="flex flex-col items-end gap-2">
+              <div className="rounded-2xl bg-slate-900 px-3 py-2 text-right text-white">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-300">Perfil</p>
+                <p className="mt-1 text-xs font-black">{selectedStructureScope === "global" ? "General" : selectedStructureScope}</p>
+              </div>
+              {savedLabel && (
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-right">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-600">Guardado</p>
+                  <p className="mt-1 text-xs font-black text-emerald-900">{savedLabel}</p>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="flex gap-3 overflow-x-auto pb-1">
           {auditCategories.map((category) => (
             <button
               key={category.id}
               onClick={() => setSelectedStructureCategoryId(category.id)}
               className={cn(
-                "w-full rounded-2xl border px-4 py-3 text-left transition-all",
+                "min-w-[240px] shrink-0 rounded-2xl border px-4 py-3 text-left transition-all lg:min-w-[280px]",
                 selectedStructureCategoryId === category.id
                   ? "border-slate-900 bg-gradient-to-br from-slate-950 to-slate-800 text-white shadow-[0_18px_30px_rgba(15,23,42,0.18)]"
                   : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
@@ -526,13 +516,22 @@ export function StructurePanel({
                   <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Datos de la categoria</p>
                   <h4 className="mt-1 text-base font-black text-slate-900">Nombre, descripcion y personal</h4>
                 </div>
-                <button
-                  onClick={() => handleDeleteCategory(selectedStructureCategory.id)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-red-600"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Eliminar
-                </button>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <button
+                    onClick={() => handleDuplicateCategory(selectedStructureCategory.id)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                  >
+                    <FolderKanban className="h-3.5 w-3.5" />
+                    Duplicar
+                  </button>
+                  <button
+                    onClick={() => handleDeleteCategory(selectedStructureCategory.id)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-red-600"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Eliminar
+                  </button>
+                </div>
               </div>
               <input
                 type="text"
@@ -805,16 +804,36 @@ export function StructurePanel({
                               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Pregunta activa</p>
                               <h5 className="mt-1 text-lg font-black text-slate-900">{selectedScoreItem.text}</h5>
                             </div>
-                            <button
-                              onClick={() => updateCategory(selectedStructureCategory.id, (category) => ({
-                                ...category,
-                                items: category.items.filter((item) => item.id !== selectedScoreItem.id),
-                              }))}
-                              className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-red-600"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Quitar
-                            </button>
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleMoveItem(selectedScoreItem.id, "up")}
+                                disabled={selectedStructureCategory.items[0]?.id === selectedScoreItem.id}
+                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                <ArrowUp className="h-3.5 w-3.5" />
+                                Subir
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleMoveItem(selectedScoreItem.id, "down")}
+                                disabled={selectedStructureCategory.items[selectedStructureCategory.items.length - 1]?.id === selectedScoreItem.id}
+                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                <ArrowDown className="h-3.5 w-3.5" />
+                                Bajar
+                              </button>
+                              <button
+                                onClick={() => updateCategory(selectedStructureCategory.id, (category) => ({
+                                  ...category,
+                                  items: category.items.filter((item) => item.id !== selectedScoreItem.id),
+                                }))}
+                                className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-red-600"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Quitar
+                              </button>
+                            </div>
                           </div>
                           <textarea
                             value={selectedScoreItem.text}

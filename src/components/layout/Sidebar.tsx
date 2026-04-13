@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { LucideIcon, LogOut, Settings, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "../../lib/utils";
@@ -20,7 +21,7 @@ interface SidebarProps {
   onLogout: () => void;
 }
 
-export function Sidebar({ appTitle, show, view, isMobileOpen, items, user, onNavigate, onMobileClose, onLogout }: SidebarProps) {
+function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNavigate, onMobileClose, onLogout }: SidebarProps) {
   const navContent = (
     <>
       <div className="px-6 py-6 flex items-center gap-3 border-b border-white/8">
@@ -35,7 +36,7 @@ export function Sidebar({ appTitle, show, view, isMobileOpen, items, user, onNav
 
       <nav className="flex-1 min-h-0 overflow-y-auto px-4 py-5 space-y-2 sidebar-scroll">
         <div className="px-3 pb-2">
-          <p className="text-[10px] font-black text-blue-200/65 uppercase tracking-[0.2em]">Operaci?n</p>
+          <p className="text-[10px] font-black text-blue-200/65 uppercase tracking-[0.2em]">Operación</p>
         </div>
 
         {items.map((item) => (
@@ -141,4 +142,6 @@ export function Sidebar({ appTitle, show, view, isMobileOpen, items, user, onNav
     </>
   );
 }
+
+export const Sidebar = memo(SidebarBase);
 

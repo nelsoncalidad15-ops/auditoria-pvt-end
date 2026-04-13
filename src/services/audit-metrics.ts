@@ -11,6 +11,7 @@ export interface BlendedServiceAdvisorScoreRow {
   compliance: number;
   evaluations: number;
   areas: string[];
+  linkedItems: number;
 }
 
 export interface BlendedTechnicianScoreRow {
@@ -312,6 +313,7 @@ export function buildAuditProcessMetrics({
       personName,
       compliance: Math.round(metrics.total / metrics.count),
       evaluations: metrics.count,
+      linkedItems: 0,
     }))
     .sort((left, right) => right.compliance - left.compliance);
 
@@ -352,6 +354,7 @@ export function buildAuditProcessMetrics({
         compliance: areaScores.length > 0 ? Math.round(areaScores.reduce((acc, value) => acc + value, 0) / areaScores.length) : 0,
         evaluations: metrics.evaluations,
         areas: Array.from(metrics.areas).sort(),
+        linkedItems: 0,
       };
     })
     .sort((left, right) => right.compliance - left.compliance);

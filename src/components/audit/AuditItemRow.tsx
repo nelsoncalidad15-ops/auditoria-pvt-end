@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Camera, CheckCircle2, History, MinusCircle, Trash2, XCircle } from "lucide-react";
 import { cn } from "../../lib/utils";
@@ -60,7 +60,7 @@ async function compressImage(file: File) {
   return canvas.toDataURL("image/jpeg", 0.78);
 }
 
-export function AuditItemRow({
+function AuditItemRowBase({
   rowId,
   question,
   index,
@@ -164,7 +164,7 @@ export function AuditItemRow({
       transition={{ delay: index * 0.05 }}
       onClick={onActivate}
       className={cn(
-        "border transition-all duration-300 space-y-3 scroll-mt-32",
+        "render-optimized-card border transition-all duration-300 space-y-3 scroll-mt-32",
         isOrdersStyle
           ? "bg-white rounded-[1.5rem] p-3.5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] border-slate-200/80"
           : isCalmStyle
@@ -477,4 +477,6 @@ export function AuditItemRow({
     </motion.div>
   );
 }
+
+export const AuditItemRow = memo(AuditItemRowBase);
 

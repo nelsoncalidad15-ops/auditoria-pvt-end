@@ -67,6 +67,7 @@ export function useAuditStructure({
   const [isLoadingStructureFromCloud, setIsLoadingStructureFromCloud] = useState(false);
   const [isSavingStructureToCloud, setIsSavingStructureToCloud] = useState(false);
   const [structureStorageLabel, setStructureStorageLabel] = useState<"local" | "cloud">("local");
+  const [lastStructureSavedAt, setLastStructureSavedAt] = useState<string | null>(null);
   const [reportFilter, setReportFilter] = useState(createInitialReportFilter);
 
   const auditCategories = auditCategoryScopes[selectedStructureScope] ?? auditCategoryScopes.global;
@@ -114,6 +115,7 @@ export function useAuditStructure({
     }));
     saveAuditCategories(nextCategories, selectedStructureScope);
     setStructureStorageLabel("local");
+    setLastStructureSavedAt(new Date().toISOString());
   }, [selectedStructureScope]);
 
   const updateCategory = useCallback((categoryId: string, updater: (category: AuditCategory) => AuditCategory) => {
@@ -137,6 +139,37 @@ export function useAuditStructure({
 
     persistAuditCategories(nextCategories);
   }, [auditCategories, persistAuditCategories, reportFilter.role, selectedRole, setSelectedRole]);
+
+  const handleDuplicateCategory = useCallback((categoryId: string) => {
+    const categoryToDuplicate = auditCategories.find((category) => category.id === categoryId);
+    if (!categoryToDuplicate) {
+      return;
+    }
+
+    const baseName = `${categoryToDuplicate.name} - copia`;
+    let nextName = baseName;
+    let duplicateIndex = 2;
+    while (auditCategories.some((category) => category.name.toLowerCase() === nextName.toLowerCase())) {
+      nextName = `${baseName} ${duplicateIndex}`;
+      duplicateIndex += 1;
+    }
+
+    const duplicatedCategory: AuditCategory = {
+      ...categoryToDuplicate,
+      id: createClientId(),
+      name: nextName,
+      items: categoryToDuplicate.items.map((item) => ({
+        ...item,
+        id: createClientId(),
+        scoreLinks: [],
+        scoreAreas: [],
+      })),
+    };
+
+    const nextCategories = [...auditCategories, duplicatedCategory];
+    persistAuditCategories(nextCategories);
+    setSelectedStructureCategoryId(duplicatedCategory.id);
+  }, [auditCategories, persistAuditCategories]);
 
   const handleAddCategory = useCallback(() => {
     const trimmedName = newCategoryName.trim();
@@ -229,6 +262,34 @@ export function useAuditStructure({
 
     resetNewItemForm();
   }, [newItemActive, newItemAllowsNa, newItemBlock, newItemDescription, newItemGuidance, newItemPriority, newItemRequired, newItemRequiresCommentOnFail, newItemResponsibleRoles, newItemScoreAreas, newItemSector, newItemText, newItemWeight, resetNewItemForm, selectedStructureCategory, updateCategory]);
+
+  const handleMoveItem = useCallback((itemId: string, direction: "up" | "down") => {
+    if (!selectedStructureCategory) {
+      return;
+    }
+
+    const currentIndex = selectedStructureCategory.items.findIndex((item) => item.id === itemId);
+    if (currentIndex < 0) {
+      return;
+    }
+
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= selectedStructureCategory.items.length) {
+      return;
+    }
+
+    const nextItems = [...selectedStructureCategory.items];
+    const [movedItem] = nextItems.splice(currentIndex, 1);
+    nextItems.splice(targetIndex, 0, movedItem);
+
+    updateCategory(selectedStructureCategory.id, (category) => ({
+      ...category,
+      items: nextItems.map((item, index) => ({
+        ...item,
+        order: index + 1,
+      })),
+    }));
+  }, [selectedStructureCategory, updateCategory]);
 
   const handleResetStructure = useCallback(() => {
     const defaults = resetAuditCategories(selectedStructureScope);
@@ -385,6 +446,7 @@ export function useAuditStructure({
     isLoadingStructureFromCloud,
     isSavingStructureToCloud,
     structureStorageLabel,
+    lastStructureSavedAt,
     reportFilter,
     setReportFilter,
     reportCategoryItems,
@@ -425,8 +487,10 @@ export function useAuditStructure({
     allAuditAreaNames,
     updateCategory,
     handleAddCategory,
+    handleDuplicateCategory,
     handleDeleteCategory,
     handleAddItem,
+    handleMoveItem,
     handleResetStructure,
     handleLoadStructureFromCloud,
     handleSaveStructureToCloud,

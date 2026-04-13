@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { AlertCircle, ArrowLeft, ChevronRight, ClipboardList, Clock, FileText, Save, Search, TrendingUp } from "lucide-react";
 
 import { cn } from "../../lib/utils";
@@ -41,7 +42,7 @@ function formatTimestamp(value: string | null) {
   });
 }
 
-export function HistoryView({
+export const HistoryView = memo(function HistoryView({
   historyPanel,
   setHistoryPanel,
   filteredHistory,
@@ -165,7 +166,7 @@ export function HistoryView({
 
               <div className="space-y-3">
                 {filteredHistory.map((item) => (
-                  <button key={item.id} onClick={() => onSelectAudit(item)} className={cn("w-full rounded-[2rem] border p-5 text-left shadow-sm transition-all", selectedHistoryAudit?.id === item.id ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white hover:border-slate-300")}>
+                  <button key={item.id} onClick={() => onSelectAudit(item)} className={cn("render-optimized-card w-full rounded-[2rem] border p-5 text-left shadow-sm transition-all", selectedHistoryAudit?.id === item.id ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white hover:border-slate-300")}>
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
                         <div className={cn("h-14 w-14 shrink-0 rounded-2xl flex items-center justify-center text-xl font-bold", selectedHistoryAudit?.id === item.id ? "bg-white/10 text-white" : item.totalScore >= 90 ? "bg-green-50 text-green-600" : item.totalScore >= 70 ? "bg-yellow-50 text-yellow-600" : "bg-red-50 text-red-600")}>{item.totalScore}%</div>
@@ -223,7 +224,7 @@ export function HistoryView({
                   <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
                     <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Items</p>
                     {selectedHistoryAudit.items.map((item, index) => (
-                      <div key={index} className="space-y-2 rounded-[1.4rem] border border-slate-200 bg-white px-4 py-4">
+                      <div key={index} className="render-optimized-card space-y-2 rounded-[1.4rem] border border-slate-200 bg-white px-4 py-4">
                         <div className="flex items-start justify-between gap-4">
                           <p className="text-xs font-bold leading-snug text-slate-700">{item.question}</p>
                           <span className={cn("shrink-0 rounded-lg px-2 py-1 text-[10px] font-black uppercase", item.status === "pass" ? "bg-green-100 text-green-600" : item.status === "fail" ? "bg-red-100 text-red-600" : "bg-slate-200 text-slate-500")}>{item.status === "pass" ? "Cumple" : item.status === "fail" ? "No cumple" : "N/A"}</span>
@@ -306,5 +307,5 @@ export function HistoryView({
       )}
     </>
   );
-}
+});
 
