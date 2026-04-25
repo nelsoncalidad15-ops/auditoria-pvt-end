@@ -57,14 +57,14 @@ export function LoginView({
 
       <div className="login-layout">
         <section className="login-brand-panel">
-          <div className="login-brand-badge">Acceso</div>
+          <div className="login-brand-badge">Acceso rápido</div>
           <div className="space-y-4">
             <div className="login-brand-logo">
               <ClipboardCheck className="h-8 w-8 text-white" />
             </div>
             <div className="space-y-2">
               <h1 className="login-brand-title">{appTitle}</h1>
-              <p className="login-brand-copy">Ingreso al sistema.</p>
+              <p className="login-brand-copy">Entrá como auditor, supervisor o consulta y seguí con tu trabajo sin vueltas.</p>
             </div>
           </div>
 
@@ -87,8 +87,8 @@ export function LoginView({
             </div>
             <div>
               <p className="login-form-kicker">Perfil</p>
-              <h2 className="login-form-title">Selecciona tu perfil</h2>
-              <p className="login-form-copy">Elige un rol.</p>
+              <h2 className="login-form-title">Seleccioná tu perfil</h2>
+              <p className="login-form-copy">Elegí el acceso que mejor se adapte a tu trabajo.</p>
             </div>
           </div>
 

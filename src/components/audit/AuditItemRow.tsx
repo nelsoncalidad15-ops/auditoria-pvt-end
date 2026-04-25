@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Camera, CheckCircle2, History, MinusCircle, Trash2, XCircle } from "lucide-react";
+import { Camera, CheckCircle2, History, Mic, MicOff, MinusCircle, Trash2, XCircle } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { AuditItem, AuditItemPriority, OrResponsibleRole } from "../../types";
 
@@ -65,19 +65,12 @@ function AuditItemRowBase({
   question,
   index,
   item,
-  required: _required = false,
-  block: _block,
   description,
-  responsibleRoles: _responsibleRoles = [],
   scoreAreas = [],
   allowsNa = true,
-  priority: _priority = "medium",
-  guidance: _guidance,
   requiresCommentOnFail = false,
   emphasized = false,
   showStructuredQuestion = false,
-  compactMeta = false,
-  quickMode = false,
   isActive = false,
   observationSuggestions = [],
   onActivate,
@@ -87,7 +80,10 @@ function AuditItemRowBase({
 }: AuditItemRowProps) {
   const [showComment, setShowComment] = useState(false);
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const recognitionRef = useRef<any>(null);
+
   const separatorIndex = question.indexOf(":");
   const hasStructuredCopy = showStructuredQuestion && separatorIndex > -1;
   const questionTitle = hasStructuredCopy ? question.slice(0, separatorIndex).trim() : question;
@@ -95,16 +91,10 @@ function AuditItemRowBase({
   const questionOrderMatch = questionTitle.match(/^(\d+)[.)\-\s]+(.+)$/);
   const questionOrder = questionOrderMatch?.[1] ?? String(index + 1);
   const questionMainCopy = questionOrderMatch?.[2] ?? questionTitle;
-  const isOrdersStyle = showStructuredQuestion;
-  const isCalmStyle = compactMeta && !isOrdersStyle;
-  const normalizedDescription = description?.trim() || "";
+  
   const hasComment = Boolean(item?.comment?.trim());
   const hasPhoto = Boolean(item?.photoUrl);
   const linkedScoreAreas = scoreAreas.filter((area) => area.trim());
-  const isAuxPanelOpen = showComment;
-  const notePreview = item?.comment?.trim().slice(0, 72) || "";
-  const shouldShowExpandedContent = !quickMode || isActive || hasComment || hasPhoto || item?.status === "fail";
-  const shortStatusLabels = { pass: "OK", fail: "No", na: "N/A" } as const;
 
   useEffect(() => {
     if (item?.status === "fail" && requiresCommentOnFail && !item?.comment?.trim()) {
@@ -112,22 +102,46 @@ function AuditItemRowBase({
     }
   }, [item?.comment, item?.status, requiresCommentOnFail]);
 
-  useEffect(() => {
-    if (quickMode && !isActive) {
-      setShowComment(false);
+  const toggleListening = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isListening) {
+      recognitionRef.current?.stop();
+      return;
     }
-  }, [isActive, quickMode]);
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Tu navegador no soporta el reconocimiento de voz.");
+      return;
+    }
+
+    if (!recognitionRef.current) {
+      const recognition = new SpeechRecognition();
+      recognition.lang = "es-AR";
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onstart = () => setIsListening(true);
+      recognition.onend = () => setIsListening(false);
+      recognition.onerror = () => setIsListening(false);
+
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0].transcript)
+          .join("");
+        
+        onCommentUpdate(transcript);
+      };
+
+      recognitionRef.current = recognition;
+    }
+
+    recognitionRef.current.start();
+    setShowComment(true);
+  };
 
   const applyObservationSuggestion = (suggestion: string) => {
     const currentComment = item?.comment?.trim() || "";
-    if (!suggestion.trim()) {
-      return;
-    }
-
-    if (currentComment.toLowerCase().includes(suggestion.toLowerCase())) {
-      return;
-    }
-
     const nextComment = currentComment
       ? `${currentComment}${/[.!?]$/.test(currentComment) ? "" : "."} ${suggestion}`
       : suggestion;
@@ -139,10 +153,7 @@ function AuditItemRowBase({
   const handlePhotoSelection = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     setIsProcessingPhoto(true);
     try {
@@ -150,7 +161,7 @@ function AuditItemRowBase({
       onPhotoUpdate(compressedImage);
       setShowComment(true);
     } catch {
-      alert("No se pudo adjuntar la foto seleccionada.");
+      alert("No se pudo adjuntar la foto.");
     } finally {
       setIsProcessingPhoto(false);
     }
@@ -164,313 +175,146 @@ function AuditItemRowBase({
       transition={{ delay: index * 0.05 }}
       onClick={onActivate}
       className={cn(
-        "render-optimized-card border transition-all duration-300 space-y-3 scroll-mt-32",
-        isOrdersStyle
-          ? "bg-white rounded-[1.5rem] p-3.5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] border-slate-200/80"
-          : isCalmStyle
-            ? "bg-white rounded-[1.45rem] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] border-slate-200"
-            : "bg-white rounded-[1.5rem] p-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)]",
-        onActivate && "cursor-pointer",
-        emphasized && (isOrdersStyle
-          ? "ring-2 ring-offset-2 ring-blue-500 shadow-[0_18px_50px_rgba(59,130,246,0.16)]"
-          : "ring-2 ring-offset-2 ring-blue-300"),
-        isActive && !emphasized && "ring-2 ring-offset-2 ring-slate-300 shadow-[0_10px_30px_rgba(15,23,42,0.08)]",
-        item?.status
-          ? (isOrdersStyle ? "border-slate-300" : isCalmStyle ? "border-slate-200" : "border-gray-200")
-          : (isOrdersStyle ? "border-slate-200 ring-1 ring-slate-100" : isCalmStyle ? "border-slate-200/90" : "border-gray-100 ring-1 ring-gray-50")
+        "premium-card p-5 space-y-4 scroll-mt-32 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900",
+        emphasized && "ring-2 ring-blue-500 shadow-xl",
+        isActive && !emphasized && "ring-1 ring-slate-400 dark:ring-slate-600 shadow-lg",
+        item?.status ? "border-slate-300 dark:border-slate-700" : "border-slate-100 dark:border-slate-800"
       )}
     >
       <div className="flex justify-between items-start gap-3">
-        <div className="space-y-1 flex-1">
-          <div className="space-y-1.5">
-            <p className={cn(
-              "leading-snug",
-              isOrdersStyle ? "font-black text-slate-900 text-[0.96rem] md:text-[1rem] tracking-[-0.02em]" : isCalmStyle ? "font-black text-slate-900 text-[0.98rem] md:text-[1.02rem] tracking-[-0.02em]" : "font-black text-slate-900 text-[0.98rem] md:text-[1.02rem] tracking-[-0.02em]"
-            )}>
-              {questionOrder}. {questionMainCopy}
+        <div className="space-y-2 flex-1">
+          <p className="text-[15px] font-black leading-tight text-slate-900 dark:text-white">
+            <span className="text-blue-600 dark:text-blue-400 mr-1">{questionOrder}.</span> {questionMainCopy}
+          </p>
+          {(questionHint || description) && (
+            <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-3 py-2 border border-slate-100 dark:border-slate-800">
+              {questionHint || description}
             </p>
-            {questionHint && shouldShowExpandedContent && (
-              <p className={cn(
-                "text-[11px] leading-snug rounded-xl px-3 py-2 border",
-                isOrdersStyle
-                  ? "text-slate-600 bg-slate-50 border-slate-200"
-                  : isCalmStyle ? "text-slate-500 bg-slate-50/80 border-slate-100" : "text-gray-500 bg-slate-50 border-slate-100"
-              )}>
-                {questionHint}
-              </p>
-            )}
-            {normalizedDescription && !questionHint && shouldShowExpandedContent && (
-              <p className={cn(
-                "text-[11px] leading-snug rounded-xl px-3 py-2 border",
-                isOrdersStyle
-                  ? "text-slate-600 bg-slate-50 border-slate-200"
-                  : isCalmStyle ? "text-slate-500 bg-slate-50/80 border-slate-100" : "text-gray-500 bg-slate-50 border-slate-100"
-              )}>
-                {normalizedDescription}
-              </p>
-            )}
-            {requiresCommentOnFail && (
-              <p className="text-[11px] font-bold text-amber-700">Nota obligatoria en desv?os.</p>
-            )}
-          </div>
+          )}
+          {requiresCommentOnFail && item?.status === "fail" && !hasComment && (
+            <p className="text-[10px] font-black text-red-500 uppercase tracking-widest animate-pulse">Nota obligatoria</p>
+          )}
         </div>
         {item?.status && (
           <span className={cn(
-            "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em]",
-            item.status === "pass"
-              ? "bg-emerald-50 text-emerald-700"
-              : item.status === "fail"
-                ? "bg-rose-50 text-rose-700"
-                : "bg-slate-100 text-slate-600"
+            "shrink-0 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest",
+            item.status === "pass" ? "bg-emerald-500 text-white" : item.status === "fail" ? "bg-red-500 text-white" : "bg-slate-500 text-white"
           )}>
-            {shortStatusLabels[item.status]}
+            {item.status === "pass" ? "OK" : item.status === "fail" ? "No" : "N/A"}
           </span>
         )}
       </div>
 
       {linkedScoreAreas.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-amber-700">
-            Suma a
-          </span>
-          {linkedScoreAreas.map((areaName) => (
-            <span
-              key={`${question}-${areaName}`}
-              className={cn(
-                "rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em]",
-                isOrdersStyle
-                  ? "border-amber-200 bg-amber-50 text-amber-700"
-                  : "border-amber-100 bg-amber-50/80 text-amber-700"
-              )}
-            >
-              {areaName}
+        <div className="flex flex-wrap gap-2">
+          {linkedScoreAreas.map((area) => (
+            <span key={area} className="text-[9px] font-black uppercase tracking-widest bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-lg border border-blue-100 dark:border-blue-800/50">
+              {area}
             </span>
           ))}
         </div>
       )}
 
-      <div className={cn("grid grid-cols-3 gap-2", quickMode && "hidden lg:grid")}>
-        <button
-          onClick={(event) => {
-            event.stopPropagation();
-            onStatusToggle("pass");
-          }}
-          className={cn(
-            "flex flex-col items-center justify-center gap-1 rounded-[1rem] border-2 transition-all active:scale-95 px-2 sm:min-h-[64px]",
-            isCalmStyle ? "py-2.5 min-h-[66px]" : "py-3 min-h-[68px]",
-            item?.status === "pass"
-              ? (isOrdersStyle ? "bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-100" : "bg-green-500 border-green-500 text-white shadow-lg shadow-green-100")
-              : (isOrdersStyle ? "bg-white border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-700" : "bg-white border-gray-100 text-gray-400 hover:border-green-200 hover:text-green-500")
-          )}
-        >
-          <CheckCircle2 className={cn("h-5 w-5", item?.status === "pass" && "text-white")} />
-          <span className={cn("font-black uppercase tracking-[0.16em]", isCalmStyle ? "text-[13px]" : "text-sm")}>Si</span>
-        </button>
-
-        <button
-          onClick={(event) => {
-            event.stopPropagation();
-            onStatusToggle("fail");
-          }}
-          className={cn(
-            "flex flex-col items-center justify-center gap-1 rounded-[1rem] border-2 transition-all active:scale-95 px-2 sm:min-h-[64px]",
-            isCalmStyle ? "py-2.5 min-h-[66px]" : "py-3 min-h-[68px]",
-            item?.status === "fail"
-              ? (isOrdersStyle ? "bg-red-600 border-red-600 text-white shadow-lg shadow-red-100" : "bg-red-500 border-red-500 text-white shadow-lg shadow-red-100")
-              : (isOrdersStyle ? "bg-white border-slate-200 text-slate-500 hover:border-red-300 hover:text-red-700" : "bg-white border-gray-100 text-gray-400 hover:border-red-200 hover:text-red-500")
-          )}
-        >
-          <XCircle className={cn("h-5 w-5", item?.status === "fail" && "text-white")} />
-          <span className={cn("font-black uppercase tracking-[0.16em]", isCalmStyle ? "text-[13px]" : "text-sm")}>No</span>
-          
-        </button>
-
-        {allowsNa ? (
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { id: "pass", label: "Cumple", icon: CheckCircle2, bg: "bg-emerald-500" },
+          { id: "fail", label: "No cumple", icon: XCircle, bg: "bg-red-500" },
+          { id: "na", label: "N/A", icon: MinusCircle, bg: "bg-slate-500" },
+        ].map((btn) => (
           <button
-            onClick={(event) => {
-              event.stopPropagation();
-              onStatusToggle("na");
-            }}
+            key={btn.id}
+            disabled={btn.id === "na" && !allowsNa}
+            onClick={(e) => { e.stopPropagation(); onStatusToggle(btn.id as any); }}
             className={cn(
-              "flex flex-col items-center justify-center gap-1 rounded-[1.1rem] border-2 transition-all active:scale-95 px-2 sm:min-h-[64px]",
-              isCalmStyle ? "py-2.5 min-h-[66px]" : "py-3 min-h-[74px]",
-              item?.status === "na"
-                ? (isOrdersStyle ? "bg-slate-700 border-slate-700 text-white shadow-lg shadow-slate-200" : "bg-gray-800 border-gray-800 text-white shadow-lg shadow-gray-200")
-                : (isOrdersStyle ? "bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700" : "bg-white border-gray-100 text-gray-400 hover:border-gray-300 hover:text-gray-600")
+              "flex flex-col items-center justify-center gap-2 h-16 rounded-2xl border-2 transition-all active:scale-95",
+              item?.status === btn.id
+                ? `${btn.bg} border-transparent text-white shadow-lg`
+                : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-400 hover:border-slate-200 dark:hover:border-slate-700",
+              btn.id === "na" && !allowsNa && "opacity-30 cursor-not-allowed"
             )}
           >
-            <MinusCircle className={cn("h-5 w-5", item?.status === "na" && "text-white")} />
-            <span className={cn("font-black uppercase tracking-[0.16em]", isCalmStyle ? "text-[13px]" : "text-sm")}>N/A</span>
-            
+            <btn.icon className="h-5 w-5" />
+            <span className="text-[10px] font-black uppercase tracking-widest">{btn.label}</span>
           </button>
-        ) : (
-          <div className={cn(
-            "flex flex-col items-center justify-center gap-1 rounded-[1.1rem] border-2 px-2 sm:min-h-[64px] opacity-60",
-            isCalmStyle ? "py-2.5 min-h-[66px]" : "py-3 min-h-[74px]",
-            isOrdersStyle ? "bg-slate-50 border-slate-200 text-slate-400" : "bg-gray-50 border-gray-200 text-gray-400"
-          )}>
-            <MinusCircle className="h-5 w-5" />
-            <span className="text-sm font-black uppercase tracking-[0.16em]">N/A</span>
-            
-          </div>
-        )}
+        ))}
       </div>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={handlePhotoSelection}
-      />
-
-      <div className={cn(
-        "flex gap-2 pt-1",
-        isOrdersStyle && "border-t border-slate-100 pt-3",
-        isCalmStyle && "pt-0",
-        quickMode && !isActive && "hidden lg:flex"
-      )}>
+      <div className="flex gap-2">
         <button
-          onClick={() => setShowComment(!showComment)}
+          onClick={(e) => { e.stopPropagation(); setShowComment(!showComment); }}
           className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 rounded-[1rem] text-[10px] font-bold uppercase tracking-wider transition-all",
-            isCalmStyle ? "py-3 border" : "py-3.5",
-            item?.comment || showComment
-              ? (isOrdersStyle ? "bg-slate-900 text-white ring-1 ring-slate-900" : isCalmStyle ? "border-slate-200 bg-slate-100 text-slate-700" : "bg-blue-50 text-blue-600 ring-1 ring-blue-100")
-              : (isOrdersStyle ? "bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200" : isCalmStyle ? "border-slate-200 bg-white text-slate-500 hover:bg-slate-50" : "bg-gray-50 text-gray-400 hover:bg-gray-100")
+            "flex-1 h-12 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all",
+            showComment || hasComment ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900" : "bg-slate-100 dark:bg-slate-800 text-slate-500"
           )}
         >
-          <History className="w-3.5 h-3.5" />
-          {hasComment ? "Nota" : requiresCommentOnFail ? "Evidencia" : "Nota"}
+          <History className="h-4 w-4" />
+          {hasComment ? "Nota" : "Añadir nota"}
         </button>
         <button
-          onClick={() => {
-            if (isCalmStyle && hasPhoto) {
-              setShowComment(true);
-              return;
-            }
-
-            fileInputRef.current?.click();
-          }}
+          onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
           disabled={isProcessingPhoto}
           className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 rounded-[1rem] text-[10px] font-bold uppercase tracking-wider transition-all",
-            isCalmStyle ? "py-3 border" : "py-3.5",
-            isOrdersStyle
-              ? "bg-slate-50 text-slate-400 border border-slate-200 hover:bg-slate-100"
-              : isCalmStyle ? "border-slate-200 bg-white text-slate-500 hover:bg-slate-50" : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+            "flex-1 h-12 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500",
+            hasPhoto && "text-blue-600 dark:text-blue-400"
           )}
         >
-          <Camera className="w-3.5 h-3.5" />
-          {isProcessingPhoto ? "Procesando" : isCalmStyle ? "Foto" : item?.photoUrl ? "Foto" : "Adjuntar"}
+          <Camera className="h-4 w-4" />
+          {isProcessingPhoto ? "Procesando..." : hasPhoto ? "Foto lista" : "Foto"}
         </button>
       </div>
 
-      {isCalmStyle && (hasComment || hasPhoto) && !isAuxPanelOpen && (!quickMode || isActive) && (
-        <button
-          type="button"
-          onClick={() => setShowComment(true)}
-          className="flex w-full items-start justify-between gap-3 rounded-[0.95rem] border border-slate-200 bg-slate-50/80 px-3 py-2 text-left transition hover:border-slate-300 hover:bg-slate-50"
-        >
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-              {hasComment && hasPhoto ? "Nota + foto" : hasComment ? "Nota" : "Foto"}
-            </p>
-            {hasComment && (
-              <p className="mt-1 truncate text-[11px] font-medium text-slate-600">
-                {notePreview}{item?.comment && item.comment.trim().length > 72 ? "..." : ""}
-              </p>
-            )}
-          </div>
-          <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Ver</span>
-        </button>
-      )}
+      <input ref={fileInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoSelection} />
 
       <AnimatePresence>
-        {isAuxPanelOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className={cn(
-              "pt-1",
-              isCalmStyle && "pt-0"
-            )}>
-              <div className={cn(
-                "space-y-3 rounded-[1rem] border p-3",
-                isCalmStyle ? "border-slate-200 bg-slate-50/70" : "border-slate-200 bg-slate-50"
-              )}>
-                {item?.photoUrl && (
-                  <div className="space-y-2">
-                    <img src={item.photoUrl} alt="Foto del item" className="h-40 w-full rounded-xl object-cover" />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600 transition-all hover:border-slate-300"
-                      >
-                        Cambiar
-                      </button>
-                      <button
-                        onClick={() => onPhotoUpdate(undefined)}
-                        className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-white px-3 py-2 text-red-600 transition-all hover:border-red-300"
-                        aria-label="Quitar foto"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {(showComment || item?.comment || requiresCommentOnFail) && (
-                  <textarea
-                    value={item?.comment || ""}
-                    onChange={(e) => onCommentUpdate(e.target.value)}
-                    placeholder="Escribe una nota..."
-                    className={cn(
-                      "w-full rounded-[1.2rem] text-xs resize-none transition-all focus:ring-0",
-                      isOrdersStyle
-                        ? "h-20 border-2 border-gray-100 bg-gray-50 p-3 focus:border-blue-200"
-                        : isCalmStyle
-                          ? "h-20 border border-slate-200 bg-white p-3 text-slate-700 focus:border-slate-300"
-                          : "h-22 border-2 border-gray-100 bg-gray-50 p-3.5 focus:border-blue-200"
-                    )}
-                  />
-                )}
-
-                {observationSuggestions.length > 0 && (item?.status === "fail" || hasComment || isActive) && (
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Sugeridas</p>
-                    <div className="flex flex-wrap gap-2">
-                      {observationSuggestions.map((suggestion) => (
-                        <button
-                          key={suggestion}
-                          type="button"
-                          onClick={() => applyObservationSuggestion(suggestion)}
-                          className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-                        >
-                          {suggestion}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {(hasComment || hasPhoto) && (
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setShowComment(false)}
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 transition hover:border-slate-300"
-                    >
-                      Ocultar
-                    </button>
-                  </div>
-                )}
+        {showComment && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden space-y-4">
+            {item?.photoUrl && (
+              <div className="relative group rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                <img src={item.photoUrl} alt="Evidencia" className="w-full h-48 object-cover" />
+                <button
+                  onClick={(e) => { e.stopPropagation(); onPhotoUpdate(undefined); }}
+                  className="absolute top-3 right-3 p-2 bg-red-500 text-white rounded-xl shadow-lg active:scale-90"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
+            )}
+            
+            <div className="relative">
+              <textarea
+                value={item?.comment || ""}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => onCommentUpdate(e.target.value)}
+                placeholder="Escribe una observación o dictado por voz..."
+                className="w-full h-24 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-sm focus:ring-2 focus:ring-blue-500/20 transition-all outline-none resize-none pr-12"
+              />
+              <button
+                onClick={toggleListening}
+                className={cn(
+                  "absolute bottom-3 right-3 h-9 w-9 rounded-xl flex items-center justify-center transition-all shadow-md",
+                  isListening ? "bg-red-500 text-white animate-pulse" : "bg-white dark:bg-slate-700 text-slate-500"
+                )}
+              >
+                {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </button>
             </div>
+
+            {observationSuggestions.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sugerencias</p>
+                <div className="flex flex-wrap gap-2">
+                  {observationSuggestions.map((s) => (
+                    <button
+                      key={s}
+                      onClick={(e) => { e.stopPropagation(); applyObservationSuggestion(s); }}
+                      className="px-3 py-1.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-400 hover:border-blue-300 transition-all"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -479,4 +323,3 @@ function AuditItemRowBase({
 }
 
 export const AuditItemRow = memo(AuditItemRowBase);
-

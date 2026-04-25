@@ -24,77 +24,91 @@ interface TopbarProps {
   onLogin: () => void;
 }
 
-function TopbarBase({ appTitle, view, user, userProfile, showMenuButton = false, showBackButton = false, backLabel, onOpenMenu, onBack }: TopbarProps) {
+function TopbarBase({
+  appTitle,
+  view,
+  user,
+  userProfile,
+  showMenuButton = false,
+  showBackButton = false,
+  backLabel,
+  onOpenMenu,
+  onBack,
+}: TopbarProps) {
   const isAuditView = view === "audit";
   const viewLabel =
     view === "dashboard"
       ? "Dashboard"
       : view === "home"
         ? "Inicio"
-      : view === "history"
-        ? "Historial"
-        : view === "continuar"
-          ? "Continuar"
-        : view === "structure"
-          ? "Estructura"
-        : view === "integrations"
-            ? "Integraciones"
-        : view === "setup"
-            ? "Configuración"
-            : view === "audit"
-              ? "Auditoría"
-              : "Nueva auditoría";
+        : view === "history"
+          ? "Historial"
+          : view === "continuar"
+            ? "Continuar"
+            : view === "structure"
+              ? "Estructura"
+              : view === "integrations"
+                ? "Integraciones"
+                : view === "setup"
+                  ? "Configuración"
+                  : view === "audit"
+                    ? "Auditoría"
+                    : "Nueva auditoría";
 
   return (
-    <header className={cn("sticky top-0 z-40 border-b border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(248,250,252,0.88))] px-4 backdrop-blur-xl md:px-6", isAuditView ? "py-3" : "py-4")}>
+    <header className={cn("sticky top-0 z-40 bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 transition-all duration-300", isAuditView ? "py-2" : "py-4")}>
       <div
         className={cn(
-          "mx-auto flex items-center justify-between gap-4",
-          view === "dashboard" ? "max-w-7xl" : view === "setup" ? "max-w-5xl" : view === "audit" ? "max-w-6xl" : view === "home" ? "max-w-md" : "max-w-md lg:max-w-none",
+          "mx-auto flex items-center justify-between gap-4 px-4 md:px-8",
+          view === "dashboard" ? "max-w-7xl" : view === "setup" ? "max-w-5xl" : view === "audit" ? "max-w-6xl" : view === "home" ? "max-w-7xl" : "max-w-7xl",
         )}
       >
-        <div className={cn("flex items-center gap-3", (view === "home" || view === "audit" || view === "setup") ? "flex" : "lg:hidden flex")}>
+        <div className="flex items-center gap-4">
           {showBackButton && onBack && (
             <button
               onClick={onBack}
-              className="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-3 text-slate-700 shadow-[0_10px_26px_rgba(15,23,42,0.05)]"
+              className="h-10 px-4 flex items-center gap-2 rounded-xl bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 font-bold text-[11px] uppercase tracking-wider hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
             >
-              <ArrowLeft className="h-5 w-5" />
-              <span className="text-[10px] font-black uppercase tracking-[0.16em]">
-                {backLabel || (isAuditView ? "Volver a áreas" : "Volver")}
-              </span>
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">{backLabel || (isAuditView ? "Áreas" : "Volver")}</span>
             </button>
           )}
           {showMenuButton && (
             <button
               onClick={onOpenMenu}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white/90 text-slate-700 shadow-[0_10px_26px_rgba(15,23,42,0.05)] lg:hidden"
+              className="h-10 w-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 lg:hidden"
             >
               <Menu className="h-5 w-5" />
             </button>
           )}
-          <div className="rounded-2xl bg-slate-950 p-2.5 shadow-[0_12px_28px_rgba(15,23,42,0.16)]">
-            <ClipboardCheck className="text-white w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="font-black text-sm tracking-tight leading-none uppercase text-slate-950">{appTitle}</h1>
-            <p className="mt-1 hidden text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 sm:block">{viewLabel}</p>
-          </div>
-        </div>
-
-        <div className={cn("hidden min-w-0 lg:block", (view === "dashboard" || view === "history" || view === "structure" || view === "integrations") ? "lg:block" : "lg:hidden")}>
-          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-            <span>{viewLabel}</span>
+          
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-500/20">
+              <ClipboardCheck className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-sm font-black text-slate-900 dark:text-white truncate uppercase tracking-tight">{appTitle}</h2>
+              <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">{viewLabel}</p>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="hidden sm:inline-flex items-center rounded-xl border border-slate-200 bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700">
-            {USER_PROFILE_LABELS[userProfile]}
-          </span>
+        <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50">
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+              {USER_PROFILE_LABELS[userProfile]}
+            </span>
+          </div>
+          
           {user && (
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-[11px] font-black text-slate-700 border border-slate-200">
-              {user.displayName?.charAt(0) ?? "U"}
+            <div className="flex items-center gap-2 p-1 pl-3 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50">
+              <span className="hidden sm:inline text-[10px] font-bold text-slate-600 dark:text-slate-400 truncate max-w-[120px]">
+                {user.displayName}
+              </span>
+              <div className="h-8 w-8 rounded-lg bg-blue-600 text-white flex items-center justify-center text-xs font-black">
+                {user.displayName?.charAt(0) ?? "U"}
+              </div>
             </div>
           )}
         </div>
@@ -104,4 +118,3 @@ function TopbarBase({ appTitle, view, user, userProfile, showMenuButton = false,
 }
 
 export const Topbar = memo(TopbarBase);
-

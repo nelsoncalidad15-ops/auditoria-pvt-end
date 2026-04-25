@@ -148,6 +148,32 @@ function getItemScoreLinks(item: AuditSession["items"][number]): ScoreLink[] {
   return [];
 }
 
+function getItemComplianceById(session: AuditSession) {
+  return session.items.reduce((acc, item) => {
+    acc.set(item.id, calculateAuditCompliance([item]));
+    return acc;
+  }, new Map<string, ReturnType<typeof calculateAuditCompliance>>());
+}
+
+function buildInboundLinksByDestinationItemId(session: AuditSession) {
+  return session.items.reduce((acc, item) => {
+    getItemScoreLinks(item).forEach((link) => {
+      if (!link.destinationItemId) {
+        return;
+      }
+
+      const current = acc.get(link.destinationItemId) ?? [];
+      current.push({
+        sourceItemId: item.id,
+        weight: link.weight,
+      });
+      acc.set(link.destinationItemId, current);
+    });
+
+    return acc;
+  }, new Map<string, Array<{ sourceItemId: string; weight: number }>>());
+}
+
 export function buildAuditHistorySummary({
   history,
   searchTerm,
@@ -449,62 +475,50 @@ export function buildAuditProcessMetrics({
     return acc;
   }, new Map<string, { total: number; weight: number; linkedItems: number; contributions: number }>());
 
-  const itemComplianceById = new Map<string, number>();
   processScoreSessions.forEach((auditSession) => {
-    auditSession.items.forEach((item) => {
-      itemComplianceById.set(item.id, calculateAuditCompliance([item]).compliance);
-    });
-  });
+    const itemComplianceById = getItemComplianceById(auditSession);
+    const inboundLinksByDestinationItemId = buildInboundLinksByDestinationItemId(auditSession);
 
-  const inboundLinksByDestinationItemId = new Map<string, Array<{ sourceItemId: string; weight: number }>>();
-  processScoreSessions.forEach((auditSession) => {
-    auditSession.items.forEach((item) => {
-      getItemScoreLinks(item).forEach((link) => {
-        if (!link.destinationItemId) {
-          return;
-        }
+    const getEffectiveItemCompliance = (item: AuditSession["items"][number]) => {
+      const directCompliance = itemComplianceById.get(item.id);
+      const inboundLinks = inboundLinksByDestinationItemId.get(item.id) ?? [];
+      const contributions: Array<{ compliance: number; weight: number }> = [];
 
-        const current = inboundLinksByDestinationItemId.get(link.destinationItemId) ?? [];
-        current.push({ sourceItemId: item.id, weight: link.weight });
-        inboundLinksByDestinationItemId.set(link.destinationItemId, current);
-      });
-    });
-  });
-
-  const getEffectiveItemCompliance = (item: AuditSession["items"][number]) => {
-    const inboundLinks = inboundLinksByDestinationItemId.get(item.id) ?? [];
-    if (inboundLinks.length > 0) {
-      const linkedWeights = inboundLinks
-        .map((link) => {
+      if (inboundLinks.length > 0) {
+        inboundLinks.forEach((link) => {
           const sourceCompliance = itemComplianceById.get(link.sourceItemId);
-          if (typeof sourceCompliance !== "number") {
-            return null;
+          if (!sourceCompliance || sourceCompliance.totalApplicableWeight === 0) {
+            return;
           }
 
-          return {
-            compliance: sourceCompliance,
+          contributions.push({
+            compliance: sourceCompliance.compliance,
             weight: link.weight,
-          };
-        })
-        .filter((value): value is { compliance: number; weight: number } => Boolean(value));
+          });
+        });
+      } else if (directCompliance && directCompliance.totalApplicableWeight > 0) {
+        contributions.push({
+          compliance: directCompliance.compliance,
+          weight: directCompliance.totalApplicableWeight,
+        });
+      }
 
-      if (linkedWeights.length > 0) {
-        const totalWeight = linkedWeights.reduce((acc, link) => acc + link.weight, 0);
-        const totalCompliance = linkedWeights.reduce((acc, link) => acc + (link.compliance * link.weight), 0);
+      if (contributions.length === 0) {
         return {
-          compliance: totalWeight > 0 ? Math.round(totalCompliance / totalWeight) : 0,
-          linked: true,
+          compliance: 0,
+          linked: false,
         };
       }
-    }
 
-    return {
-      compliance: calculateAuditCompliance([item]).compliance,
-      linked: false,
+      const totalWeight = contributions.reduce((acc, entry) => acc + entry.weight, 0);
+      const totalCompliance = contributions.reduce((acc, entry) => acc + (entry.compliance * entry.weight), 0);
+
+      return {
+        compliance: totalWeight > 0 ? Math.round(totalCompliance / totalWeight) : 0,
+        linked: inboundLinks.length > 0,
+      };
     };
-  };
 
-  processScoreSessions.forEach((auditSession) => {
     const sessionRoleName = auditSession.role || auditSession.items[0]?.category || "General";
     const effectiveItems = auditSession.items.map((item) => ({
       item,
@@ -522,8 +536,8 @@ export function buildAuditProcessMetrics({
       return;
     }
 
-    current.total += sessionCompliance.compliance * 100;
-    current.weight += 100;
+    current.total += sessionCompliance.compliance;
+    current.weight += 1;
     current.contributions += 1;
     current.linkedItems += effectiveItems.filter((entry) => entry.effectiveCompliance.linked).length;
   });

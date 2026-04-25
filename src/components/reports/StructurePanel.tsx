@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, FolderKanban, Link2, ListChecks, PlusCircle, Settings2, Trash2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import {
@@ -25,6 +25,8 @@ interface StructurePanelProps {
   updateCategory: (categoryId: string, updater: (category: AuditCategory) => AuditCategory) => void;
   handleDuplicateCategory: (categoryId: string) => void;
   handleDeleteCategory: (categoryId: string) => void;
+  handleDuplicateItem: (categoryId: string, itemId: string) => void;
+  handleDeleteItem: (categoryId: string, itemId: string) => void;
   newCategoryName: string;
   setNewCategoryName: (value: string) => void;
   newCategoryDescription: string;
@@ -57,8 +59,6 @@ interface StructurePanelProps {
   setNewItemActive: (value: boolean) => void;
   newItemRequiresCommentOnFail: boolean;
   setNewItemRequiresCommentOnFail: (value: boolean) => void;
-  newItemScoreAreas: string[];
-  setNewItemScoreAreas: (updater: string[] | ((current: string[]) => string[])) => void;
   handleAddItem: () => void;
   handleMoveItem: (itemId: string, direction: "up" | "down") => void;
   lastStructureSavedAt: string | null;
@@ -74,6 +74,8 @@ export function StructurePanel({
   updateCategory,
   handleDuplicateCategory,
   handleDeleteCategory,
+  handleDuplicateItem,
+  handleDeleteItem,
   newCategoryName,
   setNewCategoryName,
   newCategoryDescription,
@@ -84,16 +86,20 @@ export function StructurePanel({
   newItemText,
   setNewItemText,
   availableScoreAreas,
-  newItemScoreAreas,
-  setNewItemScoreAreas,
   handleAddItem,
   handleMoveItem,
   lastStructureSavedAt,
 }: StructurePanelProps) {
   const [mode, setMode] = useState<"create" | "edit">("edit");
   const [selectedScoreItemId, setSelectedScoreItemId] = useState("");
+  const [itemSearch, setItemSearch] = useState("");
+  const [showOnlyActive, setShowOnlyActive] = useState(false);
+  const [showOnlyLinked, setShowOnlyLinked] = useState(false);
   const [selectedSourceAreaName, setSelectedSourceAreaName] = useState("");
   const [selectedTargetAreaName, setSelectedTargetAreaName] = useState("");
+  const [selectedImpactTargetAreaName, setSelectedImpactTargetAreaName] = useState("");
+  const [selectedImpactTargetItemId, setSelectedImpactTargetItemId] = useState("");
+  const [selectedImpactWeight, setSelectedImpactWeight] = useState(100);
   const selectedCategoryQuestions = selectedStructureCategory?.items.length ?? 0;
   const scoreAreaOptions = availableScoreAreas.filter((area) => area !== selectedStructureCategory?.name);
   const scoreAreaEntries = scoreAreaOptions.map((areaName, index) => ({
@@ -134,6 +140,23 @@ export function StructurePanel({
   }, [selectedStructureCategory]);
 
   useEffect(() => {
+    if (!selectedStructureCategory) {
+      setSelectedImpactTargetAreaName("");
+      return;
+    }
+
+    const nextArea = scoreAreaOptions[0] ?? selectedStructureCategory.name;
+    setSelectedImpactTargetAreaName(nextArea);
+  }, [scoreAreaOptions, selectedStructureCategory]);
+
+  useEffect(() => {
+    const nextItems = getItemsForArea(selectedImpactTargetAreaName);
+    setSelectedImpactTargetItemId((current) => (
+      nextItems.some((item) => item.id === current) ? current : nextItems[0]?.id ?? ""
+    ));
+  }, [selectedImpactTargetAreaName, auditCategories]);
+
+  useEffect(() => {
     if (selectedSourceAreaName && scoreAreaOptions.includes(selectedSourceAreaName)) {
       return;
     }
@@ -145,8 +168,32 @@ export function StructurePanel({
 
   const selectedSourceCategory = auditCategories.find((category) => category.name === selectedSourceAreaName) ?? null;
   const selectedTargetCategory = auditCategories.find((category) => category.name === selectedTargetAreaName) ?? selectedStructureCategory ?? null;
+  const selectedImpactTargetItems = getItemsForArea(selectedImpactTargetAreaName);
+  const selectedImpactTargetItem = selectedImpactTargetItems.find((item) => item.id === selectedImpactTargetItemId) ?? selectedImpactTargetItems[0] ?? null;
   const sourceMatrixItems = selectedSourceCategory?.items ?? [];
   const targetMatrixItems = selectedTargetCategory?.items ?? [];
+  const selectedStructureItems = selectedStructureCategory?.items ?? [];
+  const visibleStructureItems = selectedStructureItems.filter((item) => {
+    const normalizedSearch = itemSearch.trim().toLowerCase();
+    const matchesSearch = !normalizedSearch
+      || item.text.toLowerCase().includes(normalizedSearch)
+      || (item.block ?? "").toLowerCase().includes(normalizedSearch)
+      || (item.guidance ?? "").toLowerCase().includes(normalizedSearch);
+    const matchesActive = !showOnlyActive || item.active !== false;
+    const matchesLinked = !showOnlyLinked || (Array.isArray(item.scoreLinks) && item.scoreLinks.length > 0);
+    return matchesSearch && matchesActive && matchesLinked;
+  });
+  useEffect(() => {
+    if (!selectedStructureCategory) {
+      return;
+    }
+
+    if (visibleStructureItems.some((item) => item.id === selectedScoreItemId)) {
+      return;
+    }
+
+    setSelectedScoreItemId(visibleStructureItems[0]?.id || selectedStructureItems[0]?.id || "");
+  }, [selectedScoreItemId, selectedStructureCategory, selectedStructureItems, visibleStructureItems]);
 
   const toggleMatrixCell = (sourceItemId: string, destinationItemId: string) => {
     if (!selectedSourceCategory || !selectedTargetCategory) {
@@ -189,15 +236,9 @@ export function StructurePanel({
     }));
   };
 
-  const toggleNewItemScoreArea = (areaName: string) => {
-    setNewItemScoreAreas((current) => (
-      current.includes(areaName)
-        ? current.filter((value) => value !== areaName)
-        : [...current, areaName]
-    ));
-  };
 
   const selectedScoreItem = selectedStructureCategory?.items.find((item) => item.id === selectedScoreItemId) ?? null;
+  const selectedItemLinks = Array.isArray(selectedScoreItem?.scoreLinks) ? selectedScoreItem.scoreLinks : [];
 
   const updateScoreLinksForItem = (
     itemId: string,
@@ -232,27 +273,31 @@ export function StructurePanel({
     }));
   };
 
-  const addScoreLinkToSelectedItem = (areaName: string) => {
+  const addScoreLinkToSelectedItem = () => {
     if (!selectedScoreItem) {
       return;
     }
 
-    const currentLinks = Array.isArray(selectedScoreItem.scoreLinks) ? selectedScoreItem.scoreLinks : [];
-    if (currentLinks.some((link) => link.area === areaName)) {
+    if (!selectedImpactTargetAreaName || !selectedImpactTargetItem) {
       return;
     }
 
-    const firstDestinationItem = getItemsForArea(areaName)[0];
+    const currentLinks = Array.isArray(selectedScoreItem.scoreLinks) ? selectedScoreItem.scoreLinks : [];
+    const normalizedWeight = Math.min(100, Math.max(1, Math.round(selectedImpactWeight)));
+    const existingIndex = currentLinks.findIndex((link) => link.area === selectedImpactTargetAreaName && link.destinationItemId === selectedImpactTargetItem.id);
+    const nextLink = {
+      area: selectedImpactTargetAreaName,
+      weight: normalizedWeight,
+      destinationItemId: selectedImpactTargetItem.id,
+      destinationItemText: selectedImpactTargetItem.text,
+    };
 
-    updateScoreLinksForItem(selectedScoreItem.id, [
-      ...currentLinks,
-      {
-        area: areaName,
-        weight: 100,
-        destinationItemId: firstDestinationItem?.id ?? "",
-        destinationItemText: firstDestinationItem?.text ?? "",
-      },
-    ]);
+    updateScoreLinksForItem(
+      selectedScoreItem.id,
+      existingIndex >= 0
+        ? currentLinks.map((link, index) => (index === existingIndex ? nextLink : link))
+        : [...currentLinks, nextLink],
+    );
   };
 
   return (
@@ -557,92 +602,54 @@ export function StructurePanel({
             </div>
 
             <div className="rounded-3xl border border-slate-200 bg-white p-5 space-y-4 shadow-[0_16px_36px_rgba(15,23,42,0.05)]">
-              <div className="flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-3">
-                <div className="rounded-2xl bg-blue-100 p-2 text-blue-700">
+              <div className="flex items-start gap-3 rounded-3xl border border-blue-100 bg-blue-50/60 p-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
                   <ListChecks className="h-4 w-4" />
                 </div>
-                <div>
-                  <p className="text-sm font-black text-slate-900">Preguntas de la categoria</p>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-blue-600">Preguntas</p>
+                  <p className="mt-1 text-sm font-black text-slate-900">Trabajá una pregunta por vez</p>
                   <p className="mt-1 text-xs font-semibold text-slate-500">
-                    Agrega nuevas preguntas o ajusta las actuales una por una.
+                    Agregá, elegí, reordená y vinculá desde bloques separados para que no se mezcle todo.
                   </p>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <input
-                  type="text"
-                  value={newItemText}
-                  onChange={(e) => setNewItemText(e.target.value)}
-                  placeholder="Escribi una nueva pregunta"
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 outline-none transition focus:border-blue-300"
-                />
-                <button onClick={handleAddItem} className="rounded-2xl bg-gradient-to-r from-blue-600 to-sky-500 px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-white shadow-[0_18px_30px_rgba(37,99,235,0.2)]">
-                  Agregar
-                </button>
-              </div>
-
-              <div className="hidden">
-                <div className="flex items-center gap-2">
-                  <Link2 className="h-4 w-4 text-blue-600" />
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-                    Puntaje compartido
-                  </p>
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Paso 1</p>
+                  <p className="mt-1 text-sm font-black text-slate-900">Agregar pregunta</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">Escribí solo la nueva pregunta y presioná Agregar.</p>
+                  <input
+                    type="text"
+                    value={newItemText}
+                    onChange={(e) => setNewItemText(e.target.value)}
+                    placeholder="Escribí una nueva pregunta"
+                    className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none transition focus:border-blue-300"
+                  />
                 </div>
-                <p className="mt-1 text-xs font-semibold text-slate-500">
-                  El item suma a la categoria actual y ademas a las areas que marques con numero.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {scoreAreaEntries.length > 0 ? scoreAreaEntries.map((entry) => {
-                    const isSelected = newItemScoreAreas.includes(entry.areaName);
-                    return (
-                      <button
-                        key={`new-item-score-${entry.areaName}`}
-                        type="button"
-                        onClick={() => toggleNewItemScoreArea(entry.areaName)}
-                        className={cn(
-                          "flex h-10 w-10 items-center justify-center rounded-2xl border text-sm font-black transition",
-                          isSelected
-                            ? "border-blue-500 bg-blue-500 text-white shadow-sm"
-                            : "border-slate-200 bg-white text-slate-500 hover:border-blue-200 hover:text-blue-600"
-                        )}
-                        aria-label={`${entry.number} ${entry.areaName}`}
-                      >
-                        {entry.number}
-                      </button>
-                    );
-                  }) : (
-                    <p className="text-xs font-semibold text-slate-500">No hay areas disponibles para vincular.</p>
-                  )}
+                <div className="flex items-end">
+                  <button onClick={handleAddItem} className="w-full rounded-2xl bg-gradient-to-r from-blue-600 to-sky-500 px-5 py-3.5 text-xs font-black uppercase tracking-[0.16em] text-white shadow-[0_18px_30px_rgba(37,99,235,0.2)]">
+                    Agregar
+                  </button>
                 </div>
-                {newItemScoreAreas.length > 0 && (
-                  <p className="mt-3 text-[11px] font-bold text-blue-700">
-                    Vinculado a: {newItemScoreAreas.map((areaName) => scoreAreaEntries.find((entry) => entry.areaName === areaName)?.number).filter(Boolean).join(", ")}
-                  </p>
-                )}
               </div>
 
-              <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-3 lg:hidden">
-                <p className="text-xs font-semibold text-slate-500">
-                  En celular no se muestra la matriz de puntaje. Us? computadora para asignar v?nculos.
-                </p>
-              </div>
-
-              <div className="rounded-3xl border border-slate-200 bg-white shadow-[0_16px_36px_rgba(15,23,42,0.05)] lg:block">
+              <div className="hidden rounded-3xl border border-slate-200 bg-white shadow-[0_16px_36px_rgba(15,23,42,0.05)] lg:block">
                 <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
                   <div className="flex items-center gap-2">
                     <Link2 className="h-4 w-4 text-slate-500" />
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Matriz de preguntas</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Vista avanzada</p>
                   </div>
                   <p className="mt-1 text-xs font-semibold text-slate-500">
-                    Fila = pregunta origen. Columna = pregunta destino. Toc? la celda para vincularlas.
+                    Fila = pregunta origen. Columna = pregunta destino. Tocá la celda para vincularlas.
                   </p>
                 </div>
 
                 <div className="grid gap-4 p-4 xl:grid-cols-[260px_minmax(0,1fr)]">
                   <div className="space-y-3">
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Area origen</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Área origen</p>
                       <select
                         value={selectedSourceAreaName}
                         onChange={(event) => setSelectedSourceAreaName(event.target.value)}
@@ -657,7 +664,7 @@ export function StructurePanel({
                     </div>
 
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Area destino</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Área destino</p>
                       <select
                         value={selectedTargetAreaName}
                         onChange={(event) => setSelectedTargetAreaName(event.target.value)}
@@ -672,9 +679,9 @@ export function StructurePanel({
                     </div>
 
                     <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-3">
-                      <p className="text-sm font-black text-slate-900">Como se usa</p>
+                      <p className="text-sm font-black text-slate-900">Cómo se usa</p>
                       <p className="mt-1 text-xs font-semibold text-slate-500">
-                        Elegi una fila de origen y una columna destino. La celda verde queda vinculada.
+                        Elegí una fila de origen y una columna destino. La celda verde queda vinculada.
                       </p>
                     </div>
                   </div>
@@ -740,58 +747,114 @@ export function StructurePanel({
                       </div>
                     ) : (
                       <div className="p-8 text-center text-sm font-bold text-slate-500">
-                        Elegi dos areas para ver la matriz.
+                        Elegí dos áreas para ver la matriz.
                       </div>
                     )}
                   </div>
                 </div>
               </div>
 
-              <div className="hidden">
+              <div className="rounded-3xl border border-slate-200 bg-white shadow-[0_16px_36px_rgba(15,23,42,0.05)]">
                 <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
                   <div className="flex items-center gap-2">
                     <Link2 className="h-4 w-4 text-slate-500" />
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Editor simple</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Paso 2</p>
                   </div>
                   <p className="mt-1 text-xs font-semibold text-slate-500">
-                    Seleccion? una pregunta y ajust? el peso de cada destino con un deslizador.
+                    Seleccioná una pregunta, editála y vinculala desde acá. Este es el flujo principal para definir impactos entre áreas.
                   </p>
                 </div>
 
                 <div className="grid gap-0 xl:grid-cols-[340px_minmax(0,1fr)]">
                   <div className="max-h-[760px] overflow-y-auto border-b border-slate-200 bg-slate-50/70 p-3 xl:border-b-0 xl:border-r">
-                    <div className="space-y-2">
-                      {selectedStructureCategory.items.map((structureItem, index) => {
-                        const isActive = structureItem.id === selectedScoreItemId;
-                        const linkCount = Array.isArray(structureItem.scoreLinks) ? structureItem.scoreLinks.length : 0;
-                        return (
+                    <div className="space-y-3">
+                      <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                        <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+                          <Link2 className="h-4 w-4 text-slate-400" />
+                          <input
+                            type="text"
+                            value={itemSearch}
+                            onChange={(event) => setItemSearch(event.target.value)}
+                            placeholder="Buscar pregunta, bloque o guía"
+                            className="w-full bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400"
+                          />
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
                           <button
-                            key={structureItem.id}
                             type="button"
-                            onClick={() => setSelectedScoreItemId(structureItem.id)}
+                            onClick={() => setShowOnlyActive((current) => !current)}
                             className={cn(
-                              "w-full rounded-2xl border px-4 py-3 text-left transition-all",
-                              isActive
-                                ? "border-slate-900 bg-slate-950 text-white shadow-[0_14px_24px_rgba(15,23,42,0.16)]"
-                                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                              "rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] transition",
+                              showOnlyActive ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
                             )}
                           >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className={cn("text-[10px] font-black uppercase tracking-[0.14em]", isActive ? "text-slate-300" : "text-slate-500")}>
-                                  #{String(index + 1).padStart(2, "0")}
-                                </p>
-                                <p className="mt-1 line-clamp-3 text-sm font-black leading-5">
-                                  {structureItem.text}
-                                </p>
-                              </div>
-                              <span className={cn("shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em]", isActive ? "bg-white/10 text-white" : "bg-slate-100 text-slate-600")}>
-                                {linkCount}
-                              </span>
-                            </div>
+                            Activas
                           </button>
-                        );
-                      })}
+                          <button
+                            type="button"
+                            onClick={() => setShowOnlyLinked((current) => !current)}
+                            className={cn(
+                              "rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] transition",
+                              showOnlyLinked ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-700"
+                            )}
+                          >
+                            Con vínculos
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-500 shadow-sm">
+                        <span>{visibleStructureItems.length} visibles</span>
+                        <span>{selectedStructureItems.length} totales</span>
+                      </div>
+
+                      <div className="space-y-2">
+                        {visibleStructureItems.map((structureItem, index) => {
+                          const isActive = structureItem.id === selectedScoreItemId;
+                          const linkCount = Array.isArray(structureItem.scoreLinks) ? structureItem.scoreLinks.length : 0;
+                          return (
+                            <button
+                              key={structureItem.id}
+                              type="button"
+                              onClick={() => setSelectedScoreItemId(structureItem.id)}
+                              className={cn(
+                                "w-full rounded-2xl border px-4 py-3 text-left transition-all",
+                                isActive
+                                  ? "border-slate-900 bg-slate-950 text-white shadow-[0_14px_24px_rgba(15,23,42,0.16)]"
+                                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                              )}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className={cn("text-[10px] font-black uppercase tracking-[0.14em]", isActive ? "text-slate-300" : "text-slate-500")}>
+                                    #{String(index + 1).padStart(2, "0")}
+                                  </p>
+                                  <p className="mt-1 line-clamp-3 text-sm font-black leading-5">
+                                    {structureItem.text}
+                                  </p>
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em]", structureItem.active === false ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700")}>
+                                      {structureItem.active === false ? "Inactiva" : "Activa"}
+                                    </span>
+                                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600">
+                                      {structureItem.block || "General"}
+                                    </span>
+                                  </div>
+                                </div>
+                                <span className={cn("shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em]", isActive ? "bg-white/10 text-white" : "bg-slate-100 text-slate-600")}>
+                                  {linkCount}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {visibleStructureItems.length === 0 && (
+                        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-center text-sm font-bold text-slate-500">
+                          No hay preguntas que coincidan con el filtro.
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -803,6 +866,17 @@ export function StructurePanel({
                             <div>
                               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Pregunta activa</p>
                               <h5 className="mt-1 text-lg font-black text-slate-900">{selectedScoreItem.text}</h5>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em]", selectedScoreItem.active === false ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700")}>
+                                  {selectedScoreItem.active === false ? "Inactiva" : "Activa"}
+                                </span>
+                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600">
+                                  {selectedScoreItem.block || "General"}
+                                </span>
+                                <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-blue-700">
+                                  {selectedItemLinks.length} vínculos
+                                </span>
+                              </div>
                             </div>
                             <div className="flex flex-wrap items-center justify-end gap-2">
                               <button
@@ -819,15 +893,33 @@ export function StructurePanel({
                                 onClick={() => handleMoveItem(selectedScoreItem.id, "down")}
                                 disabled={selectedStructureCategory.items[selectedStructureCategory.items.length - 1]?.id === selectedScoreItem.id}
                                 className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
-                              >
-                                <ArrowDown className="h-3.5 w-3.5" />
-                                Bajar
+                                >
+                                  <ArrowDown className="h-3.5 w-3.5" />
+                                  Bajar
                               </button>
                               <button
+                                type="button"
+                                onClick={() => handleDuplicateItem(selectedStructureCategory.id, selectedScoreItem.id)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 transition hover:border-slate-300"
+                              >
+                                <FolderKanban className="h-3.5 w-3.5" />
+                                Duplicar
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => updateCategory(selectedStructureCategory.id, (category) => ({
                                   ...category,
-                                  items: category.items.filter((item) => item.id !== selectedScoreItem.id),
+                                  items: category.items.map((item) => (
+                                    item.id === selectedScoreItem.id ? { ...item, active: item.active === false } : item
+                                  )),
                                 }))}
+                                className="inline-flex items-center gap-1 rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-amber-700"
+                              >
+                                {selectedScoreItem.active === false ? "Activar" : "Desactivar"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteItem(selectedStructureCategory.id, selectedScoreItem.id)}
                                 className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-red-600"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -835,6 +927,47 @@ export function StructurePanel({
                               </button>
                             </div>
                           </div>
+                          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                            <input
+                              type="text"
+                              value={selectedScoreItem.block ?? ""}
+                              onChange={(event) => updateCategory(selectedStructureCategory.id, (category) => ({
+                                ...category,
+                                items: category.items.map((item) => (
+                                  item.id === selectedScoreItem.id ? { ...item, block: event.target.value } : item
+                                )),
+                              }))}
+                              placeholder="Bloque"
+                              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-300"
+                            />
+                            <select
+                              value={selectedScoreItem.priority ?? "medium"}
+                              onChange={(event) => updateCategory(selectedStructureCategory.id, (category) => ({
+                                ...category,
+                                items: category.items.map((item) => (
+                                  item.id === selectedScoreItem.id ? { ...item, priority: event.target.value as AuditItemPriority } : item
+                                )),
+                              }))}
+                              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-300"
+                            >
+                              <option value="high">Prioridad alta</option>
+                              <option value="medium">Prioridad media</option>
+                              <option value="low">Prioridad baja</option>
+                            </select>
+                          </div>
+                          <label className="mt-3 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={selectedScoreItem.required}
+                              onChange={(event) => updateCategory(selectedStructureCategory.id, (category) => ({
+                                ...category,
+                                items: category.items.map((item) => (
+                                  item.id === selectedScoreItem.id ? { ...item, required: event.target.checked } : item
+                                )),
+                              }))}
+                            />
+                            Obligatoria
+                          </label>
                           <textarea
                             value={selectedScoreItem.text}
                             onChange={(e) => updateCategory(selectedStructureCategory.id, (category) => ({
@@ -845,52 +978,99 @@ export function StructurePanel({
                           />
                         </div>
 
-                        <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_12px_24px_rgba(15,23,42,0.04)]">
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Peso total</p>
-                              <p className="mt-1 text-xl font-black text-slate-900">
-                                {Math.round(Array.isArray(selectedScoreItem.scoreLinks) ? selectedScoreItem.scoreLinks.reduce((acc, link) => acc + link.weight, 0) : 0)}%
+                        <div className="rounded-3xl border border-blue-100 bg-blue-50/70 p-4">
+                          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-blue-600">Impactos del ítem</p>
+                              <h6 className="mt-1 text-base font-black text-slate-900">{selectedScoreItem.text}</h6>
+                              <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
+                                Este es el ítem origen. Desde acá definís a qué ítem destino impacta y con qué peso.
+                                Si un ítem destino tiene vínculos, su resultado final se toma desde esos vínculos.
                               </p>
                             </div>
-                            <div className="rounded-2xl bg-slate-50 px-3 py-2 text-right">
-                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Gu?a</p>
-                              <p className="mt-1 text-xs font-semibold text-slate-500">100% = peso completo.</p>
+                            <div className="rounded-2xl bg-white px-3 py-2 text-right shadow-sm">
+                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Vínculos</p>
+                              <p className="mt-1 text-xl font-black text-slate-900">
+                                {(selectedScoreItem.scoreLinks ?? []).length}
+                              </p>
                             </div>
                           </div>
-                          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                            <div
-                              className="h-full rounded-full bg-amber-500"
-                              style={{ width: `${Math.min(100, Math.round(Array.isArray(selectedScoreItem.scoreLinks) ? selectedScoreItem.scoreLinks.reduce((acc, link) => acc + link.weight, 0) : 0))}%` }}
-                            />
-                          </div>
-                        </div>
 
-                        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">1. Elegi area origen</p>
-                            {scoreAreaEntries
-                              .filter((entry) => !(selectedScoreItem.scoreLinks ?? []).some((link) => link.area === entry.areaName))
-                              .map((entry) => (
-                                <button
-                                  key={`add-link-${selectedScoreItem.id}-${entry.areaName}`}
-                                  type="button"
-                                  onClick={() => addScoreLinkToSelectedItem(entry.areaName)}
-                                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600 transition hover:border-slate-300"
-                                >
-                                  {entry.number} {entry.areaName}
-                                </button>
-                              ))}
+                          <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                            <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Área destino</p>
+                              <select
+                                value={selectedImpactTargetAreaName}
+                                onChange={(event) => setSelectedImpactTargetAreaName(event.target.value)}
+                                className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-300"
+                              >
+                                {scoreAreaEntries.map((entry) => (
+                                  <option key={`target-area-${entry.areaName}`} value={entry.areaName}>
+                                    {entry.number}. {entry.areaName}
+                                  </option>
+                                ))}
+                              </select>
+                              <p className="mt-2 text-[11px] font-semibold text-slate-500">
+                                Elegí el área que va a recibir el impacto.
+                              </p>
+                            </div>
+
+                            <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Ítem destino</p>
+                              <select
+                                value={selectedImpactTargetItemId}
+                                onChange={(event) => setSelectedImpactTargetItemId(event.target.value)}
+                                className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-300"
+                              >
+                                {selectedImpactTargetItems.map((item) => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.text}
+                                  </option>
+                                ))}
+                              </select>
+                              <p className="mt-2 text-[11px] font-semibold text-slate-500">
+                                Elegí la pregunta específica del área destino.
+                              </p>
+                            </div>
                           </div>
-                          <p className="mt-3 text-xs font-semibold text-slate-500">
-                            Primero elegi el area origen y despues la pregunta puntual de ese area. No se toma todo el promedio del area.
+
+                          <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+                            <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Peso del vínculo</p>
+                                  <p className="mt-1 text-sm font-black text-slate-900">{selectedImpactWeight}%</p>
+                                </div>
+                                <p className="text-[11px] font-semibold text-slate-500">100% = impacto completo</p>
+                              </div>
+                              <input
+                                type="range"
+                                min={1}
+                                max={100}
+                                value={selectedImpactWeight}
+                                onChange={(event) => setSelectedImpactWeight(Number(event.target.value))}
+                                className="mt-3 h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-amber-500"
+                              />
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={addScoreLinkToSelectedItem}
+                              className="rounded-2xl bg-gradient-to-r from-slate-950 to-slate-800 px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-white shadow-[0_18px_30px_rgba(15,23,42,0.18)] transition hover:translate-y-[-1px]"
+                            >
+                              Guardar vínculo
+                            </button>
+                          </div>
+
+                          <p className="mt-3 text-xs font-semibold text-slate-600">
+                            El promedio se calcula por este vínculo puntual, no por el promedio completo del área.
                           </p>
                         </div>
 
                         <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_12px_24px_rgba(15,23,42,0.04)]">
                           <div className="flex items-center gap-2">
                             <Link2 className="h-4 w-4 text-slate-500" />
-                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">2. Pregunta puntual vinculada</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Vínculos activos</p>
                           </div>
 
                           {(selectedScoreItem.scoreLinks ?? []).length > 0 ? (
@@ -908,7 +1088,7 @@ export function StructurePanel({
                                         </p>
                                         <p className="mt-1 text-sm font-black text-slate-900">{link.area}</p>
                                         <p className="mt-1 text-[11px] font-semibold text-slate-500">
-                                          {selectedDestinationItem?.text || "Elegi la pregunta puntual"}
+                                          {selectedDestinationItem?.text || "Elegí la pregunta puntual"}
                                         </p>
                                       </div>
                                       <div className="flex items-center gap-2">
@@ -959,7 +1139,7 @@ export function StructurePanel({
                                       }}
                                       className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-300"
                                     >
-                                      <option value="">Elegi una pregunta de {link.area}</option>
+                                      <option value="">Elegí una pregunta de {link.area}</option>
                                       {destinationOptions.map((item) => (
                                         <option key={item.id} value={item.id}>
                                           {item.text}
@@ -967,7 +1147,7 @@ export function StructurePanel({
                                       ))}
                                     </select>
                                     <p className="mt-2 text-[11px] font-semibold text-slate-500">
-                                      Este vinculo apunta a un item puntual de {link.area}, no al promedio completo del area.
+                                      Este vínculo apunta a un ítem puntual de {link.area}, no al promedio completo del área.
                                     </p>
                                   </div>
                                 );
@@ -975,14 +1155,14 @@ export function StructurePanel({
                             </div>
                           ) : (
                             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center text-sm font-bold text-slate-500">
-                              A?n no hay v?nculos cargados.
+                              Aún no hay vínculos cargados.
                             </div>
                           )}
                         </div>
                       </>
                     ) : (
                       <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-                        <p className="text-sm font-black text-slate-700">Eleg? una pregunta para editar sus v?nculos.</p>
+                        <p className="text-sm font-black text-slate-700">Elegí una pregunta para editar sus vínculos.</p>
                       </div>
                     )}
                   </div>

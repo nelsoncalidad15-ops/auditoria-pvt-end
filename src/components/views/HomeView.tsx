@@ -3,6 +3,16 @@ import { AlertCircle, ChevronRight, ClipboardCheck, Clock, Plus } from "lucide-r
 import { cn } from "../../lib/utils";
 import { AuditSession } from "../../types";
 
+type QuickActionTone = "primary" | "neutral" | "accent" | "outline" | "disabled";
+
+interface QuickAction {
+  label: string;
+  description: string;
+  onClick: () => void;
+  tone: QuickActionTone;
+  disabled?: boolean;
+}
+
 interface HomeViewProps {
   isLoggingIn: boolean;
   isSyncing: boolean;
@@ -20,6 +30,11 @@ interface HomeViewProps {
   onStartAudit: () => void;
   onSyncData: () => void;
   onOpenHistory: () => void;
+  onOpenSetup: () => void;
+  onOpenStructure: () => void;
+  onOpenContinue: () => void;
+  canOpenStructure: boolean;
+  canOpenContinue: boolean;
 }
 
 export function HomeView({
@@ -39,7 +54,41 @@ export function HomeView({
   onStartAudit,
   onSyncData,
   onOpenHistory,
+  onOpenSetup,
+  onOpenStructure,
+  onOpenContinue,
+  canOpenStructure,
+  canOpenContinue,
 }: HomeViewProps) {
+  const quickActions = [
+    {
+      label: "Iniciar auditoría",
+      description: "Abrir la carga de una nueva auditoría.",
+      onClick: onStartAudit,
+      tone: "primary",
+    },
+    {
+      label: "Configurar",
+      description: "Elegir auditor y sucursal antes de empezar.",
+      onClick: onOpenSetup,
+      tone: "neutral",
+    },
+    {
+      label: "Continuar",
+      description: "Retomar un borrador guardado.",
+      onClick: onOpenContinue,
+      tone: canOpenContinue ? "accent" : "disabled",
+      disabled: !canOpenContinue,
+    },
+    {
+      label: "Estructura",
+      description: "Editar preguntas, vínculos y pesos.",
+      onClick: onOpenStructure,
+      tone: canOpenStructure ? "outline" : "disabled",
+      disabled: !canOpenStructure,
+    },
+  ] satisfies QuickAction[];
+
   const operationalCards = [
     {
       label: "Apps Script",
@@ -93,40 +142,75 @@ export function HomeView({
               </div>
             </div>
 
-            <div className="home-hero-actions">
+            <div className="home-hero-actions flex flex-wrap gap-4">
               <button
                 onClick={onStartAudit}
                 disabled={isLoggingIn}
-                className={cn("home-primary-button", isLoggingIn && "cursor-not-allowed opacity-70")}
+                className={cn(
+                  "flex items-center justify-center gap-3 h-14 px-8 rounded-2xl font-bold transition-all shadow-lg active:scale-95",
+                  "bg-white text-blue-700 hover:bg-blue-50 border-none",
+                  isLoggingIn && "cursor-not-allowed opacity-70"
+                )}
               >
-                <Plus className="h-5 w-5" />
+                <Plus className="h-6 w-6" />
                 Iniciar ahora
               </button>
 
-              <button onClick={onSyncData} disabled={isSyncing} className="home-secondary-button">
-                <div className={cn("h-3 w-3 rounded-full border-2 border-white/30 border-t-white animate-spin", !isSyncing && "hidden")} />
-                {isSyncing ? "Sincronizando..." : "Sincronizar datos"}
+              <button 
+                onClick={onSyncData} 
+                disabled={isSyncing} 
+                className="flex items-center justify-center gap-3 h-14 px-8 rounded-2xl font-bold bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20 transition-all active:scale-95"
+              >
+                <div className={cn("h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin", !isSyncing && "hidden")} />
+                {isSyncing ? "Sincronizando..." : "Sincronizar"}
               </button>
             </div>
           </div>
 
-          <div className="home-hero-side">
-            <div className="home-metric-card">
-              <p className="home-metric-label">Historial cargado</p>
-              <p className="home-metric-value">{historyCount}</p>
-              <p className="home-metric-copy">registros</p>
+          <div className="home-hero-side grid grid-cols-1 gap-4">
+            <div className="premium-glass p-6 text-white bg-white/10 border-white/20">
+              <p className="text-xs font-black uppercase tracking-widest opacity-60">Historial</p>
+              <p className="text-4xl font-black mt-2">{historyCount}</p>
+              <p className="text-sm font-bold opacity-80 mt-1">registros totales</p>
             </div>
-            <div className="home-metric-card">
-              <p className="home-metric-label">Pendiente local</p>
-              <p className="home-metric-value">{localAuditHistoryCount}</p>
-              <p className="home-metric-copy">pendientes</p>
-            </div>
-            <div className="home-metric-card">
-              <p className="home-metric-label">Modo operativo</p>
-              <p className="home-metric-value home-metric-value--small">{historySyncModeLabel}</p>
-              <p className="home-metric-copy">activo</p>
+            <div className="premium-glass p-6 text-white bg-white/10 border-white/20">
+              <p className="text-xs font-black uppercase tracking-widest opacity-60">Pendientes</p>
+              <p className="text-4xl font-black mt-2">{localAuditHistoryCount}</p>
+              <p className="text-sm font-bold opacity-80 mt-1">en este dispositivo</p>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="space-y-6">
+        <div className="flex items-end justify-between px-2">
+          <div>
+            <p className="text-blue-600 dark:text-blue-400 font-black uppercase tracking-widest text-[10px]">Acceso rápido</p>
+            <h3 className="text-2xl font-black">Panel de control</h3>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {quickActions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              onClick={action.onClick}
+              disabled={action.disabled}
+              className={cn(
+                "premium-card p-6 text-left group",
+                action.tone === "primary" ? "bg-slate-900 text-white border-none" : "bg-white dark:bg-slate-900",
+                action.disabled && "opacity-50 grayscale"
+              )}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Atajo</p>
+                <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-1" />
+              </div>
+              <p className="text-xl font-black">{action.label}</p>
+              <p className="mt-2 text-sm font-medium opacity-70 leading-relaxed">{action.description}</p>
+            </button>
+          ))}
         </div>
       </section>
 

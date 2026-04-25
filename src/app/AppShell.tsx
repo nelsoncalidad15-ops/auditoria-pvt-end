@@ -1,10 +1,10 @@
 import React from "react";
-import { History, LayoutDashboard, LucideIcon, Plus } from "lucide-react";
-
+import { History, LayoutDashboard, LucideIcon, Plus, Home } from "lucide-react";
 import { Sidebar } from "../components/layout/Sidebar";
 import { Topbar } from "../components/layout/Topbar";
 import { cn } from "../lib/utils";
 import { AppView, AuditUserProfile } from "../types";
+import { motion, AnimatePresence } from "motion/react";
 
 interface SidebarItem {
   id: string;
@@ -34,12 +34,11 @@ interface AppShellProps {
 }
 
 function getMainClassName(view: AppView) {
-  if (view === "dashboard") return "max-w-7xl mx-auto w-full";
+  if (view === "dashboard" || view === "command-center" || view === "home") return "max-w-7xl mx-auto w-full";
   if (view === "setup") return "max-w-5xl mx-auto w-full pb-32";
   if (view === "audit") return "max-w-7xl mx-auto w-full pb-28 pt-2 md:pt-4";
   if (view === "structure" || view === "integrations") return "max-w-[1440px] mx-auto w-full pb-12";
   if (view === "continuar") return "max-w-6xl mx-auto w-full pb-28";
-  if (view === "home") return "max-w-md mx-auto w-full pb-32";
   return "max-w-md mx-auto w-full lg:max-w-4xl lg:mx-0";
 }
 
@@ -64,7 +63,7 @@ export function AppShell({
   children,
 }: AppShellProps) {
   return (
-    <div className="app-shell min-h-screen lg:flex">
+    <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950 transition-colors duration-500 overflow-x-hidden">
       <Sidebar
         appTitle={appTitle}
         show={showSidebar}
@@ -77,7 +76,7 @@ export function AppShell({
         onLogout={onLogout}
       />
 
-      <div ref={contentContainerRef} className="flex-1 flex flex-col min-h-[100dvh] overflow-y-visible lg:overflow-y-auto">
+      <div ref={contentContainerRef} className="flex-1 flex flex-col min-h-[100dvh] relative">
         <Topbar
           appTitle={appTitle}
           view={view}
@@ -86,54 +85,58 @@ export function AppShell({
           onUserProfileChange={() => {}}
           authenticationEnabled={authenticationEnabled}
           showMenuButton={showSidebar}
-          showBackButton={view !== "dashboard"}
+          showBackButton={view !== "home" && view !== "command-center"}
           backLabel={backLabel}
           onOpenMenu={onOpenMobileNav}
           onBack={onBack}
           onLogin={() => {}}
         />
 
-        <main className={cn("p-4 md:p-8 transition-[padding,max-width] duration-300 ease-out", getMainClassName(view))}>
-          {children}
+        <main className={cn("p-4 md:p-8 flex-1 transition-all duration-300", getMainClassName(view))}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={view}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </main>
 
-        {(view === "dashboard" || view === "history") && canRunAudits && (
-          <button
-            onClick={onStartAudit}
-            className="fixed bottom-5 right-5 z-30 inline-flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-2xl shadow-blue-300/60 transition-all active:scale-95 lg:hidden"
-            aria-label="Nueva auditoria"
-          >
-            <Plus className="h-6 w-6" />
-          </button>
-        )}
-
+        {/* Mobile Bottom Navigation */}
         <nav
           className={cn(
-            "fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-t border-slate-200 px-6 py-4 flex items-center justify-around z-50 lg:hidden",
-            view === "dashboard" || view === "history" || view === "home" || view === "setup" || view === "continuar" ? "flex" : "hidden"
+            "fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-t border-slate-200/50 dark:border-slate-800/50 px-8 py-3 flex items-center justify-around z-[80] lg:hidden safe-area-bottom shadow-[0_-10px_40px_rgba(0,0,0,0.05)]",
+            view === "audit" ? "hidden" : "flex"
           )}
         >
           <button
-            onClick={() => onNavigate("dashboard")}
-            className={cn("flex flex-col items-center gap-1 transition-all active:scale-90", view === "dashboard" ? "text-blue-600" : "text-slate-400")}
+            onClick={() => onNavigate("home")}
+            className={cn("flex flex-col items-center gap-1 transition-all active:scale-75", (view === "home" || view === "command-center") ? "text-blue-600" : "text-slate-400")}
           >
-            <LayoutDashboard className="w-6 h-6" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Panel</span>
+            <Home className="w-6 h-6" />
+            <span className="text-[9px] font-black uppercase tracking-widest">Inicio</span>
           </button>
+          
           <button
             onClick={onStartAudit}
             disabled={!canRunAudits}
-            className={cn("flex flex-col items-center gap-1 transition-all active:scale-90", view === "home" || view === "setup" || view === "audit" ? "text-blue-600" : "text-slate-400")}
+            className="flex flex-col items-center -mt-10"
           >
-            <Plus className="w-6 h-6" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Nuevo</span>
+            <div className="bg-blue-600 text-white p-4 rounded-2xl shadow-xl shadow-blue-500/40 active:scale-90 transition-transform">
+              <Plus className="w-7 h-7" />
+            </div>
           </button>
+
           <button
             onClick={() => onNavigate("history")}
-            className={cn("flex flex-col items-center gap-1 transition-all active:scale-90", view === "history" ? "text-blue-600" : "text-slate-400")}
+            className={cn("flex flex-col items-center gap-1 transition-all active:scale-75", view === "history" ? "text-blue-600" : "text-slate-400")}
           >
             <History className="w-6 h-6" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Historial</span>
+            <span className="text-[9px] font-black uppercase tracking-widest">Historial</span>
           </button>
         </nav>
       </div>

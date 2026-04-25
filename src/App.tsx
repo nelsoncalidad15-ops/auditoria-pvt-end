@@ -66,7 +66,7 @@ const HistoryView = React.lazy(() => import("./components/history/HistoryView").
 const StructurePanel = React.lazy(() => import("./components/reports/StructurePanel").then((module) => ({ default: module.StructurePanel })));
 const IntegrationsView = React.lazy(() => import("./components/views/IntegrationsView").then((module) => ({ default: module.IntegrationsView })));
 const ContinueAuditsView = React.lazy(() => import("./components/views/ContinueAuditsView").then((module) => ({ default: module.ContinueAuditsView })));
-const HomeView = React.lazy(() => import("./components/views/HomeView").then((module) => ({ default: module.HomeView })));
+const HomeView = React.lazy(() => import("./components/views/CommandCenterView").then((module) => ({ default: module.CommandCenterView })));
 const SetupView = React.lazy(() => import("./components/views/SetupView").then((module) => ({ default: module.SetupView })));
 
 function ErrorBoundary({ children }: { children: React.ReactNode }) {
@@ -195,7 +195,7 @@ function AuditApp() {
   const storedExportMeta = getStoredMeta(EXPORT_META_STORAGE_KEY);
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
-  const [view, setView] = useState<AppView>("dashboard");
+  const [view, setView] = useState<AppView>("home");
   const [isSyncing, setIsSyncing] = useState(false);
   const [session, setSession] = useState<Partial<AuditSession>>({
     date: new Date().toISOString().split("T")[0],
@@ -319,12 +319,12 @@ function AuditApp() {
     setNewItemActive,
     newItemRequiresCommentOnFail,
     setNewItemRequiresCommentOnFail,
-    newItemScoreAreas,
-    setNewItemScoreAreas,
     updateCategory,
     handleAddCategory,
     handleDuplicateCategory,
     handleDeleteCategory,
+    handleDuplicateItem,
+    handleDeleteItem,
     handleAddItem,
     handleMoveItem,
     handleResetStructure,
@@ -837,7 +837,9 @@ function AuditApp() {
         return acc;
       }, new Map<string, AuditTemplateItem[]>())
     ).map(([sectionName, items]) => {
-      const answers = items.map((templateItem) => auditSession.items.find((sessionItem) => sessionItem.question === templateItem.text));
+      const answers = items.map((templateItem) => (
+        auditSession.items.find((sessionItem) => sessionItem.id === templateItem.id || sessionItem.question === templateItem.text)
+      ));
       const passCount = answers.filter((answer) => answer?.status === "pass").length;
       const failCount = answers.filter((answer) => answer?.status === "fail").length;
       const naCount = answers.filter((answer) => answer?.status === "na").length;
@@ -1014,10 +1016,10 @@ function AuditApp() {
     const timestamp = new Date().toISOString();
     persistMeta(INTEGRATION_META_STORAGE_KEY, {
       timestamp,
-      message: "Configuración de integraciones actualizada.",
+      message: "ConfiguraciÃ³n de integraciones actualizada.",
     });
     setLastIntegrationSavedAt(timestamp);
-    alert("Configuración guardada correctamente.");
+    alert("ConfiguraciÃ³n guardada correctamente.");
   };
 
   const exportToCSV = () => {
@@ -1163,7 +1165,7 @@ function AuditApp() {
       return;
     }
 
-    if (selectedRole === "Técnicos" && !selectedStaff.trim()) {
+    if (selectedRole === "TÃ©cnicos" && !selectedStaff.trim()) {
       alert("SeleccionÃ¡ el tÃ©cnico antes de cerrar la auditorÃ­a.");
       return;
     }
@@ -1406,7 +1408,7 @@ function AuditApp() {
         items: [],
       });
 
-      if (!((completeSession.role === "Ordenes" || completeSession.role === "Asesores de servicio" || completeSession.role === "Técnicos") && submitMode === "continue")) {
+      if (!((completeSession.role === "Ordenes" || completeSession.role === "Asesores de servicio" || completeSession.role === "TÃ©cnicos") && submitMode === "continue")) {
         setSelectedRole(null);
       }
 
@@ -1415,7 +1417,7 @@ function AuditApp() {
       }
 
       if (isFirebaseEnabled && (errorMessage.includes("Missing or insufficient permissions") || errorMessage.includes("insufficient permissions"))) {
-        const shouldLogin = window.confirm("Se guardó en este dispositivo. Firebase rechazó el acceso. ¿Querés iniciar sesión con Google ahora?");
+        const shouldLogin = window.confirm("Se guardÃ³ en este dispositivo. Firebase rechazÃ³ el acceso. Â¿QuerÃ©s iniciar sesiÃ³n con Google ahora?");
         if (shouldLogin) {
           void handleLogin();
         }
@@ -1423,7 +1425,7 @@ function AuditApp() {
       }
 
       if (isFirebaseEnabled && errorMessage.includes("authInfo") && errorMessage.includes('"userId":undefined')) {
-        const shouldLogin = window.confirm("Se guardó en este dispositivo. No hay una sesión activa. ¿Querés iniciar sesión con Google ahora?");
+        const shouldLogin = window.confirm("Se guardÃ³ en este dispositivo. No hay una sesiÃ³n activa. Â¿QuerÃ©s iniciar sesiÃ³n con Google ahora?");
         if (shouldLogin) {
           void handleLogin();
         }
@@ -1431,11 +1433,11 @@ function AuditApp() {
       }
 
       if (hasWebhookUrl) {
-        alert(`No se pudo enviar la auditoría a Apps Script. Se guardó en este dispositivo.\n\nDetalle: ${errorMessage}`);
+        alert(`No se pudo enviar la auditorÃ­a a Apps Script. Se guardÃ³ en este dispositivo.\n\nDetalle: ${errorMessage}`);
         return;
       }
 
-      alert("La auditoría se guardó en este dispositivo.");
+      alert("La auditorÃ­a se guardÃ³ en este dispositivo.");
     }
   };
 
@@ -1558,8 +1560,8 @@ function AuditApp() {
         setLastSyncMessage(syncMessage);
         alert(
           externalAudits.length > 0
-            ? `Historial cargado desde Google Sheets. Se importaron ${externalAudits.length} auditorías.`
-            : "La fuente externa respondió correctamente, pero no encontró auditorías para importar."
+            ? `Historial cargado desde Google Sheets. Se importaron ${externalAudits.length} auditorÃ­as.`
+            : "La fuente externa respondiÃ³ correctamente, pero no encontrÃ³ auditorÃ­as para importar."
         );
         setIsSyncing(false);
         return;
@@ -1586,7 +1588,7 @@ function AuditApp() {
             persistMeta(SYNC_META_STORAGE_KEY, { timestamp, message: syncMessage });
             setLastSyncAt(timestamp);
             setLastSyncMessage(syncMessage);
-            alert("La fuente CSV respondió, pero tiene un formato inválido o incompleto.");
+            alert("La fuente CSV respondiÃ³, pero tiene un formato invÃ¡lido o incompleto.");
             setIsSyncing(false);
             return;
           }
@@ -1672,8 +1674,20 @@ function AuditApp() {
               exit={{ opacity: 0, y: -20 }}
               className="space-y-6"
             >
-              <Suspense fallback={<div className="rounded-[1.8rem] border border-slate-200 bg-white p-6 text-sm font-bold text-slate-500">Cargando cabina...</div>}>
+              <Suspense fallback={<div className="rounded-[1.8rem] border border-slate-200 bg-white p-6 text-sm font-bold text-slate-500">Cargando centro de mando...</div>}>
                 <HomeView
+                  history={history}
+                  localAuditHistoryCount={localAuditHistory.length}
+                  onStartAudit={startNewAudit}
+                  onOpenHistory={() => setView("history")}
+                  onOpenSetup={() => setView("setup")}
+                  onOpenContinue={() => setView("continuar")}
+                  onOpenStructure={() => setView("structure")}
+                  canOpenStructure={canAccessStructure}
+                  canOpenContinue={allIncompleteAudits.length > 0}
+                />
+                {/*
+
                   isLoggingIn={isLoggingIn}
                   isSyncing={isSyncing}
                   isSheetSyncConfigured={isSheetSyncConfigured}
@@ -1690,6 +1704,11 @@ function AuditApp() {
                   onStartAudit={startNewAudit}
                   onSyncData={syncData}
                   onOpenHistory={() => setView("history")}
+                  onOpenSetup={() => setView("setup")}
+                  onOpenStructure={() => setView("structure")}
+                  onOpenContinue={() => setView("continuar")}
+                  canOpenStructure={canAccessStructure}
+                  canOpenContinue={allIncompleteAudits.length > 0}
                 />
               </Suspense>
             </motion.div>
@@ -2085,7 +2104,7 @@ function AuditApp() {
                             <p className="mt-1 text-sm font-black text-emerald-800">{sessionItems.filter(i => i.status === 'pass').length}</p>
                           </div>
                           <div className="rounded-lg bg-red-50 px-2 py-2 text-center">
-                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-red-700">Desv?o</p>
+                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-red-700">DesvÃ­o</p>
                             <p className="mt-1 text-sm font-black text-red-800">{sessionItems.filter(i => i.status === 'fail').length}</p>
                           </div>
                           <div className="rounded-lg bg-slate-100 px-2 py-2 text-center">
@@ -2209,8 +2228,8 @@ function AuditApp() {
                     {isTechnicianAudit && (technicianReviewSessions.length > 0 || technicianDraftSessions.length > 0) && (
                       <div className="audit-sidebar-card rounded-[1.3rem] border border-slate-200 bg-white px-3.5 py-3.5 shadow-sm space-y-3">
                         <div className="flex items-center justify-between gap-3">
-                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Evaluaciones de técnicos</p>
-                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-700">{technicianDraftSessions.length + technicianReviewSessions.length} técnicos</p>
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Evaluaciones de tÃ©cnicos</p>
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-700">{technicianDraftSessions.length + technicianReviewSessions.length} tÃ©cnicos</p>
                         </div>
                         <div className="space-y-2">
                           {technicianDraftSessions.map((draft) => (
@@ -2666,7 +2685,7 @@ function AuditApp() {
                                   </div>
                                 ) : (
                                   <div className="rounded-[1.2rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center">
-                                    <p className="text-sm font-bold text-slate-600">Ingres? un nombre en el legajo activo para ver sus controles.</p>
+                                    <p className="text-sm font-bold text-slate-600">IngresÃ¡ un nombre en el legajo activo para ver sus controles.</p>
                                   </div>
                                 )
                               )}
@@ -2974,6 +2993,8 @@ function AuditApp() {
                   updateCategory={updateCategory}
                   handleDuplicateCategory={handleDuplicateCategory}
                   handleDeleteCategory={handleDeleteCategory}
+                  handleDuplicateItem={handleDuplicateItem}
+                  handleDeleteItem={handleDeleteItem}
                   newCategoryName={newCategoryName}
                   setNewCategoryName={setNewCategoryName}
                   newCategoryDescription={newCategoryDescription}
@@ -3006,8 +3027,6 @@ function AuditApp() {
                   setNewItemActive={setNewItemActive}
                   newItemRequiresCommentOnFail={newItemRequiresCommentOnFail}
                   setNewItemRequiresCommentOnFail={setNewItemRequiresCommentOnFail}
-                  newItemScoreAreas={newItemScoreAreas}
-                  setNewItemScoreAreas={setNewItemScoreAreas}
                   handleAddItem={handleAddItem}
                   handleMoveItem={handleMoveItem}
                   lastStructureSavedAt={lastStructureSavedAt}
@@ -3262,7 +3281,7 @@ function AuditApp() {
             >
               <div className="p-8 border-b border-gray-100 flex justify-between items-start">
                 <div>
-                  <h3 className="text-xl font-black text-gray-900 leading-tight">Detalles de Auditoría</h3>
+                  <h3 className="text-xl font-black text-gray-900 leading-tight">Detalles de AuditorÃ­a</h3>
                   <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-1">
                     {selectedAudit.role || selectedAudit.items[0]?.category} - {selectedAudit.date}
                   </p>
@@ -3336,7 +3355,7 @@ function AuditApp() {
         )}
       </AnimatePresence>
 
-      {/* Modal de confirmación de eliminación */}
+      {/* Modal de confirmaciÃ³n de eliminaciÃ³n */}
       <AnimatePresence>
         {deleteConfirmModal.show && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
@@ -3354,17 +3373,17 @@ function AuditApp() {
               className="relative bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl p-8 space-y-6"
             >
               <div>
-                <h3 className="text-xl font-black text-gray-900">Eliminar Auditoría</h3>
-                <p className="text-sm font-bold text-gray-600 mt-2">¿Estás seguro de que deseas eliminar esta auditoría?</p>
+                <h3 className="text-xl font-black text-gray-900">Eliminar AuditorÃ­a</h3>
+                <p className="text-sm font-bold text-gray-600 mt-2">Â¿EstÃ¡s seguro de que deseas eliminar esta auditorÃ­a?</p>
               </div>
 
               <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-2">
-                <p className="text-xs font-black text-red-700 uppercase">Auditoría a eliminar:</p>
+                <p className="text-xs font-black text-red-700 uppercase">AuditorÃ­a a eliminar:</p>
                 <p className="text-sm font-bold text-red-900 break-words">{deleteConfirmModal.auditName}</p>
               </div>
 
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
-                <p className="text-xs font-bold text-amber-700">Sí. Esta acción eliminará la auditoría de forma permanente de todos los sistemas (borradores y guardadas).</p>
+                <p className="text-xs font-bold text-amber-700">SÃ­. Esta acciÃ³n eliminarÃ¡ la auditorÃ­a de forma permanente de todos los sistemas (borradores y guardadas).</p>
               </div>
 
               <div className="flex gap-3">
@@ -3398,6 +3417,7 @@ export default function App() {
     </ErrorBoundary>
   );
 }
+
 
 
 

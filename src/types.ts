@@ -4,7 +4,7 @@ export type AuditStructureScope = "global" | Location;
 export type AuditItemPriority = "high" | "medium" | "low";
 export type AuditItemStatus = "pass" | "fail" | "na";
 export type AuditUserProfile = "auditor" | "supervisor" | "consulta";
-export type AppView = "dashboard" | "home" | "setup" | "audit" | "history" | "structure" | "integrations" | "continuar";
+export type AppView = "dashboard" | "home" | "setup" | "audit" | "history" | "structure" | "integrations" | "continuar" | "command-center";
 export type HistoryPanel = "records" | "exports";
 
 export type OrResponsibleRole =

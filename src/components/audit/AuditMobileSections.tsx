@@ -74,7 +74,7 @@ export function AuditMobileSections({
                         rowId={`audit-item-${auditItem.id}`}
                         question={auditItem.text}
                         index={selectedAuditItems.findIndex((item) => item.id === auditItem.id)}
-                        item={sessionItems.find((item) => item.question === auditItem.text)}
+                        item={sessionItems.find((item) => item.id === auditItem.id || item.question === auditItem.text)}
                         required={auditItem.required}
                         block={auditItem.block}
                         priority={auditItem.priority}

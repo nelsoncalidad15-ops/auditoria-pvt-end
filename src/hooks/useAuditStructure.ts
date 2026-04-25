@@ -63,7 +63,6 @@ export function useAuditStructure({
   const [newItemWeight, setNewItemWeight] = useState(1);
   const [newItemActive, setNewItemActive] = useState(true);
   const [newItemRequiresCommentOnFail, setNewItemRequiresCommentOnFail] = useState(false);
-  const [newItemScoreAreas, setNewItemScoreAreas] = useState<string[]>([]);
   const [isLoadingStructureFromCloud, setIsLoadingStructureFromCloud] = useState(false);
   const [isSavingStructureToCloud, setIsSavingStructureToCloud] = useState(false);
   const [structureStorageLabel, setStructureStorageLabel] = useState<"local" | "cloud">("local");
@@ -105,7 +104,6 @@ export function useAuditStructure({
     setNewItemWeight(1);
     setNewItemActive(true);
     setNewItemRequiresCommentOnFail(false);
-    setNewItemScoreAreas([]);
   }, []);
 
   const persistAuditCategories = useCallback((nextCategories: AuditCategory[]) => {
@@ -255,13 +253,91 @@ export function useAuditStructure({
           active: newItemActive,
           order: category.items.length + 1,
           requiresCommentOnFail: newItemRequiresCommentOnFail,
-          scoreAreas: newItemScoreAreas,
         },
       ],
     }));
 
     resetNewItemForm();
-  }, [newItemActive, newItemAllowsNa, newItemBlock, newItemDescription, newItemGuidance, newItemPriority, newItemRequired, newItemRequiresCommentOnFail, newItemResponsibleRoles, newItemScoreAreas, newItemSector, newItemText, newItemWeight, resetNewItemForm, selectedStructureCategory, updateCategory]);
+  }, [newItemActive, newItemAllowsNa, newItemBlock, newItemDescription, newItemGuidance, newItemPriority, newItemRequired, newItemRequiresCommentOnFail, newItemResponsibleRoles, newItemSector, newItemText, newItemWeight, resetNewItemForm, selectedStructureCategory, updateCategory]);
+
+  const handleDuplicateItem = useCallback((categoryId: string, itemId: string) => {
+    const categoryToDuplicate = auditCategories.find((category) => category.id === categoryId);
+    if (!categoryToDuplicate) {
+      return;
+    }
+
+    const currentIndex = categoryToDuplicate.items.findIndex((item) => item.id === itemId);
+    if (currentIndex < 0) {
+      return;
+    }
+
+    const currentItem = categoryToDuplicate.items[currentIndex];
+    const duplicatedItem = {
+      ...currentItem,
+      id: createClientId(),
+      text: `${currentItem.text} - copia`,
+      order: currentIndex + 2,
+    };
+
+    updateCategory(categoryId, (category) => {
+      const nextItems = [...category.items];
+      nextItems.splice(currentIndex + 1, 0, duplicatedItem);
+
+      return {
+        ...category,
+        items: nextItems.map((item, index) => ({
+          ...item,
+          order: index + 1,
+        })),
+      };
+    });
+  }, [auditCategories, updateCategory]);
+
+  const handleDeleteItem = useCallback((categoryId: string, itemId: string) => {
+    const categoryToDeleteFrom = auditCategories.find((category) => category.id === categoryId);
+    if (!categoryToDeleteFrom) {
+      return;
+    }
+
+    const nextCategories = auditCategories.map((category) => {
+      if (category.id === categoryId) {
+        const nextItems = category.items
+          .filter((item) => item.id !== itemId)
+          .map((item, index) => ({
+            ...item,
+            order: index + 1,
+          }));
+
+        return {
+          ...category,
+          items: nextItems,
+        };
+      }
+
+      const nextItems = category.items.map((item) => {
+        const nextScoreLinks = (item.scoreLinks ?? []).filter((link) => !(
+          link.area === categoryToDeleteFrom.name && link.destinationItemId === itemId
+        ));
+
+        if (nextScoreLinks.length === (item.scoreLinks ?? []).length) {
+          return item;
+        }
+
+        return {
+          ...item,
+          scoreLinks: nextScoreLinks,
+          scoreAreas: nextScoreLinks.map((link) => link.area),
+        };
+      });
+
+      return {
+        ...category,
+        items: nextItems,
+      };
+    });
+
+    persistAuditCategories(nextCategories);
+  }, [auditCategories, persistAuditCategories]);
 
   const handleMoveItem = useCallback((itemId: string, direction: "up" | "down") => {
     if (!selectedStructureCategory) {
@@ -482,14 +558,14 @@ export function useAuditStructure({
     setNewItemActive,
     newItemRequiresCommentOnFail,
     setNewItemRequiresCommentOnFail,
-    newItemScoreAreas,
-    setNewItemScoreAreas,
     allAuditAreaNames,
     updateCategory,
     handleAddCategory,
     handleDuplicateCategory,
     handleDeleteCategory,
     handleAddItem,
+    handleDuplicateItem,
+    handleDeleteItem,
     handleMoveItem,
     handleResetStructure,
     handleLoadStructureFromCloud,

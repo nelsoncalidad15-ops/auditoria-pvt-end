@@ -1,5 +1,5 @@
-import { memo } from "react";
-import { LucideIcon, LogOut, Settings, X } from "lucide-react";
+import { memo, useState } from "react";
+import { LucideIcon, LogOut, Settings, X, Menu, ChevronLeft, ChevronRight } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "../../lib/utils";
 
@@ -22,119 +22,151 @@ interface SidebarProps {
 }
 
 function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNavigate, onMobileClose, onLogout }: SidebarProps) {
-  const navContent = (
-    <>
-      <div className="px-6 py-6 flex items-center gap-3 border-b border-white/8">
-        <div className="bg-white/10 p-3 rounded-2xl shadow-[0_14px_24px_rgba(15,23,42,0.2)]">
-          <Settings className="text-white w-6 h-6" />
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isActive = (itemId: string) => (itemId === "home" ? view === "setup" || view === "audit" || view === "command-center" : view === itemId);
+
+  const sidebarContent = (isMobile: boolean) => (
+    <div className="flex flex-col h-full">
+      {/* Brand Section */}
+      <div className={cn(
+        "flex items-center gap-3 px-6 py-8 transition-all duration-300",
+        !isExpanded && !isMobile ? "px-4 justify-center" : "px-6"
+      )}>
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-500/20">
+          <Settings className="h-5 w-5" />
         </div>
-        <div className="min-w-0">
-          <h1 className="font-black text-lg tracking-[-0.03em] leading-none text-white">{appTitle}</h1>
-          <p className="mt-1 text-[10px] font-black uppercase tracking-[0.22em] text-white/45">Sistema</p>
-        </div>
+        {(isExpanded || isMobile) && (
+          <motion.div 
+            initial={{ opacity: 0, x: -10 }} 
+            animate={{ opacity: 1, x: 0 }}
+            className="min-w-0"
+          >
+            <h1 className="text-lg font-black leading-none tracking-tight text-white">{appTitle}</h1>
+            <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-blue-200/50">Panel de Control</p>
+          </motion.div>
+        )}
       </div>
 
-      <nav className="flex-1 min-h-0 overflow-y-auto px-4 py-5 space-y-2 sidebar-scroll">
-        <div className="px-3 pb-2">
-          <p className="text-[10px] font-black text-blue-200/65 uppercase tracking-[0.2em]">Operación</p>
-        </div>
-
+      {/* Navigation */}
+      <nav className="flex-1 space-y-1 px-3 py-4">
         {items.map((item) => (
           <button
             key={item.id}
             onClick={() => {
               onNavigate(item.id);
-              onMobileClose();
+              if (isMobile) onMobileClose();
             }}
             className={cn(
-              "w-full flex items-center gap-3 px-4 py-3.5 rounded-[1.35rem] font-bold text-sm transition-all duration-200 group",
-              (item.id === "home" ? (view === "setup" || view === "audit") : view === item.id)
-                ? "bg-white text-slate-950 shadow-[0_18px_36px_rgba(15,23,42,0.22)]"
-                : "text-slate-200/85 hover:text-white hover:bg-white/8",
+              "group relative flex w-full items-center gap-3 rounded-2xl px-3 py-3 transition-all duration-200",
+              isActive(item.id)
+                ? "bg-white text-slate-900 shadow-xl shadow-black/10"
+                : "text-slate-400 hover:bg-white/5 hover:text-white",
+              !isExpanded && !isMobile && "justify-center"
             )}
           >
-            <div className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-xl transition-colors",
-              (item.id === "home" ? (view === "setup" || view === "audit") : view === item.id)
-                ? "bg-slate-100"
-                : "bg-white/8"
-            )}>
-              <item.icon className={cn("w-4.5 h-4.5 transition-transform group-hover:scale-110", (item.id === "home" ? (view === "setup" || view === "audit") : view === item.id) ? "text-slate-900" : "text-white/55")} />
-            </div>
-            {item.label}
-            {(item.id === "home" ? (view === "setup" || view === "audit") : view === item.id) && (
-              <motion.div layoutId="activeTab" className="ml-auto w-1.5 h-1.5 bg-slate-900 rounded-full" />
+            <item.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110", isActive(item.id) ? "text-blue-600" : "text-slate-400")} />
+            {(isExpanded || isMobile) && (
+              <motion.span 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }}
+                className="text-sm font-bold truncate"
+              >
+                {item.label}
+              </motion.span>
+            )}
+            {!isExpanded && !isMobile && (
+              <div className="absolute left-14 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[100] border border-white/10 shadow-2xl">
+                {item.label}
+              </div>
             )}
           </button>
         ))}
-
       </nav>
 
+      {/* User Section */}
       {user && (
-        <div className="p-5 pt-4 border-t border-white/8 bg-black/10 backdrop-blur-sm">
-          <div className="rounded-[1.7rem] border border-white/8 bg-white/4 p-4">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center font-black text-sm shadow-[0_14px_28px_rgba(15,23,42,0.18)]">
-                {user.displayName?.charAt(0) || "U"}
-              </div>
-              <div className="overflow-hidden">
-                <p className="text-xs font-black text-white truncate">{user.displayName}</p>
-                <p className="text-[10px] font-bold text-white/45 truncate">{user.email}</p>
-              </div>
+        <div className={cn(
+          "p-4 border-t border-white/5 bg-black/20 backdrop-blur-sm transition-all duration-300",
+          !isExpanded && !isMobile ? "px-2" : "px-4"
+        )}>
+          <div className={cn(
+            "flex items-center gap-3 mb-4",
+            !isExpanded && !isMobile ? "justify-center" : ""
+          )}>
+            <div className="h-10 w-10 shrink-0 rounded-xl bg-white/10 flex items-center justify-center text-white font-black">
+              {user.displayName?.charAt(0) || "U"}
             </div>
-            <button
-              onClick={() => {
-                onLogout();
-                onMobileClose();
-              }}
-              className="w-full flex items-center justify-center gap-2 rounded-xl border border-white/8 bg-white/4 py-2.5 text-xs font-black uppercase tracking-[0.18em] transition-all hover:bg-red-500/10 hover:text-red-300"
-            >
-              <LogOut className="w-4 h-4" />
-              Salir
-            </button>
+            {(isExpanded || isMobile) && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-w-0">
+                <p className="text-xs font-bold text-white truncate">{user.displayName}</p>
+                <p className="text-[9px] text-white/40 truncate">{user.email}</p>
+              </motion.div>
+            )}
           </div>
+          <button
+            onClick={() => {
+              onLogout();
+              if (isMobile) onMobileClose();
+            }}
+            className={cn(
+              "flex w-full items-center justify-center gap-2 py-2.5 rounded-xl border border-white/5 bg-white/5 text-[10px] font-black uppercase tracking-widest text-white/60 hover:bg-red-500/20 hover:text-red-300 transition-all",
+              !isExpanded && !isMobile ? "px-0" : "px-4"
+            )}
+          >
+            <LogOut className="h-4 w-4" />
+            {(isExpanded || isMobile) && <span>Cerrar Sesión</span>}
+          </button>
         </div>
       )}
-    </>
+    </div>
   );
 
   return (
     <>
+      {/* Desktop Sidebar (Rail) */}
       <aside
+        onMouseEnter={() => setIsExpanded(true)}
+        onMouseLeave={() => setIsExpanded(false)}
         className={cn(
-          "hidden h-[100dvh] w-[288px] shrink-0 flex-col overflow-hidden border-r border-slate-900/80 bg-[linear-gradient(180deg,#0b1220_0%,#0f172a_100%)] text-white transition-all duration-500 lg:sticky lg:top-0 z-50",
-          show ? "lg:flex" : "lg:hidden",
+          "hidden lg:flex flex-col fixed inset-y-0 left-0 z-50 bg-slate-950 border-r border-white/5 transition-all duration-300 ease-in-out",
+          isExpanded ? "w-[260px]" : "w-[80px]",
+          !show && "translate-x-[-100%]"
         )}
       >
-        {navContent}
+        {sidebarContent(false)}
       </aside>
 
+      {/* Desktop Spacer */}
+      <div className={cn(
+        "hidden lg:block shrink-0 transition-all duration-300 ease-in-out",
+        show ? (isExpanded ? "w-[260px]" : "w-[80px]") : "w-0"
+      )} />
+
+      {/* Mobile Drawer */}
       <AnimatePresence>
         {isMobileOpen && show && (
-          <div className="fixed inset-0 z-[90] lg:hidden">
-            <motion.button
+          <div className="fixed inset-0 z-[100] lg:hidden">
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={onMobileClose}
-              className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
             <motion.aside
-              initial={{ x: -320, opacity: 0.8 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -320, opacity: 0.8 }}
-              transition={{ type: "spring", stiffness: 280, damping: 30 }}
-              className="relative flex h-full w-[88vw] max-w-[320px] flex-col overflow-hidden border-r border-slate-900/80 bg-[linear-gradient(180deg,#0b1220_0%,#0f172a_100%)] text-white"
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative h-full w-[280px] bg-slate-950 text-white shadow-2xl"
             >
-              <div className="absolute right-4 top-4 z-10">
-                <button
-                  onClick={onMobileClose}
-                  className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              {navContent}
+              <button
+                onClick={onMobileClose}
+                className="absolute right-4 top-6 p-2 rounded-xl bg-white/5 text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              {sidebarContent(true)}
             </motion.aside>
           </div>
         )}
@@ -144,4 +176,3 @@ function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNaviga
 }
 
 export const Sidebar = memo(SidebarBase);
-
