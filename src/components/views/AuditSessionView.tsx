@@ -3,7 +3,7 @@ import {
   ChevronDown,
   FileCheck,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { cn } from "../../lib/utils";
 import { AuditSession, AuditTemplateItem, Role } from "../../types";
 import { AuditItemRow } from "../audit/AuditItemRow";
