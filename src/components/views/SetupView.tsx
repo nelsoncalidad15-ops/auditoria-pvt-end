@@ -5,7 +5,9 @@ import {
   MapPin, 
   User, 
   Calendar,
-  Info
+  Info,
+  Settings2,
+  ClipboardCheck
 } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "../../lib/utils";
@@ -225,4 +227,3 @@ export function SetupView({
   );
 }
 
-import { Settings2, ClipboardCheck } from "lucide-react";

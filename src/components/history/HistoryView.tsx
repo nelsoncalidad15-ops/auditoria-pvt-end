@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { AlertCircle, ArrowLeft, ChevronRight, ClipboardList, Clock, FileText, Save, Search, TrendingUp } from "lucide-react";
+import { AlertCircle, ArrowLeft, ChevronRight, ClipboardList, Clock, FileText, History, Save, Search, TrendingUp } from "lucide-react";
 
 import { cn } from "../../lib/utils";
 import { AuditSession, HistoryPanel } from "../../types";
