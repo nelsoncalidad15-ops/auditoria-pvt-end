@@ -198,7 +198,7 @@ function AuditApp() {
   const storedExportMeta = getStoredMeta(EXPORT_META_STORAGE_KEY);
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
-  const [view, setView] = useState<AppView>("home");
+  const [view, setView] = useState<AppView>("dashboard");
   const [isSyncing, setIsSyncing] = useState(false);
   const [session, setSession] = useState<Partial<AuditSession>>({
     date: new Date().toISOString().split("T")[0],
@@ -694,7 +694,7 @@ function AuditApp() {
   // Actualizar sidebarItems para incluir "Continuar Auditoría" solo si hay borradores reales
   const updatedSidebarItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    ...(canRunAudits ? [{ id: "home", label: "Nueva Auditoría", icon: Plus }] : []),
+    ...(canRunAudits ? [{ id: "setup", label: "Nueva Auditoría", icon: Plus }] : []),
     ...(allIncompleteAudits.length > 0 ? [{ id: "continuar", label: "Continuar Auditoría", icon: Activity }] : []),
     { id: "history", label: "Historial", icon: History },
     ...(canAccessStructure ? [{ id: "structure", label: "Estructura", icon: Settings }] : []),
@@ -1569,7 +1569,7 @@ function AuditApp() {
         user={user}
         userProfile={userProfile}
         authenticationEnabled={isFirebaseEnabled}
-        showSidebar={view === "dashboard" || view === "history" || view === "integrations" || view === "continuar"}
+        showSidebar={view === "dashboard" || view === "history" || view === "integrations" || view === "continuar" || view === "setup"}
         sidebarItems={updatedSidebarItems}
         isMobileNavOpen={isMobileNavOpen}
         canRunAudits={canRunAudits}
@@ -1632,29 +1632,6 @@ function AuditApp() {
             </motion.div>
           )}
 
-          {view === "home" && (
-            <motion.div
-              key="home-refactor"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="space-y-6"
-            >
-              <Suspense fallback={<div className="rounded-[1.8rem] border border-slate-200 bg-white p-6 text-sm font-bold text-slate-500">Cargando centro de mando...</div>}>
-                <HomeView
-                  history={history}
-                  localAuditHistoryCount={localAuditHistory.length}
-                  onStartAudit={startNewAudit}
-                  onOpenHistory={() => setView("history")}
-                  onOpenSetup={() => setView("setup")}
-                  onOpenContinue={() => setView("continuar")}
-                  onOpenStructure={() => setView("structure")}
-                  canOpenStructure={canAccessStructure}
-                  canOpenContinue={allIncompleteAudits.length > 0}
-                />
-              </Suspense>
-            </motion.div>
-          )}
 
 
           {view === "setup" && (

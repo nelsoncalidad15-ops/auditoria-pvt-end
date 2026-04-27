@@ -128,11 +128,11 @@ export function AppShell({
           )}
         >
           <button
-            onClick={() => onNavigate("home")}
-            className={cn("flex flex-col items-center gap-1.5 transition-all active:scale-75", (view === "home" || view === "command-center") ? "text-blue-400" : "text-slate-500")}
+            onClick={() => onNavigate("dashboard")}
+            className={cn("flex flex-col items-center gap-1.5 transition-all active:scale-75", view === "dashboard" ? "text-blue-400" : "text-slate-500")}
           >
-            <Home className="w-6 h-6" />
-            <span className="text-[9px] font-black uppercase tracking-widest">Inicio</span>
+            <LayoutDashboard className="w-6 h-6" />
+            <span className="text-[9px] font-black uppercase tracking-widest">Dashboard</span>
           </button>
           
           <button

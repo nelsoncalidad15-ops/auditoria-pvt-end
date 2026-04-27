@@ -80,7 +80,7 @@ export function useHashNavigation({ view, selectedRole, setView, setSelectedRole
 
     isApplyingHashRef.current = true;
 
-    if (!section || section === "dashboard" || section === "inicio") {
+    if (!section || section === "dashboard" || section === "inicio" || section === "home") {
       setView("dashboard");
       return;
     }
@@ -127,10 +127,6 @@ export function useHashNavigation({ view, selectedRole, setView, setSelectedRole
       return;
     }
 
-    if (section === "home") {
-      setView("home");
-      return;
-    }
 
     setView("dashboard");
   }, [AUDIT_SELECTION_SEGMENT, clearSelectedRole, decodeAuditRole, setSelectedRole, setView]);
@@ -165,10 +161,10 @@ export function useHashNavigation({ view, selectedRole, setView, setSelectedRole
     }
 
     if (view === "home") {
-      return "#/home";
+      return "#/dashboard";
     }
 
-    return "#/inicio";
+    return "#/dashboard";
   }, [encodeAuditRole, selectedRole, view]);
 
   if (initialHashRef.current === null) {
