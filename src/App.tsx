@@ -270,6 +270,7 @@ function AuditApp() {
     isUsingExternalHistory,
     historySyncModeLabel,
     upsertLocalAuditHistory,
+    removeLocalAuditHistoryItem,
     refreshExternalHistory,
     prependExternalAudit,
     saveToFirestore,
