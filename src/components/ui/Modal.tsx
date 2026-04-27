@@ -52,3 +52,22 @@ export function AppModal({ isOpen, onClose, onConfirm, title, message }: AppModa
     </AnimatePresence>
   );
 }
+export interface ConfirmModalProps {
+  show: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+}
+
+export function ConfirmModal({ show, onClose, onConfirm, title, message }: ConfirmModalProps) {
+  return (
+    <AppModal
+      isOpen={show}
+      onClose={onClose}
+      onConfirm={onConfirm}
+      title={title}
+      message={message}
+    />
+  );
+}

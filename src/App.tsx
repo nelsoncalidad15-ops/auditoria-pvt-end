@@ -28,6 +28,7 @@ import {
   Settings,
   LayoutDashboard,
   Activity,
+  Trash2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppShell } from "./app/AppShell";
@@ -54,7 +55,7 @@ import {
 import Papa from "papaparse";
 import { AuditItemRow } from "./components/audit/AuditItemRow";
 import { Button } from "./components/ui/Button";
-import { AppModal } from "./components/ui/Modal";
+import { AppModal, ConfirmModal } from "./components/ui/Modal";
 import { useAuditDrafts } from "./hooks/useAuditDrafts";
 import { useHashNavigation } from "./hooks/useHashNavigation";
 import { useAuditStructure } from "./hooks/useAuditStructure";
@@ -1186,6 +1187,11 @@ function AuditApp() {
     }
     submitAudit(submitMode);
   };
+
+  const confirmAuditSubmit = () => {
+    submitAudit(pendingOrdersSubmitMode);
+  };
+
 
   const focusAuditItem = (auditItem: AuditTemplateItem) => {
     setActiveAuditItemId(auditItem.id);

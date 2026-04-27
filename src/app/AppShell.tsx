@@ -63,17 +63,17 @@ export function AppShell({
   children,
 }: AppShellProps) {
   return (
-    <div className="min-h-screen flex bg-slate-50 dark:bg-[#050a14] transition-colors duration-500 overflow-x-hidden relative">
+    <div className="min-h-screen flex bg-[--bg] transition-colors duration-500 overflow-x-hidden relative">
       {/* Premium Background Elements */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-40 dark:opacity-100">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px] dark:bg-blue-900/20" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[--accent-neon-glow] rounded-full blur-[120px]" />
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03] dark:opacity-[0.05]" />
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[140px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-cyan-500/10 rounded-full blur-[140px]" />
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03]" />
         <div 
           className="absolute inset-0" 
           style={{ 
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)`,
-            backgroundSize: '40px 40px'
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)`,
+            backgroundSize: '50px 50px'
           }} 
         />
       </div>
@@ -106,7 +106,7 @@ export function AppShell({
           onLogin={() => {}}
         />
 
-        <main className={cn("p-4 md:p-8 flex-1 transition-all duration-300", getMainClassName(view))}>
+        <main className={cn("p-4 md:p-8 flex-1 transition-all duration-300 relative z-10", getMainClassName(view))}>
           <AnimatePresence mode="wait">
             <motion.div
               key={view}
@@ -123,13 +123,13 @@ export function AppShell({
         {/* Mobile Bottom Navigation */}
         <nav
           className={cn(
-            "fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-t border-slate-200/50 dark:border-slate-800/50 px-8 py-3 flex items-center justify-around z-[80] lg:hidden safe-area-bottom shadow-[0_-10px_40px_rgba(0,0,0,0.05)]",
+            "fixed bottom-0 left-0 right-0 bg-[#0b1120]/80 backdrop-blur-2xl border-t border-white/5 px-8 py-4 flex items-center justify-around z-[80] lg:hidden safe-area-bottom shadow-[0_-10px_40px_rgba(0,0,0,0.4)]",
             view === "audit" ? "hidden" : "flex"
           )}
         >
           <button
             onClick={() => onNavigate("home")}
-            className={cn("flex flex-col items-center gap-1 transition-all active:scale-75", (view === "home" || view === "command-center") ? "text-blue-600" : "text-slate-400")}
+            className={cn("flex flex-col items-center gap-1.5 transition-all active:scale-75", (view === "home" || view === "command-center") ? "text-blue-400" : "text-slate-500")}
           >
             <Home className="w-6 h-6" />
             <span className="text-[9px] font-black uppercase tracking-widest">Inicio</span>
@@ -138,16 +138,16 @@ export function AppShell({
           <button
             onClick={onStartAudit}
             disabled={!canRunAudits}
-            className="flex flex-col items-center -mt-10"
+            className="flex flex-col items-center -mt-12"
           >
-            <div className="bg-blue-600 text-white p-4 rounded-2xl shadow-xl shadow-blue-500/40 active:scale-90 transition-transform">
+            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white p-4.5 rounded-2xl shadow-2xl shadow-blue-500/40 active:scale-90 transition-transform border border-white/10">
               <Plus className="w-7 h-7" />
             </div>
           </button>
 
           <button
             onClick={() => onNavigate("history")}
-            className={cn("flex flex-col items-center gap-1 transition-all active:scale-75", view === "history" ? "text-blue-600" : "text-slate-400")}
+            className={cn("flex flex-col items-center gap-1.5 transition-all active:scale-75", view === "history" ? "text-blue-400" : "text-slate-500")}
           >
             <History className="w-6 h-6" />
             <span className="text-[9px] font-black uppercase tracking-widest">Historial</span>

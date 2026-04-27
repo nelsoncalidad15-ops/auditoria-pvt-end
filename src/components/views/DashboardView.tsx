@@ -45,15 +45,18 @@ export const DashboardView = memo(({ history }: DashboardViewProps) => {
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col md:flex-row md:items-center justify-between gap-6"
       >
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-xl shadow-blue-500/20">
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="flex items-center gap-5">
+          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white shadow-2xl shadow-blue-500/30 border border-white/10">
+            <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tight">Dashboard de Calidad</h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium text-xs uppercase tracking-widest mt-0.5">Análisis de rendimiento</p>
+            <h1 className="text-3xl font-black tracking-tighter text-white uppercase italic">Dashboard <span className="text-blue-500">Operativo</span></h1>
+            <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.3em] mt-1 flex items-center gap-2">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Análisis de rendimiento en tiempo real
+            </p>
           </div>
         </div>
 
@@ -96,17 +99,20 @@ export const DashboardView = memo(({ history }: DashboardViewProps) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="premium-card p-6 bg-white dark:bg-slate-900 border-slate-100 dark:border-white/5"
+            className="premium-card p-6 bg-slate-900/50 border-white/5 hover:border-blue-500/30 transition-all group relative overflow-hidden"
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", kpi.bg, kpi.color)}>
+            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
+              <kpi.icon className="h-24 w-24" />
+            </div>
+            <div className="flex items-center justify-between mb-4 relative z-10">
+              <div className={cn("h-11 w-11 rounded-2xl flex items-center justify-center border shadow-lg", kpi.bg, kpi.color, "border-white/10")}>
                 <kpi.icon className="h-5 w-5" />
               </div>
-              <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">{kpi.sub}</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{kpi.sub}</p>
             </div>
-            <div className="space-y-1">
-              <h3 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white leading-none">{kpi.value}</h3>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{kpi.label}</p>
+            <div className="space-y-1 relative z-10">
+              <h3 className="text-3xl font-black tracking-tighter text-white leading-none">{kpi.value}</h3>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.15em]">{kpi.label}</p>
             </div>
           </motion.div>
         ))}

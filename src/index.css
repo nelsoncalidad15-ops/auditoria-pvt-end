@@ -2,56 +2,52 @@
 @import "tailwindcss";
 
 :root {
-	color-scheme: light;
-	--bg: #f8fafc;
-	--bg-strong: #f1f5f9;
-	--panel: rgba(255, 255, 255, 0.7);
-	--panel-strong: rgba(255, 255, 255, 0.9);
-	--text: #0f172a;
-	--text-muted: #64748b;
-	--line: rgba(226, 232, 240, 0.8);
-	--brand: #2563eb;
-	--brand-strong: #1d4ed8;
-	--brand-soft: #eff6ff;
+	color-scheme: dark;
+	--bg: #0b1120;
+	--bg-strong: #0f172a;
+	--panel: rgba(15, 23, 42, 0.7);
+	--panel-strong: rgba(15, 23, 42, 0.95);
+	--text: #f8fafc;
+	--text-muted: #94a3b8;
+	--text-dim: #64748b;
+	--line: rgba(255, 255, 255, 0.08);
+	--brand: #3b82f6;
+	--brand-strong: #60a5fa;
+	--brand-soft: rgba(59, 130, 246, 0.15);
 	--success: #10b981;
 	--warning: #f59e0b;
 	--danger: #ef4444;
-	--radius-lg: 24px;
-	--radius-md: 16px;
-	--shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
-	--shadow-md: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
-	--shadow-lg: 0 20px 50px -12px rgba(0,0,0,0.15);
+	--radius-lg: 28px;
+	--radius-md: 20px;
+	--shadow-sm: 0 2px 4px rgba(0,0,0,0.2);
+	--shadow-md: 0 10px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.3);
+	--shadow-lg: 0 20px 50px -12px rgba(0,0,0,0.5);
 
 	/* Premium System Tokens */
-	--accent-neon: #10b981;
-	--accent-neon-glow: rgba(16, 185, 129, 0.3);
-	--glass-bg: rgba(255, 255, 255, 0.03);
-	--glass-border: rgba(255, 255, 255, 0.08);
-	--glass-blur: blur(16px);
+	--accent-neon: #38bdf8;
+	--accent-neon-glow: rgba(56, 189, 248, 0.3);
+	--glass-bg: rgba(30, 41, 59, 0.4);
+	--glass-border: rgba(255, 255, 255, 0.1);
+	--glass-blur: blur(20px);
 }
 
-@media (prefers-color-scheme: dark) {
+@media (prefers-color-scheme: light) {
 	:root {
-		color-scheme: dark;
-		--bg: #050a14;
-		--bg-strong: #0a0f1d;
-		--panel: rgba(10, 15, 30, 0.6);
-		--panel-strong: rgba(15, 20, 35, 0.85);
-		--text: #f8fafc;
-		--text-muted: #94a3b8;
-		--line: rgba(255, 255, 255, 0.05);
-		--brand: #3b82f6;
-		--brand-strong: #60a5fa;
-		--brand-soft: rgba(37, 99, 235, 0.1);
-		--success: #00ff9d;
-		--warning: #fbbf24;
-		--danger: #f87171;
-
-		/* Premium Dark Tokens */
-		--accent-neon: #00ff9d;
-		--accent-neon-glow: rgba(0, 255, 157, 0.4);
-		--glass-bg: rgba(0, 0, 0, 0.4);
-		--glass-border: rgba(255, 255, 255, 0.08);
+		/* Even in light preference, we keep a "dim" professional look if the user wants "professional" */
+		--bg: #f8fafc;
+		--bg-strong: #f1f5f9;
+		--panel: rgba(255, 255, 255, 0.85);
+		--panel-strong: #ffffff;
+		--text: #0f172a;
+		--text-muted: #475569;
+		--text-dim: #64748b;
+		--line: rgba(0, 0, 0, 0.06);
+		--brand: #1d4ed8;
+		--brand-strong: #1e40af;
+		--brand-soft: #eff6ff;
+		--success: #059669;
+		--warning: #d97706;
+		--danger: #dc2626;
 	}
 }
 
@@ -170,17 +166,18 @@ body {
 }
 
 .dashboard-card {
-	border-radius: 20px;
-	border: 1px solid rgba(226, 232, 240, 0.85);
-	background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(248, 250, 252, 0.92));
-	box-shadow: 0 16px 36px rgba(15, 23, 42, 0.06);
-	padding: 18px;
+	border-radius: var(--radius-md);
+	border: 1px solid var(--line);
+	background: var(--panel-strong);
+	box-shadow: var(--shadow-md);
+	padding: 24px;
 	transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .dashboard-card:hover {
 	transform: translateY(-2px);
-	box-shadow: 0 20px 38px rgba(15, 23, 42, 0.1);
+	box-shadow: var(--shadow-lg);
+	border-color: var(--brand-strong);
 }
 
 .dashboard-skeleton {

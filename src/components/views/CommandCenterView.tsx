@@ -37,17 +37,26 @@ export function CommandCenterView({
   return (
     <div className="space-y-6 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-1000">
       {/* Welcome Header */}
-      <div className="px-2">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="h-1 w-8 rounded-full bg-blue-500 neon-glow" />
-          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">System Dashboard</span>
+      <div className="px-4 py-8 rounded-[2.5rem] bg-gradient-to-br from-slate-900 to-slate-950 border border-white/5 shadow-2xl relative overflow-hidden mb-8">
+        <div className="absolute top-0 right-0 p-12 opacity-10">
+          <Activity className="w-40 h-40 text-blue-500" />
         </div>
-        <h2 className="text-3xl font-black tracking-tighter text-white uppercase">
-          WELCOME, <span className="text-blue-500 neon-text">OPERATOR</span>
-        </h2>
-        <p className="text-slate-400 text-sm font-medium mt-1">
-          {new Date().toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-        </p>
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-1.5 w-12 rounded-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
+            <span className="text-[11px] font-black uppercase tracking-[0.4em] text-blue-400/80">Control System v4.0</span>
+          </div>
+          <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-white uppercase leading-none">
+            WELCOME, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">OPERATOR</span>
+          </h2>
+          <div className="flex items-center gap-4 mt-6 text-slate-400">
+            <p className="text-sm font-bold uppercase tracking-widest bg-white/5 px-4 py-1.5 rounded-full border border-white/5">
+              {new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </p>
+            <div className="h-1 w-1 rounded-full bg-slate-700" />
+            <p className="text-xs font-medium italic opacity-70">Sincronización en tiempo real activa</p>
+          </div>
+        </div>
       </div>
 
       {/* Main Grid Layout with Sidebar */}
