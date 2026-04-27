@@ -60,6 +60,7 @@ import { useHashNavigation } from "./hooks/useHashNavigation";
 import { useAuditStructure } from "./hooks/useAuditStructure";
 import { useAuditSync } from "./hooks/useAuditSync";
 import { useAuditSessionActions } from "./hooks/useAuditSessionActions";
+import { CategoryGrid } from "./components/audit/CategoryGrid";
 
 const DashboardView = React.lazy(() => import("./components/views/DashboardView").then((module) => ({ default: module.DashboardView })));
 const HistoryView = React.lazy(() => import("./components/history/HistoryView").then((module) => ({ default: module.HistoryView })));
@@ -68,6 +69,7 @@ const IntegrationsView = React.lazy(() => import("./components/views/Integration
 const ContinueAuditsView = React.lazy(() => import("./components/views/ContinueAuditsView").then((module) => ({ default: module.ContinueAuditsView })));
 const HomeView = React.lazy(() => import("./components/views/CommandCenterView").then((module) => ({ default: module.CommandCenterView })));
 const SetupView = React.lazy(() => import("./components/views/SetupView").then((module) => ({ default: module.SetupView })));
+const AuditSessionView = React.lazy(() => import("./components/views/AuditSessionView").then((module) => ({ default: module.AuditSessionView })));
 
 function ErrorBoundary({ children }: { children: React.ReactNode }) {
   const [error, setError] = React.useState<any>(null);
@@ -225,6 +227,8 @@ function AuditApp() {
   const [preDeliveryActiveLegajoIndex, setPreDeliveryActiveLegajoIndex] = useState(0);
   const [draftSaveState, setDraftSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [isQuickAuditMode, setIsQuickAuditMode] = useState<boolean>(() => getDefaultQuickAuditMode());
+  const [submissionState, setSubmissionState] = useState<"idle" | "success" | "error">("idle");
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [userProfile, setUserProfile] = useState<AuditUserProfile>(() => {
     if (typeof window === "undefined") {
       return "auditor";
@@ -1351,93 +1355,21 @@ function AuditApp() {
         setSelectedStaff("");
       }
 
-      if (!savedRemotely) {
-        alert("Auditoría guardada en este dispositivo.");
-      } else if (syncWarning) {
-        alert(syncWarning);
-      } else if (hasWebhookUrl) {
-        alert("Auditoría guardada correctamente.");
-      }
+      setSubmissionState("success");
+      setShowSuccessModal(true);
     } catch (error) {
       console.error("Submit audit failed:", error);
+      setSubmissionState("error");
 
       const errorMessage = error instanceof Error ? error.message : String(error);
-
+      
+      // En caso de error, todavía guardamos localmente para no perder datos
       upsertLocalAuditHistory(completeSession);
-
-      setCompletedAuditReports((current) => {
-        const nextReport: CompletedAuditReport = {
-          role: completeSession.role || selectedRole!,
-          session: completeSession,
-          auditorName,
-          templateItems: displayedAuditItems,
-        };
-        const nextReports = [nextReport, ...current];
-        const seenReportIds = new Set<string>();
-
-        return nextReports.filter((report) => {
-          const reportId = report.session.id || `${report.role}-${report.session.date}-${report.session.orderNumber || "sin-or"}`;
-          if (seenReportIds.has(reportId)) {
-            return false;
-          }
-
-          seenReportIds.add(reportId);
-          return true;
-        });
-      });
-
-      if (session.id) {
-        removeDraftAudit(session.id);
-      }
-
+      
       setShowConfirmModal(false);
       setIsSendingToSheet(false);
-      setActiveAuditItemId(null);
-      setFocusedAuditItemId(null);
-      setSelectedStaff(shouldKeepServiceAdvisor ? (completeSession.staffName?.trim() || "") : "");
-      setView("audit");
-      setSession({
-        id: createClientId(),
-        date: completeSession.date,
-        auditBatchName: completeSession.auditBatchName,
-        auditorId: completeSession.auditorId,
-        location: completeSession.location,
-        clientIdentifier: undefined,
-        auditedFileNames: createEmptyAuditedFileNames(),
-        participants: isOrdersAudit ? nextOrdersParticipants : undefined,
-        items: [],
-      });
-
-      if (!((completeSession.role === "Ordenes" || completeSession.role === "Asesores de servicio" || completeSession.role === "Técnicos") && submitMode === "continue")) {
-        setSelectedRole(null);
-      }
-
-      if (shouldKeepTechnicianFlow) {
-        setSelectedStaff("");
-      }
-
-      if (isFirebaseEnabled && (errorMessage.includes("Missing or insufficient permissions") || errorMessage.includes("insufficient permissions"))) {
-        const shouldLogin = window.confirm("Se guardó en este dispositivo. Firebase rechazó el acceso. ¿Querés iniciar sesión con Google ahora?");
-        if (shouldLogin) {
-          void handleLogin();
-        }
-        return;
-      }
-
-      if (isFirebaseEnabled && errorMessage.includes("authInfo") && errorMessage.includes('"userId":undefined')) {
-        const shouldLogin = window.confirm("Se guardó en este dispositivo. No hay una sesión activa. ¿Querés iniciar sesión con Google ahora?");
-        if (shouldLogin) {
-          void handleLogin();
-        }
-        return;
-      }
-
-      if (hasWebhookUrl) {
-        alert(`No se pudo enviar la auditoría a Apps Script. Se guardó en este dispositivo.\n\nDetalle: ${errorMessage}`);
-        return;
-      }
-
-      alert("La auditoría se guardó en este dispositivo.");
+      
+      alert(`No se pudo sincronizar: ${errorMessage}. La auditoría se guardó localmente.`);
     }
   };
 
@@ -1637,7 +1569,7 @@ function AuditApp() {
         canRunAudits={canRunAudits}
         contentContainerRef={contentContainerRef}
         onNavigate={(nextView) => {
-          if (nextView === "home") {
+          if (nextView === "new-audit") {
             startNewAudit();
             return;
           }
@@ -1649,9 +1581,37 @@ function AuditApp() {
         onCloseMobileNav={() => setIsMobileNavOpen(false)}
         onBack={handleTopbarBack}
         onStartAudit={startNewAudit}
-        backLabel={view === "audit" ? "Volver a ?reas" : undefined}
+        backLabel={view === "audit" ? "Volver a Áreas" : undefined}
       >
         <AnimatePresence mode="wait">
+          {showSuccessModal && (
+            <motion.div
+              key="success-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md"
+            >
+              <motion.div
+                initial={{ scale: 0.8, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                className="max-w-sm w-full bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 text-center shadow-2xl border border-white/5"
+              >
+                <div className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-8 animate-success-pulse">
+                  <FileCheck className="h-12 w-12 text-white" />
+                </div>
+                <h3 className="text-3xl font-black mb-3">¡Completado!</h3>
+                <p className="text-slate-500 font-medium mb-10 leading-relaxed">La auditoría ha sido procesada y guardada correctamente en el sistema.</p>
+                <Button 
+                  className="w-full h-14 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-blue-500/20"
+                  onClick={() => setShowSuccessModal(false)}
+                >
+                  Continuar
+                </Button>
+              </motion.div>
+            </motion.div>
+          )}
+
           {view === "dashboard" && (
             <motion.div 
               key="dashboard"
@@ -1683,30 +1643,6 @@ function AuditApp() {
                   onOpenSetup={() => setView("setup")}
                   onOpenContinue={() => setView("continuar")}
                   onOpenStructure={() => setView("structure")}
-                  canOpenStructure={canAccessStructure}
-                  canOpenContinue={allIncompleteAudits.length > 0}
-                />
-                {/*
-
-                  isLoggingIn={isLoggingIn}
-                  isSyncing={isSyncing}
-                  isSheetSyncConfigured={isSheetSyncConfigured}
-                  isHistorySyncConfigured={isHistorySyncConfigured}
-                  historySyncModeLabel={historySyncModeLabel}
-                  hasWebhookUrl={hasWebhookUrl}
-                  hasSheetCsvUrl={hasSheetCsvUrl}
-                  isUsingExternalHistory={isUsingExternalHistory}
-                  isFirebaseEnabled={isFirebaseEnabled}
-                  hasUser={Boolean(user)}
-                  localAuditHistoryCount={localAuditHistory.length}
-                  historyCount={history.length}
-                  recentAudits={recentAudits}
-                  onStartAudit={startNewAudit}
-                  onSyncData={syncData}
-                  onOpenHistory={() => setView("history")}
-                  onOpenSetup={() => setView("setup")}
-                  onOpenStructure={() => setView("structure")}
-                  onOpenContinue={() => setView("continuar")}
                   canOpenStructure={canAccessStructure}
                   canOpenContinue={allIncompleteAudits.length > 0}
                 />
@@ -1750,17 +1686,16 @@ function AuditApp() {
               className="space-y-6"
             >
               {!selectedRole ? (
-                <>
                 <div className="space-y-6">
                   <div className="hero-shell rounded-[2.2rem] p-6 shadow-sm lg:p-7">
                     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
                       <div className="space-y-4">
                         <span className="inline-flex items-center gap-2 rounded-full bg-white/85 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 shadow-sm">
                           <div className="h-2 w-2 rounded-full bg-blue-600" />
-                          Categor?s
+                          Categorías
                         </span>
                         <div className="space-y-2">
-                          <h2 className="text-2xl font-black tracking-tight text-slate-950 lg:text-3xl">Eleg? el ?rea.</h2>
+                          <h2 className="text-2xl font-black tracking-tight text-slate-950 lg:text-3xl">Elegí el área.</h2>
                           {auditBatchDisplayName && (
                             <p className="text-sm font-bold text-slate-600">{auditBatchDisplayName}</p>
                           )}
@@ -1793,7 +1728,7 @@ function AuditApp() {
                           auditEntryTab === "areas" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"
                         )}
                       >
-                        Eleg? el ?rea
+                        Elegí el área
                       </button>
                       <button
                         type="button"
@@ -1809,86 +1744,65 @@ function AuditApp() {
                   </div>
 
                   {auditEntryTab === "areas" ? (
-                    <div className="grid grid-cols-2 gap-3 lg:grid-cols-5 lg:gap-2.5 xl:grid-cols-6 xl:gap-3">
-                      {auditCategories.map((category) => {
-                        const completedCategoryReport = completedAuditReports.find((report) => report.role === category.name);
-                        const isOrdersCategory = category.name === "Ordenes";
-                        const isServiceAdvisorCategory = category.name === "Asesores de servicio";
-                        const categoryProgress = isOrdersCategory
-                          ? sampledOrdersProgress
-                          : isServiceAdvisorCategory
-                            ? sampledServiceAdvisorClientsProgress
-                          : completedCategoryReport?.session.totalScore;
-                        const isCategoryTracked = typeof categoryProgress === "number";
-
-                        return (
-                        <button
-                          key={category.id}
-                          onClick={() => {
-                            setSelectedRole(category.name);
-                            setAuditEntryTab("areas");
-                            if (category.name === "Pre Entrega" || category.name === "Ordenes") {
-                              setSelectedStaff("");
-                            }
-                          }}
-                          className={cn(
-                            "px-4 py-4 rounded-[1.7rem] border shadow-sm flex flex-col items-center justify-center gap-2.5 group transition-all active:scale-95 lg:items-start lg:text-left lg:min-h-[132px]",
-                            isCategoryTracked
-                              ? "border-emerald-200 bg-emerald-50/90 hover:border-emerald-300"
-                              : "border-gray-100 bg-white hover:border-blue-200 hover:shadow-md"
-                          )}
-                        >
-                          <div className="w-10 h-10 bg-gray-50 rounded-[1rem] flex items-center justify-center group-hover:bg-blue-50 transition-colors">
-                            {category.name.includes("Asesor") && <UserCheck className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
-                            {category.name.includes("T?cnico") && <Wrench className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
-                            {category.name.includes("Jefe") && <ShieldCheck className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
-                            {category.name.includes("Lavadero") && <Droplets className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
-                            {category.name.includes("Garant?a") && <FileCheck className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
-                            {category.name.includes("Repuestos") && <Package className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
-                            {category.name.includes("Pre Entrega") && <Truck className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
-                            {category.name.includes("Ordenes") && <FileText className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
-                            {![("Asesor"), ("T?cnico"), ("Jefe"), ("Lavadero"), ("Garant?a"), ("Repuestos"), ("Pre Entrega"), ("Ordenes")].some(k => category.name.includes(k)) && (
-                              <ClipboardList className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />
-                            )}
-                          </div>
-                          <div className="space-y-1">
-                            <span className={cn("font-bold text-[11px] text-center leading-tight lg:text-sm lg:text-left", isCategoryTracked ? "text-emerald-950" : "text-gray-800")}>{category.name}</span>
-                            {isCategoryTracked && (
-                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">{categoryProgress}%</p>
-                            )}
-                          </div>
-                        </button>
-                        );
-                      })}
-                    </div>
+                    <CategoryGrid
+                      categories={auditCategories}
+                      completedReports={completedAuditReports}
+                      sampledOrdersProgress={sampledOrdersProgress}
+                      sampledServiceAdvisorClientsProgress={sampledServiceAdvisorClientsProgress}
+                      onSelectCategory={(category) => {
+                        setSelectedRole(category.name);
+                        setAuditEntryTab("areas");
+                        if (category.name === "Pre Entrega" || category.name === "Ordenes") {
+                          setSelectedStaff("");
+                        }
+                      }}
+                    />
                   ) : (
-                    <div className="space-y-4">
-                      <div className="rounded-[1.6rem] border border-slate-200 bg-white p-4 shadow-sm">
-                        <div className="mb-3 flex items-center justify-between gap-3">
-                          <p className="text-sm font-black text-slate-900">Asesores de servicio</p>
-                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600">{blendedServiceAdvisorScoreRows.length} personas</span>
+                    <div className="space-y-6">
+                      <div className="premium-card p-6 bg-white dark:bg-white/5 border-white/5 shadow-xl">
+                        <div className="mb-6 flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                               <Activity className="h-5 w-5" />
+                            </div>
+                            <p className="text-lg font-black text-slate-900 dark:text-white uppercase italic tracking-tight">Asesores de Servicio</p>
+                          </div>
+                          <span className="rounded-full bg-slate-100 dark:bg-white/10 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 dark:text-slate-400">{blendedServiceAdvisorScoreRows.length} PERFIL(ES)</span>
                         </div>
                         <div className="overflow-x-auto">
                           <table className="min-w-full text-sm">
                             <thead>
-                              <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-                                <th className="px-2 py-2">Asesor</th>
-                                <th className="px-2 py-2">?reas incluidas</th>
-                                <th className="px-2 py-2 text-center">Resultado</th>
-                                <th className="px-2 py-2 text-center">Auditorías</th>
+                              <tr className="border-b border-slate-100 dark:border-white/5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                                <th className="px-2 py-4">Colaborador</th>
+                                <th className="px-2 py-4">Áreas Consolidadas</th>
+                                <th className="px-2 py-4 text-center">Cumplimiento</th>
+                                <th className="px-2 py-4 text-center">Auditorías</th>
                               </tr>
                             </thead>
-                            <tbody>
+                            <tbody className="divide-y divide-slate-50 dark:divide-white/5">
                               {blendedServiceAdvisorScoreRows.length > 0 ? blendedServiceAdvisorScoreRows.map((row) => (
-                                <tr key={`advisor-score-${row.personName}`} className="border-b border-slate-100 last:border-b-0">
-                                  <td className="px-2 py-2.5 font-bold text-slate-800">{row.personName}</td>
-                                  <td className="px-2 py-2.5 text-xs font-bold text-slate-600">{row.areas.join(" + ")}</td>
-                                  <td className="px-2 py-2.5 text-center font-black text-emerald-700">{row.compliance}%</td>
-                                  <td className="px-2 py-2.5 text-center font-bold text-slate-600">
-                                    <div className="inline-flex flex-col items-center gap-1">
-                                      <span>{row.evaluations}</span>
+                                <tr key={`advisor-score-${row.personName}`} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                                  <td className="px-2 py-4 font-black text-slate-800 dark:text-slate-200">{row.personName}</td>
+                                  <td className="px-2 py-4">
+                                    <div className="flex flex-wrap gap-1">
+                                      {row.areas.map(area => (
+                                        <span key={area} className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-white/10 text-[9px] font-bold text-slate-600 dark:text-slate-400 uppercase">{area}</span>
+                                      ))}
+                                    </div>
+                                  </td>
+                                  <td className="px-2 py-4 text-center">
+                                    <span className={cn(
+                                      "inline-block px-3 py-1 rounded-xl font-black text-lg",
+                                      row.compliance >= 90 ? "bg-emerald-500/10 text-emerald-600" : row.compliance >= 70 ? "bg-amber-500/10 text-amber-600" : "bg-red-500/10 text-red-600"
+                                    )}>
+                                      {row.compliance}%
+                                    </span>
+                                  </td>
+                                  <td className="px-2 py-4 text-center">
+                                    <div className="flex flex-col items-center gap-1">
+                                      <span className="text-sm font-black text-slate-900 dark:text-white">{row.evaluations}</span>
                                       {typeof row.linkedItems === "number" && row.linkedItems > 0 && (
-                                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-700">
+                                        <span className="rounded-full bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">
                                           {row.linkedItems} vinculados
                                         </span>
                                       )}
@@ -1897,7 +1811,7 @@ function AuditApp() {
                                 </tr>
                               )) : (
                                 <tr>
-                                  <td className="px-2 py-3 text-xs font-bold text-slate-500" colSpan={4}>Todavía no hay auditorías de asesores para este proceso (OR y Asesores de servicio).</td>
+                                  <td className="px-2 py-8 text-sm font-medium text-slate-500 text-center italic" colSpan={4}>No hay registros de asesores en esta sesión.</td>
                                 </tr>
                               )}
                             </tbody>
@@ -1905,37 +1819,49 @@ function AuditApp() {
                         </div>
                       </div>
 
-                      <div className="rounded-[1.6rem] border border-slate-200 bg-white p-4 shadow-sm">
-                        <div className="mb-3 flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-black text-slate-900">Técnicos</p>
-                            <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Final = promedio simple entre OR y Auditoría Técnicos</p>
+                      <div className="premium-card p-6 bg-white dark:bg-white/5 border-white/5 shadow-xl">
+                        <div className="mb-6 flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                               <Plus className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <p className="text-lg font-black text-slate-900 dark:text-white uppercase italic tracking-tight">Cuerpo Técnico</p>
+                              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Promedio OR + Auditoría Técnica</p>
+                            </div>
                           </div>
-                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600">{blendedTechnicianScoreRows.length} personas</span>
+                          <span className="rounded-full bg-slate-100 dark:bg-white/10 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 dark:text-slate-400">{blendedTechnicianScoreRows.length} PERFIL(ES)</span>
                         </div>
                         <div className="overflow-x-auto">
                           <table className="min-w-full text-sm">
                             <thead>
-                              <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-                                <th className="px-2 py-2">Técnico</th>
-                                <th className="px-2 py-2 text-center">OR</th>
-                                <th className="px-2 py-2 text-center">Aud. Técnicos</th>
-                                <th className="px-2 py-2 text-center">Final</th>
-                                <th className="px-2 py-2 text-center">Auditorías</th>
+                              <tr className="border-b border-slate-100 dark:border-white/5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                                <th className="px-2 py-4">Técnico</th>
+                                <th className="px-2 py-4 text-center">Calidad OR</th>
+                                <th className="px-2 py-4 text-center">Aud. Técnica</th>
+                                <th className="px-2 py-4 text-center">Final</th>
+                                <th className="px-2 py-4 text-center">Auditorías</th>
                               </tr>
                             </thead>
-                            <tbody>
+                            <tbody className="divide-y divide-slate-50 dark:divide-white/5">
                               {blendedTechnicianScoreRows.length > 0 ? blendedTechnicianScoreRows.map((row) => (
-                                <tr key={`technician-score-${row.personName}`} className="border-b border-slate-100 last:border-b-0">
-                                  <td className="px-2 py-2.5 font-bold text-slate-800">{row.personName}</td>
-                                  <td className="px-2 py-2.5 text-center font-black text-slate-700">{typeof row.ordersScore === "number" ? `${row.ordersScore}%` : "-"}</td>
-                                  <td className="px-2 py-2.5 text-center font-black text-slate-700">{typeof row.technicianAuditScore === "number" ? `${row.technicianAuditScore}%` : "-"}</td>
-                                  <td className="px-2 py-2.5 text-center font-black text-emerald-700">{row.compliance}%</td>
-                                  <td className="px-2 py-2.5 text-center font-bold text-slate-600">{row.evaluations}</td>
+                                <tr key={`technician-score-${row.personName}`} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                                  <td className="px-2 py-4 font-black text-slate-800 dark:text-slate-200">{row.personName}</td>
+                                  <td className="px-2 py-4 text-center font-bold text-slate-500">{typeof row.ordersScore === "number" ? `${row.ordersScore}%` : "-"}</td>
+                                  <td className="px-2 py-4 text-center font-bold text-slate-500">{typeof row.technicianAuditScore === "number" ? `${row.technicianAuditScore}%` : "-"}</td>
+                                  <td className="px-2 py-4 text-center">
+                                    <span className={cn(
+                                      "inline-block px-3 py-1 rounded-xl font-black text-lg",
+                                      row.compliance >= 90 ? "bg-emerald-500/10 text-emerald-600" : row.compliance >= 70 ? "bg-amber-500/10 text-amber-600" : "bg-red-500/10 text-red-600"
+                                    )}>
+                                      {row.compliance}%
+                                    </span>
+                                  </td>
+                                  <td className="px-2 py-4 text-center font-bold text-slate-900 dark:text-white">{row.evaluations}</td>
                                 </tr>
                               )) : (
                                 <tr>
-                                  <td className="px-2 py-3 text-xs font-bold text-slate-500" colSpan={5}>Todavía no hay auditorías de técnicos para este proceso.</td>
+                                  <td className="px-2 py-8 text-sm font-medium text-slate-500 text-center italic" colSpan={5}>No hay registros técnicos en esta sesión.</td>
                                 </tr>
                               )}
                             </tbody>
@@ -1986,987 +1912,48 @@ function AuditApp() {
                     </div>
                   )}
                 </div>
-                </>
               ) : (
-                <div className={cn("audit-workspace-shell space-y-6", auditWorkspaceToneClass)}>
-                <div className="audit-field-mobile-hero lg:hidden rounded-[1.6rem] border border-slate-200 bg-[linear-gradient(135deg,#081222_0%,#12345d_100%)] p-3.5 text-white shadow-[0_14px_34px_rgba(12,35,64,0.18)]">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Auditoría en campo</p>
-                      <h2 className="mt-1.5 text-lg font-black tracking-[-0.03em] text-white">{selectedRole}</h2>
-                      <p className="mt-1.5 text-sm font-medium text-slate-300">
-                        {isOrdersAudit
-                          ? `OR ${session.orderNumber || "sin número"} · ${sessionParticipants.asesorServicio || "Sin asesor"}`
-                          : isServiceAdvisorAudit
-                            ? `${selectedStaff || "Sin asesor"} · ${session.clientIdentifier?.trim() || "Sin cliente/VIN"}`
-                          : isPreDeliveryAudit
-                            ? `${auditedFileNames.filter((name) => name.trim()).length}/6 legajos cargados`
-                            : (selectedStaff || "Sin personal asignado")}
-                      </p>
-                      {isOrdersAudit && (
-                        <p className="mt-2 text-xs font-medium leading-relaxed text-slate-300">
-                          Técnico: {sessionParticipants.tecnico || "-"} · Controller: {sessionParticipants.controller || "-"} · Lavador: {sessionParticipants.lavador || "-"}
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => setSelectedRole(null)}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white"
-                    >
-                      <ArrowLeft className="h-5 w-5" />
-                    </button>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-200">{sessionItems.length}/{displayedAuditItems.length} respondidos</span>
-                    <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-200">{isOrdersAudit ? "OR" : isServiceAdvisorAudit ? "AS" : "Score"} {currentOrCompliance.compliance}%</span>
-                  </div>
-                </div>
-
-                <div className="audit-workspace-grid grid grid-cols-1 gap-5 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
-                  <div className="audit-workspace-sidebar space-y-3 lg:sticky lg:top-24 h-fit lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-2">
-                    <div className={cn(
-                      "audit-sidebar-cluster hidden space-y-3 rounded-[1.5rem] lg:block",
-                      selectedRole === "Ordenes" ? "bg-[#EEF3F9]/95 backdrop-blur-xl" : "bg-[#F9F9F9] border border-slate-200"
-                    )}>
-                      <div className={cn(
-                        "audit-sidebar-hero flex items-center justify-between rounded-[1.6rem] border px-4 py-3.5 shadow-[0_18px_44px_rgba(12,35,64,0.22)]",
-                        selectedRole === "Ordenes"
-                          ? "bg-[linear-gradient(135deg,#071225_0%,#0f2d53_58%,#1e4c84_100%)] border-[#214e83] text-white"
-                          : "bg-white border-gray-100 text-gray-900"
-                      )}>
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => setSelectedRole(null)}
-                            className={cn(
-                              "p-2 -ml-2 rounded-full shadow-sm border",
-                              selectedRole === "Ordenes"
-                                ? "text-slate-200 hover:text-white bg-white/10 border-white/10"
-                                : "text-gray-400 hover:text-gray-900 bg-white border-gray-100"
-                            )}
-                          >
-                            <ArrowLeft className="w-5 h-5" />
-                          </button>
-                          <div>
-                            <h2 className="text-base font-bold leading-tight">{selectedRole}</h2>
-                            <p className={cn(
-                              "text-[10px] uppercase font-black tracking-widest",
-                              selectedRole === "Ordenes" ? "text-blue-100/80" : "text-gray-400"
-                            )}>
-                              {selectedRole === "Ordenes"
-                                ? `OR ${session.orderNumber || "sin número"}`
-                                : isServiceAdvisorAudit
-                                  ? `Cliente/VIN ${session.clientIdentifier?.trim() || "sin dato"}`
-                                  : (auditBatchDisplayName || "Auditoría en curso")}
-                            </p>
-                            {selectedRole === "Ordenes" && (
-                              <p className="mt-1.5 max-w-[180px] text-[11px] font-medium leading-relaxed text-blue-100/80">
-                                Asesor {sessionParticipants.asesorServicio || "-"} · Técnico {sessionParticipants.tecnico || "-"}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right rounded-xl bg-white/10 px-3 py-2 border border-white/10">
-                          <div className={cn(
-                            "text-xl font-black leading-none",
-                            selectedRole === "Ordenes" ? "text-white" : "text-gray-900"
-                          )}>
-                            {currentOrCompliance.compliance}%
-                          </div>
-                          <div className={cn(
-                            "text-[10px] font-bold uppercase tracking-tighter",
-                            selectedRole === "Ordenes" ? "text-blue-100/80" : "text-gray-400"
-                          )}>{selectedRole === "Ordenes" ? "Cumplimiento OR" : isServiceAdvisorAudit ? "Cumplimiento AS" : "Progreso"}</div>
-                          <div className={cn(
-                            "text-[10px] font-black uppercase tracking-tighter mt-1",
-                            selectedRole === "Ordenes" ? "text-cyan-200" : "text-emerald-600"
-                          )}>{sessionItems.length}/{displayedAuditItems.length}</div>
-                        </div>
-                      </div>
-
-                      <div className="audit-sidebar-card space-y-3 rounded-[1.2rem] border border-slate-200 bg-white p-3.5 shadow-sm">
-                        <div className="flex items-center justify-between">
-                          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Avance de checklist</p>
-                          <span className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{displayedAuditItems.length > 0 ? Math.round((sessionItems.length / displayedAuditItems.length) * 100) : 0}%</span>
-                        </div>
-                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-200">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${displayedAuditItems.length > 0 ? (sessionItems.length / displayedAuditItems.length) * 100 : 0}%` }}
-                            className={cn(
-                              "h-full rounded-full",
-                              selectedRole === "Ordenes" ? "bg-gradient-to-r from-[#1d4f91] via-[#0066b1] to-[#00a3e0]" : "bg-blue-500"
-                            )}
-                          />
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="rounded-lg bg-emerald-50 px-2 py-2 text-center">
-                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-700">Cumple</p>
-                            <p className="mt-1 text-sm font-black text-emerald-800">{sessionItems.filter(i => i.status === 'pass').length}</p>
-                          </div>
-                          <div className="rounded-lg bg-red-50 px-2 py-2 text-center">
-                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-red-700">Desvío</p>
-                            <p className="mt-1 text-sm font-black text-red-800">{sessionItems.filter(i => i.status === 'fail').length}</p>
-                          </div>
-                          <div className="rounded-lg bg-slate-100 px-2 py-2 text-center">
-                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-600">N/A</p>
-                            <p className="mt-1 text-sm font-black text-slate-700">{sessionItems.filter(i => i.status === 'na').length}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                  </div>
-
-                    {!isOrdersAudit && !isPreDeliveryAudit && selectedRole !== "Jefe de Repuestos" && (
-                      <div className="audit-sidebar-card space-y-2 rounded-[1.3rem] border border-slate-200 bg-white p-3.5 shadow-sm">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">Personal Auditado</label>
-                        {selectedAuditStaffOptions.length > 0 ? (
-                          <div className="space-y-2">
-                            <div className="relative">
-                              <select
-                                value={selectedStaff}
-                                onChange={(e) => handleTechnicianSelection(e.target.value)}
-                                className={cn(
-                                  "w-full appearance-none rounded-2xl border p-3.5 pr-10 text-sm font-bold shadow-sm focus:outline-none",
-                                  getTechnicianAuditState(selectedStaff).state === "complete"
-                                    ? "border-emerald-200 bg-emerald-50 text-emerald-950"
-                                    : getTechnicianAuditState(selectedStaff).state === "in-progress"
-                                      ? "border-amber-200 bg-amber-50 text-amber-950"
-                                      : "border-gray-200 bg-slate-50 text-slate-900"
-                                )}
-                              >
-                                <option value="">Seleccionar nombre...</option>
-                                {selectedAuditStaffOptions.map((name) => (
-                                  <option key={name} value={name}>{name}</option>
-                                ))}
-                              </select>
-                              <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                            </div>
-
-                            <div className="max-h-[280px] space-y-2 overflow-y-auto pr-1">
-                              {selectedAuditStaffOptions.map((name) => {
-                                const technicianState = getTechnicianAuditState(name);
-                                const isActiveTechnician = selectedStaff.trim() === name.trim();
-
-                                return (
-                                  <button
-                                    key={`technician-picker-${name}`}
-                                    type="button"
-                                    onClick={() => handleTechnicianSelection(name)}
-                                    className={cn(
-                                      "w-full rounded-2xl border px-3 py-3 text-left transition",
-                                      technicianState.state === "complete"
-                                        ? "border-emerald-200 bg-emerald-50 hover:border-emerald-300"
-                                        : technicianState.state === "in-progress"
-                                          ? "border-amber-200 bg-amber-50 hover:border-amber-300"
-                                          : "border-slate-200 bg-slate-50 hover:border-slate-300",
-                                      isActiveTechnician && "ring-4 ring-slate-900/10 shadow-[0_14px_28px_rgba(15,23,42,0.08)]"
-                                    )}
-                                  >
-                                    <div className="flex items-center justify-between gap-3">
-                                      <p className={cn(
-                                        "text-xs font-black",
-                                        technicianState.state === "complete"
-                                          ? "text-emerald-950"
-                                          : technicianState.state === "in-progress"
-                                            ? "text-amber-950"
-                                            : "text-slate-500"
-                                      )}>{name}</p>
-                                      <span className={cn(
-                                        "rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em]",
-                                        technicianState.state === "complete"
-                                          ? "bg-emerald-100 text-emerald-700"
-                                          : technicianState.state === "in-progress"
-                                            ? "bg-amber-100 text-amber-700"
-                                            : "bg-slate-100 text-slate-400"
-                                      )}>
-                                        {technicianState.label}
-                                      </span>
-                                    </div>
-                                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
-                                      <div
-                                        className={cn(
-                                          "h-full rounded-full transition-all",
-                                          technicianState.state === "complete"
-                                            ? "bg-emerald-500"
-                                            : technicianState.state === "in-progress"
-                                              ? "bg-amber-500"
-                                              : "bg-slate-300"
-                                        )}
-                                        style={{ width: `${technicianState.progressPercent}%` }}
-                                      />
-                                    </div>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ) : (
-                          <input
-                            type="text"
-                            value={selectedStaff}
-                            onChange={(e) => setSelectedStaff(e.target.value)}
-                            onBlur={() => handleTechnicianSelection(selectedStaff)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                handleTechnicianSelection(selectedStaff);
-                              }
-                            }}
-                            placeholder="Ingresar nombre"
-                            className={cn(
-                              "w-full rounded-2xl border px-4 py-3.5 text-sm font-bold shadow-sm focus:outline-none",
-                              getTechnicianAuditState(selectedStaff).state === "complete"
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-950"
-                                : getTechnicianAuditState(selectedStaff).state === "in-progress"
-                                  ? "border-amber-200 bg-amber-50 text-amber-950"
-                                  : "border-gray-200 bg-slate-50 text-slate-500"
-                            )}
-                          />
-                        )}
-                      </div>
-                    )}
-
-                    {isTechnicianAudit && (technicianReviewSessions.length > 0 || technicianDraftSessions.length > 0) && (
-                      <div className="audit-sidebar-card rounded-[1.3rem] border border-slate-200 bg-white px-3.5 py-3.5 shadow-sm space-y-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Evaluaciones de técnicos</p>
-                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-700">{technicianDraftSessions.length + technicianReviewSessions.length} técnicos</p>
-                        </div>
-                        <div className="space-y-2">
-                          {technicianDraftSessions.map((draft) => (
-                            <button
-                              key={`technician-draft-${draft.id}`}
-                              type="button"
-                              onClick={() => resumeDraftSession(draft)}
-                              className={cn(
-                                "w-full rounded-xl border px-3 py-2.5 text-left transition",
-                                getTechnicianAuditState(draft.staffName || "").state === "complete"
-                                  ? "border-emerald-200 bg-emerald-50 hover:border-emerald-300"
-                                  : getTechnicianAuditState(draft.staffName || "").state === "in-progress"
-                                    ? "border-amber-200 bg-amber-50 hover:border-amber-300"
-                                    : "border-slate-200 bg-slate-50 hover:border-slate-300"
-                              )}
-                            >
-                              <p className="text-xs font-black text-amber-950">{draft.staffName || "Sin nombre"}</p>
-                              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700">Y/o Borrador ? {draft.date}</p>
-                            </button>
-                          ))}
-                          {technicianReviewSessions.map((auditSession) => (
-                            <button
-                              key={`technician-resume-${auditSession.id}`}
-                              type="button"
-                              onClick={() => handleResumeTechnicianEvaluation(auditSession)}
-                              className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-left transition hover:border-emerald-300"
-                            >
-                              <p className="text-xs font-black text-slate-900">{auditSession.staffName}</p>
-                              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">{auditSession.totalScore}% ? {auditSession.date}</p>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {isServiceAdvisorAudit && (
-                      <div className="audit-sidebar-card rounded-[1.3rem] border border-slate-200 bg-white px-3.5 py-3.5 shadow-sm space-y-3">
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">Cliente auditado (Nombre o VIN)</label>
-                          <input
-                            type="text"
-                            value={session.clientIdentifier || ""}
-                            onChange={(e) => setSession({ ...session, clientIdentifier: e.target.value })}
-                            placeholder="Ej. Juan Perez o 9BWZZZ377VT004251"
-                            className="w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3.5 font-bold text-sm focus:outline-none shadow-sm"
-                          />
-                        </div>
-
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-3">
-                          <div className="mb-2.5 flex items-center justify-between gap-3">
-                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avance por asesor</p>
-                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-700">
-                              {completedServiceAdvisorTargetsCount}/{sampledServiceAdvisorProgress.length} en objetivo
-                            </p>
-                          </div>
-                          <div className="space-y-2">
-                            {sampledServiceAdvisorProgress.map((advisorProgress) => {
-                              const completionPercent = Math.min(
-                                100,
-                                Math.round((advisorProgress.sampledCount / SERVICE_ADVISOR_TARGET_CLIENTS) * 100)
-                              );
-                              const isAdvisorCompleted = advisorProgress.sampledCount >= SERVICE_ADVISOR_TARGET_CLIENTS;
-
-                              return (
-                                <div key={advisorProgress.advisorName} className="rounded-xl border border-slate-200 bg-white px-2.5 py-2">
-                                  <div className="mb-1.5 flex items-center justify-between gap-3">
-                                    <p className="truncate text-xs font-bold text-slate-800">{advisorProgress.advisorName}</p>
-                                    <p className={cn(
-                                      "text-[10px] font-black uppercase tracking-[0.15em]",
-                                      isAdvisorCompleted ? "text-emerald-700" : "text-slate-600"
-                                    )}>
-                                      {Math.min(advisorProgress.sampledCount, SERVICE_ADVISOR_TARGET_CLIENTS)}/{SERVICE_ADVISOR_TARGET_CLIENTS}
-                                    </p>
-                                  </div>
-                                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
-                                    <div
-                                      className={cn(
-                                        "h-full rounded-full transition-all",
-                                        isAdvisorCompleted ? "bg-emerald-500" : "bg-[#1d4f91]"
-                                      )}
-                                      style={{ width: `${completionPercent}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {isOrdersAudit && (
-                      <div className="audit-sidebar-card rounded-[1.3rem] border border-slate-200 bg-white px-3.5 py-3.5 shadow-sm space-y-3">
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">N?mero de OR</label>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            maxLength={6}
-                            value={session.orderNumber || ""}
-                            onChange={(e) => setSession({ ...session, orderNumber: e.target.value.replace(/\D/g, "").slice(0, 6) })}
-                            placeholder="Ej. 154238"
-                            className="w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3.5 font-bold text-sm focus:outline-none shadow-sm"
-                          />
-                        </div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#1d4f91]">Participantes de la OR</p>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                          {([
-                            ["asesorServicio", "Asesor de servicio", OR_PARTICIPANTS.asesorServicio, true],
-                            ["tecnico", "T?cnico", OR_PARTICIPANTS.tecnico, false],
-                            ["controller", "Controller", OR_PARTICIPANTS.controller, false],
-                            ["lavador", "Lavador", OR_PARTICIPANTS.lavador, false],
-                            ["repuestos", "Repuestos", OR_PARTICIPANTS.repuestos, false],
-                          ] as const).map(([participantKey, label, options, required]) => (
-                            <div key={participantKey} className="space-y-2">
-                              <label className="px-1 text-[10px] font-black uppercase tracking-widest text-gray-400">{label}</label>
-                              <div className="relative">
-                                <select
-                                  value={(sessionParticipants[participantKey] ?? "") as string}
-                                  onChange={(e) => setSession({
-                                    ...session,
-                                    participants: {
-                                      ...sessionParticipants,
-                                      [participantKey]: e.target.value,
-                                    },
-                                  })}
-                                  className="w-full appearance-none rounded-2xl border border-gray-200 bg-slate-50 p-3.5 text-sm font-bold shadow-sm focus:outline-none"
-                                >
-                                  <option value="">{required ? `Seleccionar ${label.toLowerCase()}...` : `Sin ${label.toLowerCase()}...`}</option>
-                                  {options.map((name) => (
-                                    <option key={name} value={name}>{name}</option>
-                                  ))}
-                                </select>
-                                <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-3">
-                          <div className="mb-2.5 flex items-center justify-between gap-3">
-                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avance por asesor</p>
-                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-700">
-                              {completedOrdersAdvisorsCount}/{sampledOrdersAdvisorProgress.length} en objetivo
-                            </p>
-                          </div>
-                          <div className="space-y-2">
-                            {sampledOrdersAdvisorProgress.map((advisorProgress) => {
-                              const completionPercent = Math.min(
-                                100,
-                                Math.round((advisorProgress.sampledCount / ORDERS_TARGET_PER_ADVISOR) * 100)
-                              );
-                              const isAdvisorCompleted = advisorProgress.sampledCount >= ORDERS_TARGET_PER_ADVISOR;
-
-                              return (
-                                <div key={advisorProgress.advisorName} className="rounded-xl border border-slate-200 bg-white px-2.5 py-2">
-                                  <div className="mb-1.5 flex items-center justify-between gap-3">
-                                    <p className="truncate text-xs font-bold text-slate-800">{advisorProgress.advisorName}</p>
-                                    <p className={cn(
-                                      "text-[10px] font-black uppercase tracking-[0.15em]",
-                                      isAdvisorCompleted ? "text-emerald-700" : "text-slate-600"
-                                    )}>
-                                      {Math.min(advisorProgress.sampledCount, ORDERS_TARGET_PER_ADVISOR)}/{ORDERS_TARGET_PER_ADVISOR}
-                                    </p>
-                                  </div>
-                                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
-                                    <div
-                                      className={cn(
-                                        "h-full rounded-full transition-all",
-                                        isAdvisorCompleted ? "bg-emerald-500" : "bg-[#1d4f91]"
-                                      )}
-                                      style={{ width: `${completionPercent}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {isPreDeliveryAudit && (
-                      <div className="rounded-[1.3rem] border border-slate-200 bg-white px-3.5 py-3.5 shadow-sm space-y-3">
-                        <div className="space-y-2">
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Secci?n activa</p>
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setPreDeliverySection("general")}
-                              className={cn(
-                                "rounded-2xl border px-3 py-3 text-left transition",
-                                preDeliverySection === "general"
-                                  ? "border-slate-900 bg-slate-950 text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)]"
-                                  : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300"
-                              )}
-                            >
-                              <p className="text-[10px] font-black uppercase tracking-[0.16em]">General</p>
-                              <p className={cn(
-                                "mt-1 text-xs font-medium",
-                                preDeliverySection === "general" ? "text-slate-300" : "text-slate-500"
-                              )}>
-                                {answeredGeneralCount}/{preDeliveryGeneralItems.length} respondidos
-                              </p>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setPreDeliverySection("legajos")}
-                              className={cn(
-                                "rounded-2xl border px-3 py-3 text-left transition",
-                                preDeliverySection === "legajos"
-                                  ? "border-slate-900 bg-slate-950 text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)]"
-                                  : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300"
-                              )}
-                            >
-                              <p className="text-[10px] font-black uppercase tracking-[0.16em]">Legajos</p>
-                              <p className={cn(
-                                "mt-1 text-xs font-medium",
-                                preDeliverySection === "legajos" ? "text-slate-300" : "text-slate-500"
-                              )}>
-                                {answeredLegajoCount}/{preDeliveryLegajoItems.length} respondidos
-                              </p>
-                            </button>
-                          </div>
-                        </div>
-                        {preDeliverySection === "general" ? null : (
-                          <div className="space-y-3">
-                            {currentLegajoCompleted && nextPendingLegajoIndex !== null && (
-                              <button
-                                type="button"
-                                onClick={goToNextPendingLegajo}
-                                className="w-full rounded-[1rem] border border-emerald-200 bg-emerald-50 px-3 py-3 text-left transition hover:border-emerald-300"
-                              >
-                                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">Legajo completado</p>
-                                <p className="mt-1 text-[11px] font-medium text-emerald-800">Pasar al siguiente pendiente: Legajo {nextPendingLegajoIndex + 1}</p>
-                              </button>
-                            )}
-                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Legajos auditados</p>
-                            </div>
-                            <div className="space-y-2.5">
-                              {activePreDeliveryLegajoCard ? (
-                                <div
-                                  className="w-full rounded-[1.15rem] border border-slate-200 bg-white p-3 text-left"
-                                >
-                                  <div className="flex items-center justify-between gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => setPreDeliveryActiveLegajoIndex((current) => Math.max(0, current - 1))}
-                                      disabled={!canGoToPreviousLegajo}
-                                      className={cn(
-                                        "rounded-lg border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em]",
-                                        canGoToPreviousLegajo ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
-                                      )}
-                                    >
-                                      Anterior
-                                    </button>
-                                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">
-                                      Legajo {activePreDeliveryLegajoCard.index + 1} de {preDeliveryLegajoCards.length}
-                                    </p>
-                                    <button
-                                      type="button"
-                                      onClick={() => setPreDeliveryActiveLegajoIndex((current) => Math.min(preDeliveryLegajoCards.length - 1, current + 1))}
-                                      disabled={!canGoToNextLegajo}
-                                      className={cn(
-                                        "rounded-lg border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em]",
-                                        canGoToNextLegajo ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
-                                      )}
-                                    >
-                                      Siguiente
-                                    </button>
-                                  </div>
-
-                                  <div className="mt-2.5 flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                      <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-400">Legajo activo</p>
-                                      <p className="mt-1.5 text-[13px] font-black leading-snug text-slate-900">{activePreDeliveryLegajoCard.trimmedName || "Sin nombre cargado"}</p>
-                                    </div>
-                                    <div className="space-y-1.5 text-right">
-                                      <div className={cn(
-                                        "rounded-full bg-slate-100 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em]",
-                                        activePreDeliveryLegajoCard.status === "complete"
-                                          ? "text-emerald-700"
-                                          : activePreDeliveryLegajoCard.status === "in-progress"
-                                            ? "text-amber-700"
-                                            : "text-slate-600"
-                                      )}>
-                                        {activePreDeliveryLegajoCard.status === "complete" ? "Completo" : activePreDeliveryLegajoCard.status === "in-progress" ? "En progreso" : "Vacio"}
-                                      </div>
-                                      <p className="text-[10px] font-black text-slate-700">{activePreDeliveryLegajoCard.answeredCount}/{activePreDeliveryLegajoCard.totalCount}</p>
-                                    </div>
-                                  </div>
-
-                                  <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                                    <div
-                                      className={cn(
-                                        "h-full rounded-full transition-all",
-                                        activePreDeliveryLegajoCard.status === "complete"
-                                          ? "bg-emerald-500"
-                                          : activePreDeliveryLegajoCard.status === "in-progress"
-                                            ? "bg-amber-500"
-                                            : "bg-slate-300"
-                                      )}
-                                      style={{ width: `${Math.max(activePreDeliveryLegajoCard.completionRatio * 100, activePreDeliveryLegajoCard.status === "empty" ? 12 : 0)}%` }}
-                                    />
-                                  </div>
-
-                                  <div className="mt-2.5 space-y-1.5">
-                                    <label className="block text-[9px] font-black uppercase tracking-[0.18em] text-slate-400">Nombre de persona o legajo</label>
-                                    <input
-                                      type="text"
-                                      value={activePreDeliveryLegajoCard.name}
-                                      onChange={(e) => {
-                                        const nextAuditedFileNames = [...auditedFileNames];
-                                        nextAuditedFileNames[activePreDeliveryLegajoCard.index] = e.target.value;
-                                        setSession({
-                                          ...session,
-                                          auditedFileNames: nextAuditedFileNames,
-                                        });
-                                      }}
-                                      placeholder={`Nombre del legajo o persona ${activePreDeliveryLegajoCard.index + 1}`}
-                                      className="w-full rounded-[1rem] border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-[13px] font-bold text-slate-900 placeholder:text-slate-400 shadow-sm focus:outline-none"
-                                    />
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="rounded-[1.2rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center">
-                                  <p className="text-sm font-bold text-slate-600">No hay legajos para mostrar.</p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                    <div className={cn("audit-workspace-main space-y-4 min-w-0 lg:pb-12", isQuickAuditMode ? "pb-40" : "pb-24")}>
-                      <div className="audit-checklist-panel rounded-[1.6rem] border border-slate-200 bg-white p-4 shadow-sm lg:p-4">
-                        <div className="mb-4 flex items-center justify-between gap-3 lg:hidden">
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Flujo</p>
-                            <p className="mt-1 text-sm font-black text-slate-950">{draftSaveStateLabel}</p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setIsQuickAuditMode((current) => !current)}
-                            className={cn(
-                              "rounded-full border px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] transition",
-                              isQuickAuditMode
-                                ? "border-slate-900 bg-slate-950 text-white"
-                                : "border-slate-200 bg-white text-slate-600"
-                            )}
-                          >
-                            {isQuickAuditMode ? "Modo r?pido" : "Modo completo"}
-                          </button>
-                        </div>
-
-                        <div className="hidden lg:flex items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-3">
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Checklist</p>
-                            <h3 className="mt-1 text-base font-black text-slate-950">
-                              {isOrdersAudit ? "OR Postventa" : isPreDeliveryAudit ? `Controles ? ${preDeliverySection === "general" ? "General" : "Legajos"}` : "Controles"}
-                            </h3>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={cn(
-                              "rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em]",
-                              draftSaveState === "saving" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"
-                            )}>{draftSaveState === "saving" ? "Guardando" : "Guardado"}</span>
-                            <button
-                              type="button"
-                              onClick={() => setIsQuickAuditMode((current) => !current)}
-                              className={cn(
-                                "rounded-full border px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] transition",
-                                isQuickAuditMode
-                                  ? "border-slate-900 bg-slate-950 text-white"
-                                  : "border-slate-200 bg-white text-slate-600"
-                              )}
-                            >
-                              {isQuickAuditMode ? "Modo r?pido" : "Modo completo"}
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          {isPreDeliveryAudit ? (
-                            <>
-                              {preDeliverySection === "general" && preDeliveryGeneralItems.length > 0 && (
-                                <div className="space-y-4">
-                                  {preDeliveryGeneralItems.map((auditItem, index) => (
-                                    <AuditItemRow
-                                      key={auditItem.id}
-                                      rowId={`audit-item-${auditItem.id}`}
-                                      question={auditItem.text}
-                                      index={index}
-                                      item={session.items?.find((item) => item.id === auditItem.id || item.question === auditItem.text)}
-                                      required={false}
-                                      block={auditItem.block}
-                                      description={auditItem.description}
-                                      responsibleRoles={auditItem.responsibleRoles}
-                                      scoreAreas={auditItem.scoreAreas}
-                                      allowsNa={auditItem.allowsNa}
-                                      priority={auditItem.priority}
-                                      guidance={auditItem.guidance}
-                                      requiresCommentOnFail={auditItem.requiresCommentOnFail}
-                                      emphasized={focusedAuditItemId === auditItem.id || activeAuditItemId === auditItem.id}
-                                      showStructuredQuestion={false}
-                                      compactMeta
-                                      quickMode={isQuickAuditMode}
-                                      isActive={activeAuditItemId === auditItem.id}
-                                      observationSuggestions={observationSuggestions}
-                                      onActivate={() => focusAuditItem(auditItem)}
-                                      onStatusToggle={(status) => toggleItemStatus(auditItem.text, status)}
-                                      onCommentUpdate={(comment) => updateItemComment(auditItem.text, comment)}
-                                      onPhotoUpdate={(photoUrl) => updateItemPhoto(auditItem.text, photoUrl)}
-                                    />
-                                  ))}
-                                </div>
-                              )}
-
-                              {preDeliverySection === "legajos" && (
-                                activePreDeliveryLegajoName ? (
-                                  <div className="space-y-4">
-                                    {activePreDeliveryLegajoItems.map((auditItem, index) => (
-                                      <AuditItemRow
-                                        key={auditItem.id}
-                                        rowId={`audit-item-${auditItem.id}`}
-                                        question={formatPreDeliveryLegajoQuestion(auditItem.text)}
-                                        index={index}
-                                        item={session.items?.find((item) => item.id === auditItem.id || item.question === auditItem.text)}
-                                        required={false}
-                                        block={auditItem.block}
-                                        description={auditItem.description}
-                                        responsibleRoles={auditItem.responsibleRoles}
-                                        scoreAreas={auditItem.scoreAreas}
-                                        allowsNa={auditItem.allowsNa}
-                                        priority={auditItem.priority}
-                                        guidance={auditItem.guidance}
-                                        requiresCommentOnFail={auditItem.requiresCommentOnFail}
-                                        emphasized={focusedAuditItemId === auditItem.id || activeAuditItemId === auditItem.id}
-                                        showStructuredQuestion={false}
-                                        compactMeta
-                                        quickMode={isQuickAuditMode}
-                                        isActive={activeAuditItemId === auditItem.id}
-                                        observationSuggestions={observationSuggestions}
-                                        onActivate={() => focusAuditItem(auditItem)}
-                                        onStatusToggle={(status) => toggleItemStatus(auditItem.text, status)}
-                                        onCommentUpdate={(comment) => updateItemComment(auditItem.text, comment)}
-                                        onPhotoUpdate={(photoUrl) => updateItemPhoto(auditItem.text, photoUrl)}
-                                      />
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div className="rounded-[1.2rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center">
-                                    <p className="text-sm font-bold text-slate-600">Ingresá un nombre en el legajo activo para ver sus controles.</p>
-                                  </div>
-                                )
-                              )}
-                            </>
-                          ) : (
-                            displayedAuditItems.map((auditItem) => (
-                              <AuditItemRow
-                                key={auditItem.id}
-                                rowId={`audit-item-${auditItem.id}`}
-                                question={auditItem.text}
-                                index={displayedAuditItems.findIndex((item) => item.id === auditItem.id)}
-                                item={session.items?.find((item) => item.id === auditItem.id || item.question === auditItem.text)}
-                                required={false}
-                                block={auditItem.block}
-                                description={auditItem.description}
-                                responsibleRoles={auditItem.responsibleRoles}
-                                scoreAreas={auditItem.scoreAreas}
-                                allowsNa={auditItem.allowsNa}
-                                priority={auditItem.priority}
-                                guidance={auditItem.guidance}
-                                requiresCommentOnFail={auditItem.requiresCommentOnFail}
-                                emphasized={focusedAuditItemId === auditItem.id || activeAuditItemId === auditItem.id}
-                                showStructuredQuestion={isOrdersAudit}
-                                quickMode={isQuickAuditMode}
-                                isActive={activeAuditItemId === auditItem.id}
-                                observationSuggestions={observationSuggestions}
-                                onActivate={() => focusAuditItem(auditItem)}
-                                onStatusToggle={(status) => toggleItemStatus(auditItem.text, status)}
-                                onCommentUpdate={(comment) => updateItemComment(auditItem.text, comment)}
-                                onPhotoUpdate={(photoUrl) => updateItemPhoto(auditItem.text, photoUrl)}
-                              />
-                            ))
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="audit-closure-grid grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-                        <div className="audit-notes-panel space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">Observaciones</label>
-                          <textarea
-                            placeholder="Observaciones"
-                            value={session.notes || ""}
-                            onChange={(e) => setSession({ ...session, notes: e.target.value })}
-                            className={cn(
-                              "audit-notes-textarea w-full p-6 border rounded-3xl font-medium text-sm focus:outline-none shadow-sm min-h-[160px]",
-                              selectedRole === "Ordenes"
-                                ? "bg-white border-slate-200 text-slate-700"
-                                : "bg-white border-gray-200"
-                            )}
-                          />
-
-                          {isAuditChecklistCompleted && (
-                          <div className="audit-submit-panel rounded-[1.8rem] border border-slate-200 bg-white p-4 shadow-sm space-y-4 lg:hidden">
-                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Cierre</p>
-                              <p className="mt-2 text-sm font-black text-slate-900">Enviar</p>
-                              {failItemsWithoutCommentCount > 0 && (
-                                <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">Faltan {failItemsWithoutCommentCount} observaciones obligatorias en desv?os.</p>
-                              )}
-                            </div>
-
-                            {isOrdersAudit || isServiceAdvisorAudit || isTechnicianAudit ? (
-                              <div className="grid grid-cols-1 gap-2.5">
-                                <button
-                                  onClick={() => handleAuditSubmit("continue")}
-                                  disabled={isSubmitDisabled}
-                                  className={cn(
-                                    "w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg",
-                                    !isSubmitDisabled
-                                      ? "bg-white text-slate-900 border border-slate-200 shadow-slate-100 hover:bg-slate-50"
-                                      : "bg-gray-200 text-gray-500 cursor-not-allowed shadow-none"
-                                  )}
-                                >
-                                  {isSendingToSheet ? (
-                                    <>
-                                      <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-900 rounded-full animate-spin" />
-                                      Guardando...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Save className="w-4 h-4" />
-                                      {isServiceAdvisorAudit ? "Guardar y seguir con otro cliente" : isTechnicianAudit ? "Guardar y seguir con otro t?cnico" : "Guardar y seguir con otra OR"}
-                                    </>
-                                  )}
-                                </button>
-
-                                <button
-                                  onClick={() => handleAuditSubmit("finish")}
-                                  disabled={isSubmitDisabled}
-                                  className={cn(
-                                    "w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg",
-                                    !isSubmitDisabled
-                                      ? "bg-slate-950 text-white shadow-slate-300 hover:bg-[#0c2340]"
-                                      : "bg-gray-200 text-gray-500 cursor-not-allowed shadow-none"
-                                  )}
-                                >
-                                  {isSendingToSheet ? (
-                                    <>
-                                      <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                                      Guardando...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Save className="w-4 h-4" />
-                                      Guardar y finalizar
-                                    </>
-                                  )}
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => handleAuditSubmit("finish")}
-                                disabled={isSubmitDisabled}
-                                className={cn(
-                                  "w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg",
-                                  !isSubmitDisabled
-                                    ? "bg-slate-950 text-white shadow-slate-300 hover:bg-[#0c2340]"
-                                    : "bg-gray-200 text-gray-500 cursor-not-allowed shadow-none"
-                                )}
-                              >
-                                {isSendingToSheet ? (
-                                  <>
-                                    <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                                    Enviando al Sheet...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Save className="w-4 h-4" />
-                                    Enviar
-                                  </>
-                                )}
-                              </button>
-                            )}
-                          </div>
-                          )}
-                        </div>
-
-                        <div className="audit-submit-panel hidden rounded-[1.8rem] border border-slate-200 bg-white p-4 shadow-sm space-y-4 lg:sticky lg:top-28 lg:block">
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Cierre</p>
-                            <p className="mt-2 text-sm font-black text-slate-900">Enviar</p>
-                            {failItemsWithoutCommentCount > 0 && (
-                              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">Faltan {failItemsWithoutCommentCount} observaciones obligatorias en desv?os.</p>
-                            )}
-                          </div>
-
-                          {isOrdersAudit || isServiceAdvisorAudit || isTechnicianAudit ? (
-                            <div className="grid grid-cols-1 gap-2.5">
-                              <button
-                                onClick={() => handleAuditSubmit("continue")}
-                                disabled={isSubmitDisabled}
-                                className={cn(
-                                  "w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg",
-                                  !isSubmitDisabled
-                                    ? "bg-white text-slate-900 border border-slate-200 shadow-slate-100 hover:bg-slate-50"
-                                    : "bg-gray-200 text-gray-500 cursor-not-allowed shadow-none"
-                                )}
-                              >
-                                {isSendingToSheet ? (
-                                  <>
-                                    <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-900 rounded-full animate-spin" />
-                                    Guardando...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Save className="w-4 h-4" />
-                                    {isServiceAdvisorAudit ? "Guardar y seguir con otro cliente" : isTechnicianAudit ? "Guardar y seguir con otro t?cnico" : "Guardar y seguir con otra OR"}
-                                  </>
-                                )}
-                              </button>
-                              <button
-                                onClick={() => handleAuditSubmit("finish")}
-                                disabled={isSubmitDisabled}
-                                className={cn(
-                                  "w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg",
-                                  !isSubmitDisabled
-                                    ? "bg-slate-950 text-white shadow-slate-300 hover:bg-[#0c2340]"
-                                    : "bg-gray-200 text-gray-500 cursor-not-allowed shadow-none"
-                                )}
-                              >
-                                {isSendingToSheet ? (
-                                  <>
-                                    <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                                    Guardando...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Save className="w-4 h-4" />
-                                    Guardar y finalizar
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => handleAuditSubmit("finish")}
-                              disabled={isSubmitDisabled}
-                              className={cn(
-                                "w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg",
-                                !isSubmitDisabled
-                                  ? "bg-green-600 text-white shadow-green-100 hover:bg-green-700"
-                                  : "bg-gray-200 text-gray-500 cursor-not-allowed shadow-none"
-                              )}
-                            >
-                              {isSendingToSheet ? (
-                                <>
-                                  <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                                  Enviando al Sheet...
-                                </>
-                              ) : (
-                                <>
-                                  <Save className="w-4 h-4" />
-                                  Enviar
-                                </>
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {isQuickAuditMode && activeAuditItem && (
-                      <div className="audit-quickbar fixed inset-x-0 bottom-[5.75rem] z-40 border-t border-slate-200 bg-white/96 p-3 backdrop-blur-xl lg:hidden">
-                        <div className="mx-auto max-w-6xl rounded-[1.4rem] border border-slate-200 bg-white px-3 py-3 shadow-[0_20px_40px_rgba(15,23,42,0.12)]">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Punto activo {activeAuditItemIndex + 1}/{visibleAuditItems.length}</p>
-                              <p className="mt-1 line-clamp-2 text-sm font-black text-slate-950">{isPreDeliveryAudit && preDeliverySection === "legajos" ? formatPreDeliveryLegajoQuestion(activeAuditItem.text) : activeAuditItem.text}</p>
-                            </div>
-                            <span className={cn(
-                              "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em]",
-                              activeAuditSessionItem?.status === "pass" ? "bg-emerald-50 text-emerald-700" :
-                              activeAuditSessionItem?.status === "fail" ? "bg-red-50 text-red-700" :
-                              activeAuditSessionItem?.status === "na" ? "bg-slate-100 text-slate-600" :
-                              "bg-amber-50 text-amber-700"
-                            )}>
-                              {getAuditItemStatusLabel(activeAuditSessionItem?.status)}
-                            </span>
-                          </div>
-                          <div className="mt-3 grid grid-cols-3 gap-2">
-                            <button
-                              type="button"
-                              onClick={() => toggleItemStatus(activeAuditItem.text, "pass")}
-                              className="rounded-[1rem] bg-emerald-500 px-3 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-white"
-                            >
-                              Si
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => toggleItemStatus(activeAuditItem.text, "fail")}
-                              className="rounded-[1rem] bg-red-500 px-3 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-white"
-                            >
-                              No
-                            </button>
-                            {activeAuditItem.allowsNa !== false ? (
-                              <button
-                                type="button"
-                                onClick={() => toggleItemStatus(activeAuditItem.text, "na")}
-                                className="rounded-[1rem] bg-slate-900 px-3 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-white"
-                              >
-                                N/A
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled
-                                className="cursor-not-allowed rounded-[1rem] bg-slate-200 px-3 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500"
-                              >
-                                N/A
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                  </div>
-                </div>
-                )}
-              </motion.div>
-            )}
+                <Suspense fallback={<div className="rounded-[1.8rem] border border-slate-200 bg-white p-6 text-sm font-bold text-slate-500">Cargando sesión de auditoría...</div>}>
+                  <AuditSessionView
+                    session={session}
+                    selectedRole={selectedRole}
+                    isOrdersAudit={isOrdersAudit}
+                    isPreDeliveryAudit={isPreDeliveryAudit}
+                    visibleAuditItems={visibleAuditItems}
+                    isQuickAuditMode={isQuickAuditMode}
+                    setIsQuickAuditMode={setIsQuickAuditMode}
+                    draftSaveState={draftSaveState}
+                    draftSaveStateLabel={draftSaveStateLabel}
+                    preDeliverySection={preDeliverySection}
+                    setPreDeliverySection={setPreDeliverySection}
+                    activePreDeliveryLegajoCard={activePreDeliveryLegajoCard}
+                    activePreDeliveryLegajoItems={activePreDeliveryLegajoItems}
+                    activePreDeliveryLegajoName={activePreDeliveryLegajoName}
+                    auditedFileNames={auditedFileNames}
+                    activeAuditItemId={activeAuditItemId}
+                    focusedAuditItemId={focusedAuditItemId}
+                    activeAuditItemIndex={activeAuditItemIndex}
+                    activeAuditItem={activeAuditItem}
+                    activeAuditSessionItem={activeAuditSessionItem}
+                    observationSuggestions={observationSuggestions}
+                    isAuditChecklistCompleted={isAuditChecklistCompleted}
+                    failItemsWithoutCommentCount={failItemsWithoutCommentCount}
+                    optionalPendingCount={optionalPendingCount}
+                    isSubmitDisabled={isSubmitDisabled}
+                    isSendingToSheet={isSendingToSheet}
+                    setSession={setSession}
+                    focusAuditItem={focusAuditItem}
+                    toggleItemStatus={toggleItemStatus}
+                    updateItemComment={updateItemComment}
+                    updateItemPhoto={updateItemPhoto}
+                    handleAuditSubmit={handleAuditSubmit}
+                    getAuditItemStatusLabel={getAuditItemStatusLabel}
+                    formatPreDeliveryLegajoQuestion={formatPreDeliveryLegajoQuestion}
+                  />
+                </Suspense>
+              )}
+            </motion.div>
+          )}
 
           {view === "structure" && canAccessStructure && (
             <motion.div
@@ -3127,23 +2114,20 @@ function AuditApp() {
         </AnimatePresence>
 
 
-      <AppModal 
-        isOpen={showConfirmModal}
-        onClose={() => {
-          setShowConfirmModal(false);
-          setPendingOrdersSubmitMode("finish");
-        }}
-        onConfirm={() => submitAudit(pendingOrdersSubmitMode)}
+      <ConfirmModal
+        show={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmAuditSubmit}
         title={pendingOrdersSubmitMode === "continue"
-          ? (isServiceAdvisorAudit
-            ? "?Guardar y continuar con otro cliente?"
-            : isTechnicianAudit
-              ? "?Guardar y continuar con otro t?cnico?"
-              : "?Guardar y continuar con otra OR?")
+          ? (selectedRole === "Asesores de servicio"
+              ? "¿Guardar y continuar con otro asesor?"
+              : selectedRole === "Técnicos"
+                ? "¿Guardar y continuar con otro técnico?"
+                : "¿Guardar y continuar con otra OR?")
           : "¿Guardar y finalizar auditoría?"}
         message={pendingOrdersSubmitMode === "continue"
-          ? `Quedan ${optionalPendingCount} ?tems opcionales sin responder. ?Dese?s guardar esta evaluaci?n y continuar igualmente?`
-          : `Quedan ${optionalPendingCount} ?tems opcionales sin responder. ?Dese?s finalizar igualmente?`}
+          ? `Quedan ${optionalPendingCount} ítems opcionales sin responder. ¿Deseas guardar esta evaluación y continuar igualmente?`
+          : `Quedan ${optionalPendingCount} ítems opcionales sin responder. ¿Deseas finalizar igualmente?`}
       />
 
       <AnimatePresence>
@@ -3154,43 +2138,79 @@ function AuditApp() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowBatchReportModal(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-slate-950/40 backdrop-blur-md"
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 20 }}
-              className="panel-premium relative flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-[2.3rem]"
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="premium-glass-alt relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[2.5rem] border border-white/20 shadow-2xl"
             >
-              <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-6 py-5 md:px-8">
+              <div className="flex items-center justify-between gap-4 border-b border-white/5 bg-white/5 px-8 py-6">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Reporte</p>
-                  <h3 className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950">Puntajes detallados</h3>
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">Panel de Resultados</p>
+                  </div>
+                  <h3 className="mt-1 text-2xl font-black tracking-tight text-white">Análisis Consolidado</h3>
                 </div>
                 <button
                   onClick={() => setShowBatchReportModal(false)}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 text-slate-500 transition-all hover:border-slate-300 hover:text-slate-900"
+                  className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-white/60 transition-all hover:bg-white/10 hover:text-white"
                 >
-                  <XCircle className="h-5 w-5" />
+                  <XCircle className="h-6 w-6" />
                 </button>
               </div>
 
-              <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5 md:px-8">
+              <div className="flex-1 space-y-8 overflow-y-auto px-6 py-8 md:px-10">
+                {/* Celebratory Summary Header */}
+                <div className="premium-card p-10 bg-slate-950 text-white relative overflow-hidden border border-white/10 shadow-2xl">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.15),transparent_70%)]" />
+                  <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-10">
+                    <div className="space-y-4 text-center md:text-left">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-[10px] font-black uppercase tracking-[0.25em] text-blue-400">
+                         Métricas Consolidadas
+                      </div>
+                      <h2 className="text-4xl md:text-5xl font-black tracking-tighter leading-[0.9] italic uppercase">Resultados <br /> del Proceso</h2>
+                      <p className="text-slate-400 font-medium text-lg max-w-sm">
+                        {blendedProcessCompliance >= 90 
+                          ? "¡Excelente desempeño! El estándar de calidad se mantiene en niveles de excelencia."
+                          : blendedProcessCompliance >= 70
+                            ? "Buen desempeño general. Se identificaron áreas específicas para ajuste y optimización."
+                            : "Atención requerida: El nivel de cumplimiento actual demanda una revisión de procesos."}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <div className={cn(
+                        "h-44 w-44 rounded-[2.5rem] flex flex-col items-center justify-center border-4 shadow-2xl relative transition-transform hover:scale-105",
+                        blendedProcessCompliance >= 90 ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500 shadow-emerald-500/20" :
+                        blendedProcessCompliance >= 70 ? "bg-amber-500/10 border-amber-500/30 text-amber-500 shadow-amber-500/20" : "bg-red-500/10 border-red-500/30 text-red-500 shadow-red-500/20"
+                      )}>
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">Score</span>
+                        <span className="text-7xl font-black tracking-tighter leading-none">{blendedProcessCompliance}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
                 {completedAuditReports.map((report) => {
                   const sectionScores = getSectionScores(report.templateItems, report.session);
 
                   return (
-                    <div key={`${report.role}-${report.session.id}`} className="rounded-[1.9rem] border border-slate-200 bg-white p-5 shadow-sm">
-                      <div className="flex flex-col gap-4 border-b border-slate-100 pb-4 md:flex-row md:items-start md:justify-between">
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{report.session.location}</p>
-                          <h4 className="mt-2 text-xl font-black text-slate-950">{report.role}</h4>
-                          <p className="mt-1 text-sm font-bold text-slate-500">{report.session.staffName || report.auditorName} ? {report.session.date}</p>
+                    <div key={`${report.role}-${report.session.id}`} className="premium-card p-6 bg-white/5 border-white/5 overflow-hidden">
+                      <div className="flex flex-col gap-6 border-b border-white/5 pb-6 md:flex-row md:items-center md:justify-between">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-400">{report.session.location}</p>
+                          <h4 className="text-xl font-black text-white">{report.role}</h4>
+                          <p className="text-sm font-bold text-slate-400">
+                            {report.session.staffName || report.auditorName} • {report.session.date}
+                          </p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-center text-emerald-700">
-                            <p className="text-[10px] font-black uppercase tracking-[0.16em]">Score</p>
-                            <p className="mt-1 text-xl font-black">{report.session.totalScore}%</p>
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-[1.25rem] bg-emerald-500/10 border border-emerald-500/20 px-6 py-3 text-center text-emerald-500">
+                            <p className="text-[9px] font-black uppercase tracking-[0.2em]">Resultado</p>
+                            <p className="mt-0.5 text-2xl font-black">{report.session.totalScore}%</p>
                           </div>
                           <Button
                             variant="secondary"
@@ -3252,8 +2272,9 @@ function AuditApp() {
                   );
                 })}
               </div>
+            </div>
 
-              <div className="border-t border-slate-200 px-6 py-4 md:px-8">
+            <div className="border-t border-slate-200 px-6 py-4 md:px-8">
                 <Button className="w-full" onClick={() => setShowBatchReportModal(false)}>
                   Cerrar
                 </Button>
@@ -3271,83 +2292,90 @@ function AuditApp() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedAudit(null)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-md"
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl flex flex-col max-h-[80vh]"
+              className="premium-glass-alt relative w-full max-w-2xl overflow-hidden rounded-[3rem] border border-white/10 shadow-2xl flex flex-col max-h-[85vh]"
             >
-              <div className="p-8 border-b border-gray-100 flex justify-between items-start">
+              <div className="p-10 border-b border-white/5 bg-white/5 flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-black text-gray-900 leading-tight">Detalles de Auditoría</h3>
-                  <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-1">
-                    {selectedAudit.role || selectedAudit.items[0]?.category} - {selectedAudit.date}
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="h-2 w-2 rounded-full bg-blue-500" />
+                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em]">Inspección Detallada</p>
+                  </div>
+                  <h3 className="text-2xl font-black text-white tracking-tight leading-tight">
+                    {selectedAudit.role || selectedAudit.items[0]?.category}
+                  </h3>
+                  <p className="text-slate-400 text-sm font-bold mt-1">
+                    {selectedAudit.date} • {selectedAudit.location}
                   </p>
                 </div>
                 <div className={cn(
-                  "px-4 py-2 rounded-xl font-black text-lg",
-                  selectedAudit.totalScore >= 90 ? "bg-green-50 text-green-600" : 
-                  selectedAudit.totalScore >= 70 ? "bg-yellow-50 text-yellow-600" : "bg-red-50 text-red-600"
+                  "h-20 w-20 rounded-full flex flex-col items-center justify-center font-black border-4",
+                  selectedAudit.totalScore >= 90 ? "border-emerald-500/20 text-emerald-500 bg-emerald-500/5" : 
+                  selectedAudit.totalScore >= 70 ? "border-amber-500/20 text-amber-500 bg-amber-500/5" : "border-red-500/20 text-red-500 bg-red-500/5"
                 )}>
-                  {selectedAudit.totalScore}%
+                  <span className="text-[10px] uppercase opacity-60">Score</span>
+                  <span className="text-2xl">{selectedAudit.totalScore}%</span>
                 </div>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-8 space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Personal</p>
-                    <p className="text-sm font-bold text-gray-700">{selectedAudit.staffName || "N/A"}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Ubicaci?n</p>
-                    <p className="text-sm font-bold text-gray-700">{selectedAudit.location}</p>
+              <div className="flex-1 overflow-y-auto p-10 space-y-8 custom-scrollbar">
+                <div className="grid grid-cols-2 gap-8">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Personal Auditado</p>
+                    <p className="text-base font-bold text-white">{selectedAudit.staffName || "No especificado"}</p>
                   </div>
                   {selectedAudit.orderNumber && (
-                    <div>
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">N?mero de OR</p>
-                      <p className="text-sm font-bold text-blue-600">{selectedAudit.orderNumber}</p>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nº de Orden</p>
+                      <p className="text-base font-black text-blue-400 tracking-wider">{selectedAudit.orderNumber}</p>
                     </div>
                   )}
                 </div>
 
-                <div className="space-y-3">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Resultados por ?tem</p>
-                  {selectedAudit.items.map((item, idx) => (
-                    <div key={idx} className="p-4 bg-gray-50 rounded-2xl space-y-2">
-                      <div className="flex justify-between items-start gap-4">
-                        <p className="text-xs font-bold text-gray-700 leading-snug">{item.question}</p>
-                        <span className={cn(
-                          "text-[10px] font-black uppercase px-2 py-1 rounded-md shrink-0",
-                          item.status === "pass" ? "bg-green-100 text-green-600" : 
-                          item.status === "fail" ? "bg-red-100 text-red-600" : "bg-gray-200 text-gray-500"
-                        )}>
-                          {item.status === "pass" ? "Cumple" : item.status === "fail" ? "No Cumple" : "N/A"}
-                        </span>
+                <div className="space-y-4">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Detalle de Cumplimiento</p>
+                  <div className="space-y-3">
+                    {selectedAudit.items.map((item, idx) => (
+                      <div key={idx} className="p-5 bg-white/5 rounded-3xl border border-white/5 space-y-3">
+                        <div className="flex justify-between items-start gap-6">
+                          <p className="text-sm font-bold text-slate-200 leading-snug">{item.question}</p>
+                          <span className={cn(
+                            "text-[10px] font-black uppercase px-3 py-1.5 rounded-xl shrink-0 border",
+                            item.status === "pass" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : 
+                            item.status === "fail" ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-slate-500/10 text-slate-400 border-white/10"
+                          )}>
+                            {item.status === "pass" ? "Cumple" : item.status === "fail" ? "No Cumple" : "N/A"}
+                          </span>
+                        </div>
+                        {item.comment && (
+                          <div className="pl-4 border-l-2 border-blue-500/30">
+                            <p className="text-[11px] text-slate-400 font-medium italic">"{item.comment}"</p>
+                          </div>
+                        )}
                       </div>
-                      {item.comment && (
-                        <p className="text-[10px] text-gray-500 italic">"{item.comment}"</p>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
 
                 {selectedAudit.notes && (
-                  <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Notas Generales</p>
-                    <p className="text-xs text-blue-700 leading-relaxed">{selectedAudit.notes}</p>
+                  <div className="p-6 bg-blue-600/5 rounded-[2rem] border border-blue-500/20">
+                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2">Observaciones Generales</p>
+                    <p className="text-sm text-slate-300 leading-relaxed">{selectedAudit.notes}</p>
                   </div>
                 )}
               </div>
 
-              <div className="p-8 border-t border-gray-100">
+              <div className="p-8 border-t border-white/5 bg-white/5">
                 <button 
                   onClick={() => setSelectedAudit(null)}
-                  className="w-full py-4 rounded-2xl font-black text-white bg-gray-900 hover:bg-black transition-all"
+                  className="w-full py-4 rounded-2xl font-black text-white bg-blue-600 hover:bg-blue-500 transition-all active:scale-95 shadow-lg shadow-blue-600/20"
                 >
-                  Cerrar
+                  Cerrar Inspección
                 </button>
               </div>
             </motion.div>
@@ -3364,38 +2392,37 @@ function AuditApp() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setDeleteConfirmModal({ show: false, auditId: "", auditName: "" })}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-md"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl p-8 space-y-6"
+              className="premium-glass relative w-full max-w-md overflow-hidden rounded-[2.5rem] border border-white/10 p-10 shadow-2xl space-y-8"
             >
-              <div>
-                <h3 className="text-xl font-black text-gray-900">Eliminar Auditoría</h3>
-                <p className="text-sm font-bold text-gray-600 mt-2">¿Estás seguro de que deseas eliminar esta auditoría?</p>
+              <div className="text-center">
+                <div className="mx-auto h-16 w-16 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 mb-6">
+                  <Trash2 className="h-8 w-8" />
+                </div>
+                <h3 className="text-2xl font-black text-white tracking-tight">Eliminar Auditoría</h3>
+                <p className="text-slate-400 font-medium mt-2">¿Estás seguro de que deseas eliminar este registro de forma permanente?</p>
               </div>
 
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-2">
-                <p className="text-xs font-black text-red-700 uppercase">Auditoría a eliminar:</p>
-                <p className="text-sm font-bold text-red-900 break-words">{deleteConfirmModal.auditName}</p>
-              </div>
-
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
-                <p className="text-xs font-bold text-amber-700">Sí. Esta acción eliminará la auditoría de forma permanente de todos los sistemas (borradores y guardadas).</p>
+              <div className="bg-red-500/5 border border-red-500/20 rounded-3xl p-6 text-center">
+                <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-2">Registro Seleccionado</p>
+                <p className="text-base font-bold text-white break-words">{deleteConfirmModal.auditName}</p>
               </div>
 
               <div className="flex gap-3">
                 <button
                   onClick={() => setDeleteConfirmModal({ show: false, auditId: "", auditName: "" })}
-                  className="flex-1 px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 hover:bg-gray-100 font-black text-sm text-gray-900 transition-all"
+                  className="flex-1 px-6 py-4 rounded-2xl bg-white/5 border border-white/10 font-black text-xs uppercase tracking-widest text-slate-300 hover:bg-white/10 transition-all"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={() => handleDeleteAudit(deleteConfirmModal.auditId)}
-                  className="flex-1 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-700 font-black text-sm text-white transition-all"
+                  className="flex-1 px-6 py-4 rounded-2xl bg-red-600 hover:bg-red-500 font-black text-xs uppercase tracking-widest text-white transition-all shadow-lg shadow-red-600/20"
                 >
                   Eliminar
                 </button>

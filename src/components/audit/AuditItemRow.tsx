@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Camera, CheckCircle2, History, Mic, MicOff, MinusCircle, Trash2, XCircle } from "lucide-react";
+import { Camera, CheckCircle2, History, Mic, MicOff, MinusCircle, Trash2, XCircle, HelpCircle, Info } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { AuditItem, AuditItemPriority, OrResponsibleRole } from "../../types";
 
@@ -28,6 +28,7 @@ interface AuditItemRowProps {
   onStatusToggle: (status: "pass" | "fail" | "na") => void;
   onCommentUpdate: (comment: string) => void;
   onPhotoUpdate: (photoUrl?: string) => void;
+  weight?: number;
 }
 
 async function compressImage(file: File) {
@@ -73,14 +74,18 @@ function AuditItemRowBase({
   showStructuredQuestion = false,
   isActive = false,
   observationSuggestions = [],
+  weight = 1,
+  responsibleRoles = [],
   onActivate,
   onStatusToggle,
   onCommentUpdate,
   onPhotoUpdate,
 }: AuditItemRowProps) {
   const [showComment, setShowComment] = useState(false);
+  const [showGuidance, setShowGuidance] = useState(false);
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [lastStatusChange, setLastStatusChange] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const recognitionRef = useRef<any>(null);
 
@@ -175,15 +180,25 @@ function AuditItemRowBase({
       transition={{ delay: index * 0.05 }}
       onClick={onActivate}
       className={cn(
-        "premium-card p-5 space-y-4 scroll-mt-32 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900",
-        emphasized && "ring-2 ring-blue-500 shadow-xl",
+        "premium-card p-5 space-y-4 scroll-mt-32 transition-all duration-500",
+        item?.status === "pass" ? "bg-emerald-500/5 border-emerald-500/20 shadow-emerald-500/5" :
+        item?.status === "fail" ? "bg-red-500/5 border-red-500/20 shadow-red-500/5" :
+        item?.status === "na" ? "bg-slate-500/5 border-slate-500/10 opacity-70" :
+        "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800",
+        emphasized && "ring-2 ring-blue-500 shadow-xl scale-[1.02]",
         isActive && !emphasized && "ring-1 ring-slate-400 dark:ring-slate-600 shadow-lg",
-        item?.status ? "border-slate-300 dark:border-slate-700" : "border-slate-100 dark:border-slate-800"
+        item?.status === "fail" && !hasComment && requiresCommentOnFail && "animate-pulse border-red-500/40"
       )}
     >
-      <div className="flex justify-between items-start gap-3">
-        <div className="space-y-2 flex-1">
-          <p className="text-[15px] font-black leading-tight text-slate-900 dark:text-white">
+      {item?.status === "fail" && (
+        <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500 rounded-l-2xl opacity-50 z-10" />
+      )}
+      {item?.status === "pass" && (
+        <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500 rounded-l-2xl opacity-50 z-10" />
+      )}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-2 flex-1 min-w-0">
+          <p className="text-[15px] font-black leading-tight text-slate-900 dark:text-white group-hover:text-[--accent-neon] transition-colors">
             <span className="text-blue-600 dark:text-blue-400 mr-1">{questionOrder}.</span> {questionMainCopy}
           </p>
           {(questionHint || description) && (
@@ -191,52 +206,84 @@ function AuditItemRowBase({
               {questionHint || description}
             </p>
           )}
+          
+          <AnimatePresence>
+            {showGuidance && guidance && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="p-5 rounded-[1.5rem] bg-gradient-to-br from-blue-600/10 to-blue-600/5 border border-blue-500/20 text-xs font-medium text-blue-900 dark:text-blue-300 leading-relaxed shadow-inner">
+                  <div className="flex items-start gap-3">
+                    <div className="h-5 w-5 rounded-lg bg-blue-500 text-white flex items-center justify-center shrink-0">
+                       <Info className="h-3 w-3" />
+                    </div>
+                    <span className="italic">{guidance}</span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {requiresCommentOnFail && item?.status === "fail" && !hasComment && (
             <p className="text-[10px] font-black text-red-500 uppercase tracking-widest animate-pulse">Nota obligatoria</p>
           )}
         </div>
-        {item?.status && (
-          <span className={cn(
-            "shrink-0 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest",
-            item.status === "pass" ? "bg-emerald-500 text-white" : item.status === "fail" ? "bg-red-500 text-white" : "bg-slate-500 text-white"
-          )}>
-            {item.status === "pass" ? "OK" : item.status === "fail" ? "No" : "N/A"}
-          </span>
-        )}
-      </div>
 
-      {linkedScoreAreas.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {linkedScoreAreas.map((area) => (
-            <span key={area} className="text-[9px] font-black uppercase tracking-widest bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-lg border border-blue-100 dark:border-blue-800/50">
-              {area}
-            </span>
-          ))}
+        <div className="flex flex-col gap-2 shrink-0 self-end md:self-center">
+          {guidance && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowGuidance(!showGuidance); }}
+              className={cn(
+                "hidden md:flex items-center justify-center h-8 w-8 rounded-full transition-all",
+                showGuidance ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+              )}
+            >
+              <HelpCircle className="h-4 w-4" />
+            </button>
+          )}
+          <div className="flex gap-2">
+            {[
+              { id: "pass", label: "OK", icon: CheckCircle2, bg: "bg-emerald-500", glow: "rgba(16, 185, 129, 0.4)" },
+              { id: "fail", label: "NO", icon: XCircle, bg: "bg-red-500", glow: "rgba(239, 68, 68, 0.4)" },
+              { id: "na", label: "N/A", icon: MinusCircle, bg: "bg-slate-500", glow: "rgba(100, 116, 139, 0.4)" },
+            ].map((btn) => (
+              <button
+                key={btn.id}
+                disabled={btn.id === "na" && !allowsNa}
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  onStatusToggle(btn.id as any);
+                  setLastStatusChange(btn.id);
+                  setTimeout(() => setLastStatusChange(null), 1000);
+                }}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1.5 h-14 w-16 md:w-20 rounded-2xl border-2 transition-all active:scale-95 relative overflow-hidden",
+                  item?.status === btn.id
+                    ? `${btn.bg} border-transparent text-white shadow-lg`
+                    : "bg-white dark:bg-slate-900 border-white/5 text-slate-500 hover:border-white/10",
+                  btn.id === "na" && !allowsNa && "opacity-20 cursor-not-allowed"
+                )}
+                style={{ boxShadow: item?.status === btn.id ? `0 10px 20px ${btn.glow}` : 'none' }}
+              >
+                <AnimatePresence>
+                  {lastStatusChange === btn.id && (
+                    <motion.div
+                      initial={{ scale: 0, opacity: 1 }}
+                      animate={{ scale: 3, opacity: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 bg-white/40 rounded-full"
+                    />
+                  )}
+                </AnimatePresence>
+                <btn.icon className="h-4 w-4 relative z-10" />
+                <span className="text-[9px] font-black uppercase tracking-widest relative z-10">{btn.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
-      )}
-
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { id: "pass", label: "Cumple", icon: CheckCircle2, bg: "bg-emerald-500" },
-          { id: "fail", label: "No cumple", icon: XCircle, bg: "bg-red-500" },
-          { id: "na", label: "N/A", icon: MinusCircle, bg: "bg-slate-500" },
-        ].map((btn) => (
-          <button
-            key={btn.id}
-            disabled={btn.id === "na" && !allowsNa}
-            onClick={(e) => { e.stopPropagation(); onStatusToggle(btn.id as any); }}
-            className={cn(
-              "flex flex-col items-center justify-center gap-2 h-16 rounded-2xl border-2 transition-all active:scale-95",
-              item?.status === btn.id
-                ? `${btn.bg} border-transparent text-white shadow-lg`
-                : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-400 hover:border-slate-200 dark:hover:border-slate-700",
-              btn.id === "na" && !allowsNa && "opacity-30 cursor-not-allowed"
-            )}
-          >
-            <btn.icon className="h-5 w-5" />
-            <span className="text-[10px] font-black uppercase tracking-widest">{btn.label}</span>
-          </button>
-        ))}
       </div>
 
       <div className="flex gap-2">
@@ -300,17 +347,23 @@ function AuditItemRowBase({
             </div>
 
             {observationSuggestions.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sugerencias</p>
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center gap-2">
+                  <div className="h-1 w-1 rounded-full bg-blue-500" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Sugerencias rápidas</p>
+                </div>
                 <div className="flex flex-wrap gap-2">
-                  {observationSuggestions.map((s) => (
-                    <button
+                  {observationSuggestions.map((s, i) => (
+                    <motion.button
                       key={s}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: i * 0.03 }}
                       onClick={(e) => { e.stopPropagation(); applyObservationSuggestion(s); }}
-                      className="px-3 py-1.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-400 hover:border-blue-300 transition-all"
+                      className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 border border-slate-200 dark:border-slate-700 hover:border-transparent text-[11px] font-bold text-slate-700 dark:text-slate-300 transition-all active:scale-95 shadow-sm"
                     >
                       {s}
-                    </button>
+                    </motion.button>
                   ))}
                 </div>
               </div>

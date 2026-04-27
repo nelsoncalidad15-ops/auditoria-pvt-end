@@ -1,5 +1,5 @@
 import { memo, useState } from "react";
-import { LucideIcon, LogOut, Settings, X, Menu, ChevronLeft, ChevronRight } from "lucide-react";
+import { LogOut, Home, History, LayoutGrid, Settings, LucideIcon, X, Menu, ChevronLeft, ChevronRight } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "../../lib/utils";
 
@@ -26,14 +26,14 @@ function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNaviga
   const isActive = (itemId: string) => (itemId === "home" ? view === "setup" || view === "audit" || view === "command-center" : view === itemId);
 
   const sidebarContent = (isMobile: boolean) => (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative z-10">
       {/* Brand Section */}
       <div className={cn(
-        "flex items-center gap-3 px-6 py-8 transition-all duration-300",
+        "flex items-center gap-3 px-6 py-10 transition-all duration-300",
         !isExpanded && !isMobile ? "px-4 justify-center" : "px-6"
       )}>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-500/20">
-          <Settings className="h-5 w-5" />
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[--accent-neon] text-[#050a14] shadow-lg shadow-[--accent-neon-glow]">
+          <Settings className="h-6 w-6" />
         </div>
         {(isExpanded || isMobile) && (
           <motion.div 
@@ -41,14 +41,14 @@ function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNaviga
             animate={{ opacity: 1, x: 0 }}
             className="min-w-0"
           >
-            <h1 className="text-lg font-black leading-none tracking-tight text-white">{appTitle}</h1>
-            <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-blue-200/50">Panel de Control</p>
+            <h1 className="text-xl font-black leading-none tracking-tighter text-white uppercase italic">{appTitle}</h1>
+            <p className="mt-1.5 text-[9px] font-black uppercase tracking-[0.25em] text-[--accent-neon] neon-text">SYSTEM CORE</p>
           </motion.div>
         )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 space-y-2 px-3 py-4">
         {items.map((item) => (
           <button
             key={item.id}
@@ -57,27 +57,31 @@ function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNaviga
               if (isMobile) onMobileClose();
             }}
             className={cn(
-              "group relative flex w-full items-center gap-3 rounded-2xl px-3 py-3 transition-all duration-200",
+              "group relative flex w-full items-center gap-4 rounded-2xl px-4 py-3.5 transition-all duration-300",
               isActive(item.id)
-                ? "bg-white text-slate-900 shadow-xl shadow-black/10"
-                : "text-slate-400 hover:bg-white/5 hover:text-white",
+                ? "bg-[--accent-neon] text-[#050a14] shadow-xl shadow-[--accent-neon-glow]"
+                : "text-slate-500 hover:bg-white/5 hover:text-white",
               !isExpanded && !isMobile && "justify-center"
             )}
           >
-            <item.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110", isActive(item.id) ? "text-blue-600" : "text-slate-400")} />
+            <item.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110 group-active:scale-90", isActive(item.id) ? "text-[#050a14]" : "text-slate-500 group-hover:text-white")} />
             {(isExpanded || isMobile) && (
               <motion.span 
                 initial={{ opacity: 0 }} 
                 animate={{ opacity: 1 }}
-                className="text-sm font-bold truncate"
+                className="text-xs font-black uppercase tracking-widest truncate"
               >
                 {item.label}
               </motion.span>
             )}
             {!isExpanded && !isMobile && (
-              <div className="absolute left-14 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[100] border border-white/10 shadow-2xl">
+              <div className="absolute left-16 rounded-xl bg-[#0a0f1d] px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] text-white opacity-0 group-hover:opacity-100 transition-all transform translate-x-[-10px] group-hover:translate-x-0 pointer-events-none z-[100] border border-white/10 shadow-2xl">
                 {item.label}
               </div>
+            )}
+            
+            {isActive(item.id) && !isExpanded && !isMobile && (
+              <div className="absolute left-0 w-1 h-6 bg-[#050a14] rounded-r-full" />
             )}
           </button>
         ))}
@@ -86,20 +90,20 @@ function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNaviga
       {/* User Section */}
       {user && (
         <div className={cn(
-          "p-4 border-t border-white/5 bg-black/20 backdrop-blur-sm transition-all duration-300",
-          !isExpanded && !isMobile ? "px-2" : "px-4"
+          "p-6 border-t border-white/5 bg-black/40 backdrop-blur-md transition-all duration-300 rounded-t-3xl",
+          !isExpanded && !isMobile ? "px-2" : "px-6"
         )}>
           <div className={cn(
-            "flex items-center gap-3 mb-4",
+            "flex items-center gap-4 mb-6",
             !isExpanded && !isMobile ? "justify-center" : ""
           )}>
-            <div className="h-10 w-10 shrink-0 rounded-xl bg-white/10 flex items-center justify-center text-white font-black">
+            <div className="h-12 w-12 shrink-0 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white font-black group-hover:border-[--accent-neon] transition-colors">
               {user.displayName?.charAt(0) || "U"}
             </div>
             {(isExpanded || isMobile) && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-w-0">
-                <p className="text-xs font-bold text-white truncate">{user.displayName}</p>
-                <p className="text-[9px] text-white/40 truncate">{user.email}</p>
+                <p className="text-sm font-black text-white truncate tracking-tight">{user.displayName}</p>
+                <p className="text-[10px] text-slate-500 truncate uppercase tracking-widest mt-0.5">{user.email}</p>
               </motion.div>
             )}
           </div>
@@ -109,12 +113,12 @@ function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNaviga
               if (isMobile) onMobileClose();
             }}
             className={cn(
-              "flex w-full items-center justify-center gap-2 py-2.5 rounded-xl border border-white/5 bg-white/5 text-[10px] font-black uppercase tracking-widest text-white/60 hover:bg-red-500/20 hover:text-red-300 transition-all",
+              "flex w-full items-center justify-center gap-3 py-3.5 rounded-2xl border border-red-500/10 bg-red-500/5 text-[10px] font-black uppercase tracking-[0.2em] text-red-400 hover:bg-red-500 hover:text-white transition-all shadow-lg active:scale-95",
               !isExpanded && !isMobile ? "px-0" : "px-4"
             )}
           >
             <LogOut className="h-4 w-4" />
-            {(isExpanded || isMobile) && <span>Cerrar Sesión</span>}
+            {(isExpanded || isMobile) && <span>SIGN OUT</span>}
           </button>
         </div>
       )}
@@ -128,18 +132,19 @@ function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNaviga
         onMouseEnter={() => setIsExpanded(true)}
         onMouseLeave={() => setIsExpanded(false)}
         className={cn(
-          "hidden lg:flex flex-col fixed inset-y-0 left-0 z-50 bg-slate-950 border-r border-white/5 transition-all duration-300 ease-in-out",
-          isExpanded ? "w-[260px]" : "w-[80px]",
+          "hidden lg:flex flex-col fixed inset-y-0 left-0 z-50 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] border-r border-white/5 bg-[#050a14]/80 backdrop-blur-2xl",
+          isExpanded ? "w-[280px]" : "w-[88px]",
           !show && "translate-x-[-100%]"
         )}
       >
+        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
         {sidebarContent(false)}
       </aside>
 
       {/* Desktop Spacer */}
       <div className={cn(
-        "hidden lg:block shrink-0 transition-all duration-300 ease-in-out",
-        show ? (isExpanded ? "w-[260px]" : "w-[80px]") : "w-0"
+        "hidden lg:block shrink-0 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]",
+        show ? (isExpanded ? "w-[280px]" : "w-[88px]") : "w-0"
       )} />
 
       {/* Mobile Drawer */}
@@ -151,20 +156,21 @@ function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNaviga
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={onMobileClose}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
             />
             <motion.aside
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="relative h-full w-[280px] bg-slate-950 text-white shadow-2xl"
+              className="relative h-full w-[300px] bg-[#050a14] text-white shadow-2xl border-r border-white/5 overflow-hidden"
             >
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-transparent pointer-events-none" />
               <button
                 onClick={onMobileClose}
-                className="absolute right-4 top-6 p-2 rounded-xl bg-white/5 text-white"
+                className="absolute right-6 top-10 p-2.5 rounded-2xl bg-white/5 text-white z-50"
               >
-                <X className="h-5 w-5" />
+                <X className="h-6 w-6" />
               </button>
               {sidebarContent(true)}
             </motion.aside>

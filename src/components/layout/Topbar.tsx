@@ -2,6 +2,7 @@ import { memo } from "react";
 import { ArrowLeft, ClipboardCheck, Menu } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { AuditUserProfile } from "../../types";
+import { ThemeToggle } from "../common/ThemeToggle";
 
 const USER_PROFILE_LABELS: Record<AuditUserProfile, string> = {
   auditor: "Auditor",
@@ -100,6 +101,8 @@ function TopbarBase({
               {USER_PROFILE_LABELS[userProfile]}
             </span>
           </div>
+
+          <ThemeToggle />
           
           {user && (
             <div className="flex items-center gap-2 p-1 pl-3 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50">

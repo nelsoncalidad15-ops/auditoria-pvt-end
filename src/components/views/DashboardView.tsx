@@ -1,7 +1,5 @@
-import React, { memo } from "react";
+import { memo } from "react";
 import { 
-  BarChart, 
-  Bar, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -13,28 +11,32 @@ import {
   AreaChart,
   Area
 } from "recharts";
+import { AlertCircle, TrendingUp, ClipboardCheck, Activity } from "lucide-react";
 import { motion } from "motion/react";
 import { useDashboardMetrics } from "../../hooks/useDashboardMetrics";
 import { MONTHS } from "../../constants";
 import { cn } from "../../lib/utils";
+import { Skeleton } from "../common/Skeleton";
+import { AuditSession } from "../../types";
 
-export const DashboardView = memo(() => {
+interface DashboardViewProps {
+  history: AuditSession[];
+}
+
+export const DashboardView = memo(({ history }: DashboardViewProps) => {
   const {
-    selectedYear,
-    setSelectedYear,
     selectedMonth,
     setSelectedMonth,
     selectedCity,
     setSelectedCity,
-    years,
     cities,
     kpis,
     trendData,
     scoreBands,
-    cityData,
     roleData,
     isRefreshing,
-  } = useDashboardMetrics();
+    topFailures,
+  } = useDashboardMetrics(history);
 
   return (
     <div className="space-y-8 pb-12">
@@ -55,21 +57,13 @@ export const DashboardView = memo(() => {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
-            className="h-11 px-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-bold text-[11px] uppercase tracking-widest outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer shadow-sm"
-          >
-            {years.map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
-
+        <div className="flex items-center gap-3">
           <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
             className="h-11 px-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-bold text-[11px] uppercase tracking-widest outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer shadow-sm"
           >
-            {MONTHS.map((m, idx) => (
+            {MONTHS.map((m: string, idx: number) => (
               <option key={m} value={String(idx + 1).padStart(2, "0")}>{m}</option>
             ))}
           </select>
@@ -79,9 +73,9 @@ export const DashboardView = memo(() => {
             onChange={(e) => setSelectedCity(e.target.value)}
             className="h-11 px-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-bold text-[11px] uppercase tracking-widest outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer shadow-sm"
           >
-            {cities.map((city) => (
+            {cities.map((city: string) => (
               <option key={city} value={city}>
-                {city === "all" ? "Todas las sucursales" : city}
+                {city === "Todas" ? "Todas las sucursales" : city}
               </option>
             ))}
           </select>
@@ -89,31 +83,32 @@ export const DashboardView = memo(() => {
       </motion.section>
 
       <motion.section
-        className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+        className="grid grid-cols-2 lg:grid-cols-4 gap-6"
       >
         {[
-          { label: "Auditorías", value: String(kpis.total), sub: "registros" },
-          { label: "Promedio", value: `${kpis.average}%`, sub: "cumplimiento" },
-          { label: "Aprobación", value: kpis.total > 0 ? `${kpis.approvedRate}%` : "-", sub: "tasa éxito" },
-          { label: "Críticas", value: String(kpis.critical), sub: "desvíos" },
-        ].map((kpi, index) => (
-          <motion.article
+          { label: "Auditorías", value: String(kpis.total), sub: "Volumen Total", icon: ClipboardCheck, color: "text-blue-500", bg: "bg-blue-500/10" },
+          { label: "Promedio", value: `${kpis.average}%`, sub: "Nivel de Calidad", icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+          { label: "Aprobación", value: history.length > 0 ? `${kpis.approvedRate}%` : "-", sub: "Tasa de Éxito", icon: Activity, color: "text-amber-500", bg: "bg-amber-500/10" },
+          { label: "Críticas", value: String(kpis.critical), sub: "Fallas Graves", icon: AlertCircle, color: "text-red-500", bg: "bg-red-500/10" },
+        ].map((kpi, i) => (
+          <motion.div
             key={kpi.label}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.1 }}
-            className="premium-card p-6 bg-white dark:bg-slate-900 flex flex-col justify-between"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className="premium-card p-6 bg-white dark:bg-slate-900 border-slate-100 dark:border-white/5"
           >
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{kpi.label}</p>
-              {isRefreshing ? (
-                <div className="h-9 w-20 bg-slate-100 dark:bg-slate-800 animate-pulse mt-2 rounded-lg" />
-              ) : (
-                <p className="text-3xl font-black mt-2 leading-none tracking-tight">{kpi.value}</p>
-              )}
+            <div className="flex items-center justify-between mb-4">
+              <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", kpi.bg, kpi.color)}>
+                <kpi.icon className="h-5 w-5" />
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">{kpi.sub}</p>
             </div>
-            <p className="text-[10px] font-bold text-slate-400 mt-4 uppercase tracking-widest">{kpi.sub}</p>
-          </motion.article>
+            <div className="space-y-1">
+              <h3 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white leading-none">{kpi.value}</h3>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{kpi.label}</p>
+            </div>
+          </motion.div>
         ))}
       </motion.section>
 
@@ -121,26 +116,39 @@ export const DashboardView = memo(() => {
         <motion.article 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="premium-card p-6 bg-white dark:bg-slate-900 h-[400px] flex flex-col"
+          transition={{ delay: 0.5 }}
+          className="premium-card p-8 bg-white dark:bg-slate-900 h-[450px] flex flex-col"
         >
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Evolución del Desempeño</h3>
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-blue-600" />
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Cumplimiento %</span>
+          <div className="mb-8">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Desempeño Mensual</h3>
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-black tracking-tight uppercase italic italic">Tendencia Consolidada</h2>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-blue-600" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Salta</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-teal-500" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Jujuy</span>
+                </div>
+              </div>
             </div>
           </div>
           <div className="flex-1 w-full min-h-0">
             {isRefreshing ? (
-               <div className="h-full w-full bg-slate-50 dark:bg-slate-800/50 animate-pulse rounded-2xl" />
+              <Skeleton className="h-full w-full rounded-2xl" />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={trendData}>
                   <defs>
-                    <linearGradient id="colorAvg" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.15}/>
+                    <linearGradient id="colorSalta" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.2}/>
                       <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorJujuy" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#14b8a6" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
@@ -158,15 +166,33 @@ export const DashboardView = memo(() => {
                     tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 700 }}
                   />
                   <Tooltip 
-                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', padding: '12px' }}
+                    contentStyle={{ 
+                      borderRadius: '24px', 
+                      border: 'none', 
+                      boxShadow: '0 25px 50px rgba(0,0,0,0.2)', 
+                      padding: '16px',
+                      background: 'rgba(15, 23, 42, 0.95)',
+                      backdropFilter: 'blur(10px)',
+                      color: '#fff'
+                    }}
                   />
                   <Area 
+                    name="Salta"
                     type="monotone" 
-                    dataKey="promedio" 
+                    dataKey="saltaAvg" 
                     stroke="#2563eb" 
                     strokeWidth={4} 
                     fillOpacity={1} 
-                    fill="url(#colorAvg)" 
+                    fill="url(#colorSalta)" 
+                  />
+                  <Area 
+                    name="Jujuy"
+                    type="monotone" 
+                    dataKey="jujuyAvg" 
+                    stroke="#14b8a6" 
+                    strokeWidth={4} 
+                    fillOpacity={1} 
+                    fill="url(#colorJujuy)" 
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -177,15 +203,16 @@ export const DashboardView = memo(() => {
         <motion.article 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="premium-card p-6 bg-white dark:bg-slate-900 h-[400px] flex flex-col"
+          transition={{ delay: 0.6 }}
+          className="premium-card p-8 bg-white dark:bg-slate-900 h-[450px] flex flex-col"
         >
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-6 text-center">Distribución de Resultados</h3>
-          <div className="flex-1 w-full min-h-0">
+          <div className="mb-8">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Composición del Score</h3>
+            <h2 className="text-2xl font-black tracking-tight uppercase italic leading-none">Distribución Grupal</h2>
+          </div>
+          <div className="flex-1 w-full flex items-center justify-center min-h-0">
             {isRefreshing ? (
-               <div className="h-full w-full flex items-center justify-center">
-                 <div className="h-40 w-40 rounded-full border-8 border-slate-100 dark:border-slate-800 animate-spin border-t-blue-600" />
-               </div>
+              <Skeleton className="h-48 w-48 rounded-full" />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -193,14 +220,14 @@ export const DashboardView = memo(() => {
                     data={scoreBands}
                     cx="50%"
                     cy="50%"
-                    innerRadius={80}
-                    outerRadius={110}
+                    innerRadius={60}
+                    outerRadius={100}
                     paddingAngle={8}
                     dataKey="value"
                     stroke="none"
                   >
-                    {scoreBands.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} cornerRadius={8} />
+                    {scoreBands.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -209,7 +236,7 @@ export const DashboardView = memo(() => {
             )}
           </div>
           <div className="mt-4 grid grid-cols-2 gap-4">
-             {scoreBands.map((band) => (
+             {scoreBands.map((band: any) => (
                <div key={band.name} className="flex items-center gap-2">
                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: band.fill }} />
                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{band.name}</span>
@@ -219,58 +246,75 @@ export const DashboardView = memo(() => {
         </motion.article>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr,1.5fr]">
-         <motion.article 
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <motion.article 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="premium-card p-6 bg-white dark:bg-slate-900 h-[350px] flex flex-col"
+          transition={{ delay: 0.8 }}
+          className="premium-card p-8 bg-slate-950 text-white flex flex-col relative overflow-hidden"
         >
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-6">Desempeño por Ciudad</h3>
-          <div className="flex-1 w-full min-h-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={cityData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 700 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 700 }} />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                  {cityData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="absolute top-0 right-0 p-8 opacity-5">
+            <AlertCircle className="w-40 h-40" />
+          </div>
+          <div className="relative z-10 space-y-6">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400 mb-2">Análisis de Desvíos</p>
+              <h3 className="text-2xl font-black italic uppercase leading-none tracking-tight">Top 5 Críticos</h3>
+              <p className="text-slate-400 text-xs font-medium mt-2">Puntos de mayor recurrencia de falla que requieren refuerzo de capacitación.</p>
+            </div>
+
+            <div className="space-y-3">
+              {topFailures.length > 0 ? topFailures.map((item, index) => (
+                <div key={index} className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5 group hover:bg-white/10 transition-colors">
+                  <div className="h-10 w-10 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center font-black text-sm shrink-0 border border-red-500/20 group-hover:scale-110 transition-transform">
+                    {item.count}
+                  </div>
+                  <p className="text-xs font-bold leading-tight text-slate-200">{item.question}</p>
+                </div>
+              )) : (
+                <div className="py-12 text-center">
+                  <p className="text-sm font-bold text-slate-500 italic">No se detectaron desvíos recurrentes en el período.</p>
+                </div>
+              )}
+            </div>
           </div>
         </motion.article>
 
         <motion.article 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
-          className="premium-card p-6 bg-white dark:bg-slate-900 h-[350px] flex flex-col"
+          transition={{ delay: 0.9 }}
+          className="premium-card p-8 bg-white dark:bg-white/5 flex flex-col justify-between"
         >
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-6">Cumplimiento por Área Crítica</h3>
-          <div className="flex-1 w-full min-h-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={roleData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" opacity={0.5} />
-                <XAxis type="number" domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 700 }} />
-                <YAxis 
-                  dataKey="role" 
-                  type="category" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: "#64748b", fontSize: 10, fontWeight: 800 }}
-                  width={100}
-                />
-                <Tooltip />
-                <Bar dataKey="promedio" radius={[0, 6, 6, 0]}>
-                  {roleData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Recomendación Estratégica</p>
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase leading-none tracking-tight italic">Plan de Acción</h3>
+              </div>
+              <div className="h-12 w-12 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                <TrendingUp className="h-6 w-6" />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex gap-4 p-4 rounded-2xl bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800">
+                <div className="h-6 w-6 rounded-lg bg-blue-500 text-white flex items-center justify-center shrink-0 text-[10px] font-black">01</div>
+                <p className="text-xs font-medium text-blue-900 dark:text-blue-300">Reforzar los puntos del Top 5 en la próxima reunión de equipo.</p>
+              </div>
+              <div className="flex gap-4 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800">
+                <div className="h-6 w-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center shrink-0 text-[10px] font-black">02</div>
+                <p className="text-xs font-medium text-emerald-900 dark:text-emerald-300">Felicitaciones al área con mayor cumplimiento: <b>{roleData[0]?.role || "-"}</b>.</p>
+              </div>
+              <div className="flex gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
+                <div className="h-6 w-6 rounded-lg bg-slate-400 text-white flex items-center justify-center shrink-0 text-[10px] font-black">03</div>
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Verificar que todos los desvíos críticos tengan comentarios técnicos.</p>
+              </div>
+            </div>
+
+            <button className="w-full py-4 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-black text-[10px] uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all">
+              Exportar Reporte Ejecutivo
+            </button>
           </div>
         </motion.article>
       </div>

@@ -97,7 +97,7 @@ export function useAuditSessionActions({
       notes: auditSession.notes,
       items: auditSession.items,
     });
-    setSelectedRole("T?cnicos");
+    setSelectedRole("Técnicos");
     setSelectedStaff(auditSession.staffName?.trim() || "");
     setActiveAuditItemId(null);
     setFocusedAuditItemId(null);

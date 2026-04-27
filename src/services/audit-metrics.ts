@@ -389,7 +389,7 @@ export function buildAuditProcessMetrics({
   const technicianCategoryScoreRows = Array.from(
     processScoreSessions.reduce((acc, auditSession) => {
       const roleName = auditSession.role || auditSession.items[0]?.category || "";
-      if (roleName !== "T?cnicos") {
+      if (roleName !== "Técnicos") {
         return acc;
       }
 
@@ -448,7 +448,7 @@ export function buildAuditProcessMetrics({
         technicianAuditScore: metrics.technicianScore,
         areas: [
           typeof metrics.ordersScore === "number" ? "Ordenes" : null,
-          typeof metrics.technicianScore === "number" ? "T?cnicos" : null,
+          typeof metrics.technicianScore === "number" ? "Técnicos" : null,
         ].filter((value): value is string => Boolean(value)),
         evaluations: metrics.evaluations,
       };
@@ -591,7 +591,7 @@ export function buildAuditProcessMetrics({
   const technicianReviewSessions = processScoreSessions
     .filter((auditSession) => {
       const roleName = auditSession.role || auditSession.items[0]?.category || "";
-      return roleName === "T?cnicos" && Boolean(auditSession.staffName?.trim());
+      return roleName === "Técnicos" && Boolean(auditSession.staffName?.trim());
     })
     .sort((left, right) => `${right.date}-${right.id}`.localeCompare(`${left.date}-${left.id}`))
     .reduce((acc, auditSession) => {

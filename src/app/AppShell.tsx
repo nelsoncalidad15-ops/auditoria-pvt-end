@@ -63,7 +63,21 @@ export function AppShell({
   children,
 }: AppShellProps) {
   return (
-    <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950 transition-colors duration-500 overflow-x-hidden">
+    <div className="min-h-screen flex bg-slate-50 dark:bg-[#050a14] transition-colors duration-500 overflow-x-hidden relative">
+      {/* Premium Background Elements */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-40 dark:opacity-100">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px] dark:bg-blue-900/20" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[--accent-neon-glow] rounded-full blur-[120px]" />
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03] dark:opacity-[0.05]" />
+        <div 
+          className="absolute inset-0" 
+          style={{ 
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)`,
+            backgroundSize: '40px 40px'
+          }} 
+        />
+      </div>
+
       <Sidebar
         appTitle={appTitle}
         show={showSidebar}

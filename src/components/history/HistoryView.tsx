@@ -70,80 +70,76 @@ export const HistoryView = memo(function HistoryView({
 }: HistoryViewProps) {
   return (
     <>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <button onClick={onBack} className="-ml-2 p-2 text-gray-400 hover:text-gray-900">
-            <ArrowLeft className="h-6 w-6" />
-          </button>
-          <h2 className="text-2xl font-bold">Historial</h2>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-blue-500 font-black uppercase tracking-[0.2em] text-[10px]">
+            <History className="h-4 w-4" />
+            Trazabilidad y Control
+          </div>
+          <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Historial de Auditorías</h2>
         </div>
-        <div className="hidden items-center gap-2 md:flex">
-          <button onClick={() => setHistoryPanel("exports")} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-slate-700 transition-all hover:border-slate-300">
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setHistoryPanel("exports")} 
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 px-6 py-3.5 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 transition-all hover:bg-slate-50 dark:hover:bg-white/10"
+          >
             <FileText className="h-4 w-4" />
-            Exportar
+            Gestionar Sync
           </button>
-          <button onClick={onExportCsv} className="flex items-center gap-2 rounded-xl bg-green-50 px-4 py-2 text-xs font-bold uppercase tracking-widest text-green-600 transition-all hover:bg-green-100">
+          <button 
+            onClick={onExportCsv} 
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3.5 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-500 shadow-lg shadow-emerald-500/20"
+          >
             <Save className="h-4 w-4" />
-            Exportar CSV
+            CSV
           </button>
         </div>
       </div>
 
-      <div className="glass-panel rounded-[2rem] p-3 shadow-sm">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="premium-card p-1.5 bg-slate-200/50 dark:bg-white/5 mb-8">
+        <div className="grid grid-cols-2 gap-1.5">
           <button
             onClick={() => setHistoryPanel("records")}
             className={cn(
-              "rounded-[1.4rem] border px-4 py-4 text-left transition-all",
+              "rounded-[1.25rem] px-6 py-3.5 text-center transition-all font-black text-xs uppercase tracking-widest",
               historyPanel === "records"
-                ? "border-slate-950 bg-slate-950 text-white"
-                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                ? "bg-white dark:bg-white text-slate-950 shadow-sm"
+                : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
             )}
           >
-            <p className="text-sm font-black">Registros</p>
-            <p className={cn("mt-1 text-xs font-bold", historyPanel === "records" ? "text-slate-300" : "text-slate-500")}>Listado y detalle.</p>
+            Listado de Registros
           </button>
           <button
             onClick={() => setHistoryPanel("exports")}
             className={cn(
-              "rounded-[1.4rem] border px-4 py-4 text-left transition-all",
+              "rounded-[1.25rem] px-6 py-3.5 text-center transition-all font-black text-xs uppercase tracking-widest",
               historyPanel === "exports"
-                ? "border-slate-950 bg-slate-950 text-white"
-                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                ? "bg-white dark:bg-white text-slate-950 shadow-sm"
+                : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
             )}
           >
-            <p className="text-sm font-black">Exportar y sync</p>
-            <p className={cn("mt-1 text-xs font-bold", historyPanel === "exports" ? "text-slate-300" : "text-slate-500")}>Salida a CSV y control de fuente externa.</p>
+            Exportación y Sync
           </button>
         </div>
       </div>
 
       {historyPanel === "records" && (
         <>
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {[
-              { label: "Resultados", value: filteredHistory.length, detail: "auditorias visibles", icon: ClipboardList, tone: "slate" },
-              { label: "Promedio", value: `${historyAverageScore}%`, detail: "cumplimiento sobre la vista", icon: TrendingUp, tone: "emerald" },
-              { label: "Desvios", value: nonCompliantAudits, detail: "registros debajo de 90%", icon: AlertCircle, tone: "amber" },
-              { label: "Ultimo cierre", value: latestHistoryItem?.date ?? "-", detail: latestHistoryItem?.location ?? "sin datos", icon: Clock, tone: "blue" },
+              { label: "Total", value: filteredHistory.length, icon: ClipboardList, color: "text-blue-500", bg: "bg-blue-500/10" },
+              { label: "Cumplimiento", value: `${historyAverageScore}%`, icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+              { label: "Desvíos", value: nonCompliantAudits, icon: AlertCircle, color: "text-amber-500", bg: "bg-amber-500/10" },
+              { label: "Auditores", value: totalHistoryCount, icon: Clock, color: "text-slate-500", bg: "bg-slate-500/10" },
             ].map((card) => (
-              <div key={card.label} className="glass-panel rounded-[1.7rem] p-5 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{card.label}</p>
-                    <p className="mt-3 text-2xl font-black text-slate-950">{card.value}</p>
-                    <p className="mt-2 text-sm font-medium text-slate-500">{card.detail}</p>
-                  </div>
-                  <div
-                    className={cn(
-                      "flex h-11 w-11 items-center justify-center rounded-2xl",
-                      card.tone === "slate" && "bg-slate-950 text-white",
-                      card.tone === "emerald" && "bg-emerald-50 text-emerald-600",
-                      card.tone === "amber" && "bg-amber-50 text-amber-600",
-                      card.tone === "blue" && "bg-blue-50 text-blue-600"
-                    )}
-                  >
+              <div key={card.label} className="premium-card p-5 bg-white dark:bg-white/5 border-white/5">
+                <div className="flex flex-col items-center text-center gap-3">
+                  <div className={cn("h-10 w-10 rounded-2xl flex items-center justify-center", card.bg, card.color)}>
                     <card.icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">{card.label}</p>
+                    <p className="text-xl font-black text-slate-900 dark:text-white leading-none">{card.value}</p>
                   </div>
                 </div>
               </div>
@@ -152,46 +148,81 @@ export const HistoryView = memo(function HistoryView({
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.15fr)_380px]">
             <div className="space-y-4">
-              <div className="glass-panel space-y-4 rounded-[2rem] p-4 shadow-sm">
+              <div className="premium-card p-4 bg-white/50 dark:bg-white/5 border-slate-200 dark:border-white/5">
                 <div className="relative">
-                  <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                  <input type="text" placeholder="Buscar por asesor, OR o ubicacion..." value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} className="w-full rounded-2xl border border-gray-200 bg-white py-4 pl-12 pr-4 text-sm focus:outline-none" />
-                </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <div className="rounded-[1.4rem] border border-slate-200 bg-white px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Lectura</p><p className="mt-2 text-sm font-black text-slate-900">Listado maestro</p><p className="mt-2 text-sm font-medium text-slate-500">Selecciona un registro para abrir el detalle completo.</p></div>
-                  <div className="rounded-[1.4rem] border border-slate-200 bg-white px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Filtro</p><p className="mt-2 text-sm font-black text-slate-900">Busqueda unificada</p><p className="mt-2 text-sm font-medium text-slate-500">Soporta asesor, categoria, ubicacion y OR.</p></div>
-                  <div className="rounded-[1.4rem] border border-slate-200 bg-white px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Accion</p><p className="mt-2 text-sm font-black text-slate-900">Exportar o sincronizar</p><p className="mt-2 text-sm font-medium text-slate-500">Pasa a la segunda pesta?a para salida y verificacion externa.</p></div>
+                  <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <input 
+                    type="text" 
+                    placeholder="Buscar por colaborador, OR o ubicación..." 
+                    value={searchTerm} 
+                    onChange={(event) => setSearchTerm(event.target.value)} 
+                    className="w-full rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 py-4 pl-12 pr-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all" 
+                  />
                 </div>
               </div>
 
               <div className="space-y-3">
                 {filteredHistory.map((item) => (
-                  <button key={item.id} onClick={() => onSelectAudit(item)} className={cn("render-optimized-card w-full rounded-[2rem] border p-5 text-left shadow-sm transition-all", selectedHistoryAudit?.id === item.id ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white hover:border-slate-300")}>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className={cn("h-14 w-14 shrink-0 rounded-2xl flex items-center justify-center text-xl font-bold", selectedHistoryAudit?.id === item.id ? "bg-white/10 text-white" : item.totalScore >= 90 ? "bg-green-50 text-green-600" : item.totalScore >= 70 ? "bg-yellow-50 text-yellow-600" : "bg-red-50 text-red-600")}>{item.totalScore}%</div>
+                  <button 
+                    key={item.id} 
+                    onClick={() => onSelectAudit(item)} 
+                    className={cn(
+                      "group w-full premium-card p-5 text-left transition-all relative overflow-hidden", 
+                      selectedHistoryAudit?.id === item.id 
+                        ? "bg-slate-900 dark:bg-white border-none shadow-xl" 
+                        : "bg-white dark:bg-white/5 border-slate-200 dark:border-white/5 hover:border-blue-400 dark:hover:border-blue-500/50"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-4 relative z-10">
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className={cn(
+                          "h-14 w-14 shrink-0 rounded-2xl flex flex-col items-center justify-center border-2",
+                          selectedHistoryAudit?.id === item.id 
+                            ? "bg-white/10 border-white/20 text-white dark:text-slate-900" 
+                            : item.totalScore >= 90 ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500" : 
+                              item.totalScore >= 70 ? "bg-amber-500/10 border-amber-500/20 text-amber-500" : "bg-red-500/10 border-red-500/20 text-red-500"
+                        )}>
+                          <span className="text-[8px] font-black uppercase tracking-tighter opacity-60 leading-none">Score</span>
+                          <span className="text-lg font-black">{item.totalScore}%</span>
+                        </div>
                         <div className="min-w-0">
-                          <p className={cn("mb-1 truncate font-black leading-none", selectedHistoryAudit?.id === item.id ? "text-white" : "text-gray-900")}>{item.location}</p>
-                          <p className={cn("text-[10px] font-black uppercase tracking-widest", selectedHistoryAudit?.id === item.id ? "text-slate-300" : "text-gray-400")}>{item.date}</p>
-                          <p className={cn("mt-2 truncate text-xs font-bold", selectedHistoryAudit?.id === item.id ? "text-slate-200" : "text-gray-600")}>{item.staffName || "Sin responsable"}</p>
+                          <p className={cn("text-sm font-black truncate", selectedHistoryAudit?.id === item.id ? "text-white dark:text-slate-900" : "text-slate-900 dark:text-white")}>
+                            {item.staffName || "Sin responsable"}
+                          </p>
+                          <p className={cn("text-[10px] font-bold uppercase tracking-widest mt-0.5", selectedHistoryAudit?.id === item.id ? "text-slate-400 dark:text-slate-500" : "text-slate-400")}>
+                            {item.date} • {item.location}
+                          </p>
                         </div>
                       </div>
-                      <ChevronRight className={cn("h-5 w-5 shrink-0", selectedHistoryAudit?.id === item.id ? "text-white" : "text-slate-400")} />
+                      <ChevronRight className={cn("h-5 w-5 transition-transform group-hover:translate-x-1", selectedHistoryAudit?.id === item.id ? "text-white dark:text-slate-900" : "text-slate-300")} />
                     </div>
-                    <div className={cn("mt-4 flex items-center justify-between border-t pt-4", selectedHistoryAudit?.id === item.id ? "border-white/10" : "border-gray-100")}>
-                      <div className="flex flex-col">
-                        <span className={cn("mb-1 text-[10px] font-black uppercase tracking-widest leading-none", selectedHistoryAudit?.id === item.id ? "text-slate-300" : "text-gray-400")}>{item.items[0]?.category || "General"}</span>
-                        {item.orderNumber && <span className={cn("text-xs font-black", selectedHistoryAudit?.id === item.id ? "text-cyan-300" : "text-blue-600")}>OR: {item.orderNumber}</span>}
+                    <div className={cn(
+                      "mt-4 pt-4 border-t flex items-center justify-between",
+                      selectedHistoryAudit?.id === item.id ? "border-white/10 dark:border-slate-200" : "border-slate-100 dark:border-white/5"
+                    )}>
+                      <div className="flex items-center gap-2">
+                        <span className={cn("text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg", selectedHistoryAudit?.id === item.id ? "bg-white/10 text-white dark:bg-slate-900/10 dark:text-slate-900" : "bg-slate-100 dark:bg-white/5 text-slate-500")}>
+                          {item.role || item.items[0]?.category}
+                        </span>
+                        {item.orderNumber && (
+                          <span className={cn("text-[9px] font-black uppercase tracking-widest", selectedHistoryAudit?.id === item.id ? "text-blue-400" : "text-blue-600")}>
+                            OR: {item.orderNumber}
+                          </span>
+                        )}
                       </div>
-                      <span className={cn("text-[10px] font-bold uppercase tracking-tighter", selectedHistoryAudit?.id === item.id ? "text-slate-300" : "text-gray-400")}>{item.items.length} items</span>
                     </div>
                   </button>
                 ))}
 
                 {filteredHistory.length === 0 && (
-                  <div className="rounded-[2rem] border border-dashed border-slate-300 bg-white px-5 py-10 text-center">
-                    <p className="text-sm font-black text-slate-700">Sin resultados.</p>
-                    <p className="mt-2 text-sm font-medium text-slate-500">Prueba con otro nombre, ubicacion o categoria.</p>
+                  <div className="premium-card py-20 px-8 bg-slate-50 dark:bg-white/5 border-dashed border-2 border-slate-200 dark:border-white/10 text-center space-y-4">
+                    <div className="h-16 w-16 rounded-3xl bg-slate-100 dark:bg-white/5 flex items-center justify-center mx-auto text-slate-400">
+                      <Search className="h-8 w-8" />
+                    </div>
+                    <div>
+                      <p className="text-lg font-black text-slate-900 dark:text-white uppercase italic">Sin Resultados</p>
+                      <p className="text-sm font-medium text-slate-500 max-w-[200px] mx-auto">No encontramos auditorías que coincidan con tu búsqueda.</p>
+                    </div>
                   </div>
                 )}
               </div>
