@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createClientId } from "../lib/utils";
 import { loadAuditCategoriesFromCloud, saveAuditCategoriesToCloud } from "../services/audit-structure-cloud";
+import { sendStructureToWebhook } from "../services/audit-sync";
 import { getStoredAuditCategories, resetAuditCategories, saveAuditCategories } from "../services/audit-structure";
 import {
   AuditCategory,
@@ -21,6 +22,8 @@ interface UseAuditStructureParams {
   setSelectedRole: (role: Role | null) => void;
   setSelectedStaff: (staff: string) => void;
   sessionLocation?: Location;
+  hasWebhookUrl: boolean;
+  webhookUrl: string;
 }
 
 const createInitialScopes = (): Record<AuditStructureScope, AuditCategory[]> => ({
@@ -44,6 +47,8 @@ export function useAuditStructure({
   setSelectedRole,
   setSelectedStaff,
   sessionLocation,
+  hasWebhookUrl,
+  webhookUrl,
 }: UseAuditStructureParams) {
   const [selectedStructureScope, setSelectedStructureScope] = useState<AuditStructureScope>("global");
   const [auditCategoryScopes, setAuditCategoryScopes] = useState<Record<AuditStructureScope, AuditCategory[]>>(createInitialScopes);
@@ -65,7 +70,8 @@ export function useAuditStructure({
   const [newItemRequiresCommentOnFail, setNewItemRequiresCommentOnFail] = useState(false);
   const [isLoadingStructureFromCloud, setIsLoadingStructureFromCloud] = useState(false);
   const [isSavingStructureToCloud, setIsSavingStructureToCloud] = useState(false);
-  const [structureStorageLabel, setStructureStorageLabel] = useState<"local" | "cloud">("local");
+  const [isSavingStructureToSheet, setIsSavingStructureToSheet] = useState(false);
+  const [structureStorageLabel, setStructureStorageLabel] = useState<"local" | "cloud" | "sheet">("local");
   const [lastStructureSavedAt, setLastStructureSavedAt] = useState<string | null>(null);
   const [reportFilter, setReportFilter] = useState(createInitialReportFilter);
 
@@ -176,7 +182,7 @@ export function useAuditStructure({
     }
 
     if (auditCategories.some((category) => category.name.toLowerCase() === trimmedName.toLowerCase())) {
-      alert("Ya existe una categor?a con ese nombre.");
+      alert("Ya existe una categoría con ese nombre.");
       return;
     }
 
@@ -198,7 +204,7 @@ export function useAuditStructure({
 
   const handleDeleteCategory = useCallback((categoryId: string) => {
     if (auditCategories.length === 1) {
-      alert("Necesit?s al menos una categor?a activa.");
+      alert("Necesitás al menos una categoría activa.");
       return;
     }
 
@@ -376,17 +382,17 @@ export function useAuditStructure({
     setSelectedStructureCategoryId(defaults[0]?.id || "");
     setReportFilter((current) => ({ ...current, role: defaults[0]?.name || current.role }));
     setStructureStorageLabel("local");
-    alert("Estructura restablecida a la configuraci?n inicial.");
+    alert("Estructura restablecida a la configuración inicial.");
   }, [selectedStructureScope]);
 
   const handleLoadStructureFromCloud = useCallback(async () => {
     if (!isCloudStructureAvailable) {
-      alert("Firebase est? desactivado en este entorno. La estructura se administra solo en modo local.");
+      alert("Firebase está desactivado en este entorno. La estructura se administra solo en modo local.");
       return;
     }
 
     if (!hasAuthenticatedUser) {
-      alert("Inici? sesi?n para cargar la estructura compartida desde Firestore.");
+      alert("Iniciá sesión para cargar la estructura compartida desde Firestore.");
       return;
     }
 
@@ -394,7 +400,7 @@ export function useAuditStructure({
     try {
       const cloudCategories = await loadAuditCategoriesFromCloud(selectedStructureScope);
       if (!cloudCategories) {
-        alert("Todav?a no existe una estructura guardada en Firestore.");
+        alert("Todavía no existe una estructura guardada en Firestore.");
         return;
       }
 
@@ -415,12 +421,12 @@ export function useAuditStructure({
 
   const handleSaveStructureToCloud = useCallback(async () => {
     if (!isCloudStructureAvailable) {
-      alert("Firebase est? desactivado en este entorno. La estructura se guarda solo en este dispositivo.");
+      alert("Firebase está desactivado en este entorno. La estructura se guarda solo en este dispositivo.");
       return;
     }
 
     if (!hasAuthenticatedUser) {
-      alert("Inici? sesi?n para guardar la estructura en Firestore.");
+      alert("Iniciá sesión para guardar la estructura en Firestore.");
       return;
     }
 
@@ -431,11 +437,36 @@ export function useAuditStructure({
       alert("Estructura guardada en Firestore.");
     } catch (error) {
       console.error("Save structure to cloud failed:", error);
-      alert("No se pudo guardar la estructura en Firestore. Verific? que tu usuario tenga permisos de administraci?n.");
+      alert("No se pudo guardar la estructura en Firestore. Verificá que tu usuario tenga permisos de administración.");
     } finally {
       setIsSavingStructureToCloud(false);
     }
   }, [auditCategories, hasAuthenticatedUser, isCloudStructureAvailable, selectedStructureScope, userEmail]);
+
+  const handleSaveStructureToSheet = useCallback(async () => {
+    if (!hasWebhookUrl) {
+      alert("No hay una URL de Webhook configurada para el Sheet.");
+      return;
+    }
+
+    setIsSavingStructureToSheet(true);
+    try {
+      await sendStructureToWebhook(webhookUrl, {
+        event: "structure_update",
+        scope: selectedStructureScope,
+        data: JSON.stringify(auditCategories),
+        updatedByEmail: userEmail ?? "anónimo",
+      });
+      setStructureStorageLabel("sheet");
+      setLastStructureSavedAt(new Date().toISOString());
+      alert("Estructura enviada al Sheet correctamente.");
+    } catch (error) {
+      console.error("Save structure to sheet failed:", error);
+      alert("No se pudo enviar la estructura al Sheet. Verificá tu conexión.");
+    } finally {
+      setIsSavingStructureToSheet(false);
+    }
+  }, [auditCategories, hasWebhookUrl, selectedStructureScope, userEmail, webhookUrl]);
 
   useEffect(() => {
     if (auditCategories.length === 0) {
@@ -521,6 +552,7 @@ export function useAuditStructure({
     setSelectedStructureCategoryId,
     isLoadingStructureFromCloud,
     isSavingStructureToCloud,
+    isSavingStructureToSheet,
     structureStorageLabel,
     lastStructureSavedAt,
     reportFilter,
@@ -570,6 +602,6 @@ export function useAuditStructure({
     handleResetStructure,
     handleLoadStructureFromCloud,
     handleSaveStructureToCloud,
+    handleSaveStructureToSheet,
   };
 }
-

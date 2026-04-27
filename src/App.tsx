@@ -336,6 +336,8 @@ function AuditApp() {
     handleResetStructure,
     handleLoadStructureFromCloud,
     handleSaveStructureToCloud,
+    handleSaveStructureToSheet,
+    isSavingStructureToSheet,
   } = useAuditStructure({
     isAuthReady,
     isCloudStructureAvailable: isFirebaseEnabled,
@@ -345,6 +347,8 @@ function AuditApp() {
     setSelectedRole,
     setSelectedStaff,
     sessionLocation: session.location,
+    hasWebhookUrl,
+    webhookUrl,
   });
 
   const getQuestionOrder = (text: string) => {
@@ -1955,8 +1959,10 @@ function AuditApp() {
                   structureStorageLabel={structureStorageLabel}
                   isLoadingStructureFromCloud={isLoadingStructureFromCloud}
                   isSavingStructureToCloud={isSavingStructureToCloud}
+                  isSavingStructureToSheet={isSavingStructureToSheet}
                   handleLoadStructureFromCloud={handleLoadStructureFromCloud}
                   handleSaveStructureToCloud={handleSaveStructureToCloud}
+                  handleSaveStructureToSheet={handleSaveStructureToSheet}
                   handleResetStructure={handleResetStructure}
                   auditCategories={auditCategories}
                   selectedStructureCategory={selectedStructureCategory}

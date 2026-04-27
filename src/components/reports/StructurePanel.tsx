@@ -11,7 +11,8 @@ import {
   ChevronRight,
   Info,
   Layers,
-  Database
+  Database,
+  Table
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import {
@@ -25,11 +26,13 @@ import {
 interface StructurePanelProps {
   selectedStructureScope: AuditStructureScope;
   setSelectedStructureScope: (scope: AuditStructureScope) => void;
-  structureStorageLabel: "local" | "cloud";
+  structureStorageLabel: "local" | "cloud" | "sheet";
   isLoadingStructureFromCloud: boolean;
   isSavingStructureToCloud: boolean;
+  isSavingStructureToSheet: boolean;
   handleLoadStructureFromCloud: () => void;
   handleSaveStructureToCloud: () => void;
+  handleSaveStructureToSheet: () => void;
   handleResetStructure: () => void;
   auditCategories: AuditCategory[];
   selectedStructureCategory: AuditCategory | null;
@@ -104,9 +107,12 @@ export function StructurePanel({
   handleMoveItem,
   lastStructureSavedAt,
   handleSaveStructureToCloud,
+  handleSaveStructureToSheet,
   handleLoadStructureFromCloud,
   isSavingStructureToCloud,
-  isLoadingStructureFromCloud
+  isSavingStructureToSheet,
+  isLoadingStructureFromCloud,
+  structureStorageLabel
 }: StructurePanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>("categories");
   const [selectedScoreItemId, setSelectedScoreItemId] = useState("");
@@ -174,29 +180,55 @@ export function StructurePanel({
           </div>
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
              Configure áreas, preguntas y vínculos inteligentes
-             {savedLabel && <span className="text-emerald-500">? Último guardado: {savedLabel}</span>}
+             {savedLabel && <span className="text-emerald-500">• Último guardado: {savedLabel}</span>}
           </p>
         </div>
 
-        <div className="flex items-center gap-3 w-full lg:w-auto">
-          <button 
-            onClick={handleSaveStructureToCloud}
-            disabled={isSavingStructureToCloud}
-            className="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-slate-900 dark:bg-blue-600 text-[11px] font-black uppercase tracking-widest text-white shadow-lg hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
-          >
-            <Database className="h-4 w-4" />
-            {isSavingStructureToCloud ? "Guardando..." : "Sincronizar Nube"}
-          </button>
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+          {/* Sync Buttons */}
+          <div className="flex items-center gap-2 bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-slate-200 dark:border-white/5">
+            <button 
+              onClick={handleSaveStructureToSheet}
+              disabled={isSavingStructureToSheet}
+              title="Guardar configuración en el Google Sheet"
+              className={cn(
+                "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                structureStorageLabel === 'sheet' 
+                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20" 
+                  : "bg-white dark:bg-white/10 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20 hover:bg-emerald-50"
+              )}
+            >
+              <Table className="h-4 w-4" />
+              {isSavingStructureToSheet ? "Enviando..." : "Sincronizar Sheet"}
+            </button>
+            
+            <button 
+              onClick={handleSaveStructureToCloud}
+              disabled={isSavingStructureToCloud}
+              title="Guardar configuración en Firestore (Nube)"
+              className={cn(
+                "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                structureStorageLabel === 'cloud' 
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" 
+                  : "bg-white dark:bg-white/10 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20 hover:bg-blue-50"
+              )}
+            >
+              <Database className="h-4 w-4" />
+              {isSavingStructureToCloud ? "Guardando..." : "Sincronizar Nube"}
+            </button>
+          </div>
+
           <div className="h-10 w-[1px] bg-slate-200 dark:bg-white/10 hidden lg:block" />
-          <div className="flex bg-slate-100 dark:bg-white/5 p-1.5 rounded-2xl border border-slate-200 dark:border-white/5">
+          
+          <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-slate-200 dark:border-white/5">
              {(["global", "Salta", "Jujuy"] as AuditStructureScope[]).map((scope) => (
                <button
                  key={scope}
                  onClick={() => setSelectedStructureScope(scope)}
                  className={cn(
-                   "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                   "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
                    selectedStructureScope === scope 
-                    ? "bg-white dark:bg-white/10 text-blue-600 dark:text-blue-400 shadow-sm" 
+                    ? "bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm" 
                     : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                  )}
                >
@@ -486,9 +518,10 @@ export function StructurePanel({
                 <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-8">
                    <div className="space-y-1">
                       <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Matriz de Vínculos de Calidad</h4>
-                      <p className="text-xs font-medium text-slate-500">
+                      <p className="text-xs font-medium text-slate-500 leading-relaxed">
                         Defina cómo el resultado de un área impacta automáticamente en otra. 
-                        <span className="text-blue-500 font-bold ml-1">Esta configuración se guarda en la Nube (Firestore) al sincronizar.</span>
+                        <br />
+                        <span className="text-blue-600 dark:text-blue-400 font-bold">💡 Consejo:</span> Haga clic en las celdas para vincular preguntas.
                       </p>
                    </div>
                    
@@ -498,7 +531,7 @@ export function StructurePanel({
                          <select 
                             value={selectedSourceAreaName}
                             onChange={e => setSelectedSourceAreaName(e.target.value)}
-                            className="bg-transparent text-sm font-black text-slate-900 dark:text-white outline-none"
+                            className="bg-transparent text-sm font-black text-slate-900 dark:text-white outline-none min-w-[120px]"
                          >
                             <option value="">Seleccionar...</option>
                             {auditCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
@@ -510,7 +543,7 @@ export function StructurePanel({
                          <select 
                             value={selectedTargetAreaName}
                             onChange={e => setSelectedTargetAreaName(e.target.value)}
-                            className="bg-transparent text-sm font-black text-slate-900 dark:text-white outline-none"
+                            className="bg-transparent text-sm font-black text-slate-900 dark:text-white outline-none min-w-[120px]"
                          >
                             <option value="">Seleccionar...</option>
                             {auditCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
@@ -519,17 +552,17 @@ export function StructurePanel({
                    </div>
                 </div>
 
-                <div className="overflow-x-auto border border-slate-100 dark:border-white/5 rounded-2xl custom-scrollbar">
+                <div className="overflow-x-auto border border-slate-100 dark:border-white/5 rounded-2xl custom-scrollbar bg-slate-50/50 dark:bg-black/20">
                   {sourceMatrixItems.length > 0 && targetMatrixItems.length > 0 ? (
                     <table className="w-full border-collapse">
                        <thead>
-                          <tr className="bg-slate-50 dark:bg-white/5 border-b border-slate-100 dark:border-white/5">
-                             <th className="p-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest min-w-[300px]">Origen \ Destino</th>
+                          <tr className="bg-slate-100 dark:bg-white/5 border-b border-slate-200 dark:border-white/10">
+                             <th className="p-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest min-w-[320px] sticky left-0 bg-slate-100 dark:bg-slate-900 z-10">Origen \ Destino</th>
                              {targetMatrixItems.map((item, i) => (
-                               <th key={item.id} className="p-4 text-center min-w-[160px]">
-                                  <div className="flex flex-col items-center gap-2">
-                                     <span className="h-7 w-7 rounded-full bg-slate-900 dark:bg-blue-600 text-[10px] font-black text-white flex items-center justify-center shadow-lg">{i+1}</span>
-                                     <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tight leading-tight max-w-[140px] break-words">
+                               <th key={item.id} className="p-6 text-center min-w-[200px] border-l border-slate-200 dark:border-white/5">
+                                  <div className="flex flex-col items-center gap-3">
+                                     <span className="h-8 w-8 rounded-full bg-slate-900 dark:bg-blue-600 text-[11px] font-black text-white flex items-center justify-center shadow-lg">{i+1}</span>
+                                     <span className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-tight leading-tight break-words max-w-[180px]">
                                        {item.text}
                                      </span>
                                   </div>
@@ -537,26 +570,26 @@ export function StructurePanel({
                              ))}
                           </tr>
                        </thead>
-                       <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                       <tbody className="divide-y divide-slate-200 dark:divide-white/10">
                           {sourceMatrixItems.map((source, r) => (
-                            <tr key={source.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                               <td className="p-4">
-                                  <div className="flex items-start gap-3">
-                                     <span className="text-[10px] font-black text-slate-300 mt-0.5">{(r+1).toString().padStart(2, '0')}</span>
-                                     <p className="text-xs font-bold text-slate-700 dark:text-slate-300 leading-snug">{source.text}</p>
+                            <tr key={source.id} className="hover:bg-white dark:hover:bg-white/5 transition-colors">
+                               <td className="p-6 sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-[4px_0_12px_rgba(0,0,0,0.02)]">
+                                  <div className="flex items-start gap-4">
+                                     <span className="text-[11px] font-black text-slate-300 dark:text-slate-700 mt-0.5">{(r+1).toString().padStart(2, '0')}</span>
+                                     <p className="text-[13px] font-bold text-slate-800 dark:text-slate-200 leading-snug">{source.text}</p>
                                   </div>
                                </td>
                                {targetMatrixItems.map(target => {
                                   const isLinked = source.scoreLinks?.some(l => l.area === selectedTargetAreaName && l.destinationItemId === target.id);
                                   return (
-                                    <td key={target.id} className="p-4 text-center">
+                                    <td key={target.id} className="p-6 text-center border-l border-slate-100 dark:border-white/5">
                                        <button 
                                          onClick={() => toggleMatrixCell(source.id, target.id)}
                                          className={cn(
-                                           "h-12 w-12 mx-auto rounded-2xl border transition-all flex items-center justify-center text-xs",
+                                           "h-14 w-14 mx-auto rounded-[1.2rem] border-2 transition-all flex items-center justify-center text-lg",
                                            isLinked 
-                                            ? "bg-emerald-500 border-emerald-400 text-white shadow-lg shadow-emerald-500/20" 
-                                            : "bg-white dark:bg-white/5 border-slate-200 dark:border-white/5 text-slate-300 hover:border-emerald-500/50 hover:text-emerald-500"
+                                            ? "bg-emerald-500 border-emerald-400 text-white shadow-xl shadow-emerald-500/30 scale-110" 
+                                            : "bg-white dark:bg-white/5 border-slate-100 dark:border-white/5 text-slate-200 hover:border-emerald-500/50 hover:text-emerald-500 hover:bg-emerald-50/50"
                                          )}
                                        >
                                           {isLinked ? "✓" : "·"}
@@ -570,8 +603,8 @@ export function StructurePanel({
                     </table>
                   ) : (
                     <div className="py-24 text-center">
-                       <Link2 className="h-12 w-12 text-slate-200 mx-auto mb-4" />
-                       <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Seleccione área de origen y destino para vincular</p>
+                       <Link2 className="h-12 w-12 text-slate-200 mx-auto mb-4 animate-pulse" />
+                       <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Seleccione áreas de origen y destino para vincular</p>
                     </div>
                   )}
                 </div>
