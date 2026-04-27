@@ -4,7 +4,7 @@ import path from 'path';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  base: './',
+  base: '/auditoria-pvt-end/',
   plugins: [react(), tailwindcss()],
   build: {
     rollupOptions: {
