@@ -82,6 +82,7 @@ function AuditItemRowBase({
   onStatusToggle,
   onCommentUpdate,
   onPhotoUpdate,
+  quickMode = false,
 }: AuditItemRowProps) {
   const [showComment, setShowComment] = useState(false);
   const [showGuidance, setShowGuidance] = useState(false);
