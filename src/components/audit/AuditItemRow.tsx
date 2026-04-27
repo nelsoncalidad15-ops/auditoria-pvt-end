@@ -236,7 +236,7 @@ function AuditItemRowBase({
         </div>
 
         {!quickMode && (
-          <div className="flex flex-col gap-2 shrink-0 self-end md:self-center">
+          <div className="flex flex-col gap-2 shrink-0 self-center md:self-center">
             {guidance && (
               <button
                 onClick={(e) => { e.stopPropagation(); setShowGuidance(!showGuidance); }}
