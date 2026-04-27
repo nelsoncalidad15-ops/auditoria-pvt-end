@@ -796,6 +796,44 @@ export const PRE_DELIVERY_CHECKLIST_ITEMS: AuditTemplateItem[] = [
   },
 ];
 
+export const ASESOR_CHECKLIST_ITEMS: AuditTemplateItem[] = [
+  // Recepcion
+  { id: "asesor-01", text: "¿Se tiene la información necesaria para recibir al cliente?", block: "Recepción", description: "Verificar historial en VW ElsaPro y SIAC (campañas, servicios, reparaciones).", priority: "high", order: 1, active: true },
+  { id: "asesor-02", text: "¿Se registran/verifican correctamente los datos del cliente?", block: "Recepción", description: "Consultar al cliente si son correctos y actualizar datos y del vehículo en SIAC. (Nombre completo, mail, dni, direccion, etc)", priority: "medium", order: 2, active: true },
+  { id: "asesor-03", text: "¿Se registran/verifican correctamente los datos de la unidad?", block: "Recepción", description: "Consultar al cliente si son correctos y actualizar datos y del vehículo en SIAC. VIN completo, modelo + km exacto.", priority: "high", order: 3, active: true },
+  { id: "asesor-04", text: "¿Se registran/verifican correctamente los datos del concesionario vendedor y fecha de venta?", block: "Recepción", description: "CE que realizó la entrega + fecha de comienzo del periodo de garantía.", priority: "medium", order: 4, active: true },
+  { id: "asesor-05", text: "¿Se registran correctamente los requerimientos y observaciones?", block: "Recepción", description: "Verificar requerimientos con el cliente y registrar adicionales en la OR.", priority: "high", order: 5, active: true },
+  { id: "asesor-06", text: "¿En caso de ruidos, fallas aleatorias, etc, se involucra al personal de Taller/Controller?", block: "Recepción", description: "Convocar JT/LT en caso de requerirse análisis técnico. Registrar en OR.", priority: "medium", order: 6, active: true },
+  { id: "asesor-07", text: "¿Se verifica la existencia de auxilio, extintor, gato, herramientas?", block: "Recepción", description: "Verificar existencia dentro del vehículo y registrar en la orden.", priority: "medium", order: 7, active: true },
+  { id: "asesor-08", text: "¿Verificar la presencia de objetos del cliente?", block: "Recepción", description: "Verificar baúl, solicitar llave de tuercas antirrobo y pedir retirar objetos de valor.", priority: "medium", order: 8, active: true },
+  { id: "asesor-09", text: "¿Se colocan fundas al volante y asiento?", block: "Recepción", description: "Colocar protecciones (alfombra, volante, palanca, freno, funda) delante del cliente.", priority: "high", order: 9, active: true },
+  { id: "asesor-10", text: "¿Se verifica funcionamiento del tablero y bocina?", block: "Recepción", description: "Verificar encendido del tablero, km, testigos, bocina, luces, nivel combustible, etc.", priority: "medium", order: 10, active: true },
+  { id: "asesor-11", text: "¿Se controla visualmente el exterior del vehículo con el cliente?", block: "Recepción", description: "Verificar daños en faros, parabrisas, carrocería. Reflejar en pre orden y OR.", priority: "high", order: 11, active: true },
+  { id: "asesor-12", text: "¿Se tomaron fotografías de la unidad al momento de la recepción?", block: "Recepción", description: "Toma fotográfica completa como evidencia del estado inicial.", priority: "high", order: 12, active: true },
+  { id: "asesor-13", text: "¿Se registra fecha/hora de ingreso, e informa correctamente la fecha/hora prometida?", block: "Recepción", description: "Informar verbalmente y registrar en OR la fecha estimada de entrega.", priority: "medium", order: 13, active: true },
+  { id: "asesor-14", text: "¿Se ofrece servicio de Remis o traslado?", block: "Recepción", description: "Consultar y coordinar traslado. Aclarar que el gasto corre a cargo del cliente.", priority: "low", order: 14, active: true },
+  { id: "asesor-15", text: "¿Se explica al cliente el trabajo a realizar y se detalla presupuesto?", block: "Recepción", description: "Informar tareas (filtros, tren delantero, etc.) y costos.", priority: "high", order: 15, active: true },
+  { id: "asesor-16", text: "¿Se consulta y registra la forma de pago? ¿Se informa el horario de atencion al publico?", block: "Recepción", description: "Confirmar y registrar método de pago e informar horario.", priority: "medium", order: 16, active: true },
+  { id: "asesor-17", text: "¿El cliente firmó la OR y se registró su nombre, DNI, parentesco y fecha?", block: "Recepción", description: "Nombre completo, DNI, relación con el titular y fecha.", priority: "high", order: 17, active: true },
+  { id: "asesor-18", text: "¿El asesor firmó y aclaró su nombre en la OR?", block: "Recepción", description: "Constancia de nombre y firma del asesor como responsable.", priority: "medium", order: 18, active: true },
+  { id: "asesor-19", text: "¿Se cargaron correctamente los trabajos realizados en SIAC?", block: "Recepción", description: "Registro en SIAC del detalle de las tareas efectuadas.", priority: "high", order: 19, active: true },
+  
+  // Devolucion
+  { id: "asesor-20", text: "¿Se registró fecha/hora de cierre?", block: "Devolución", description: "Hora y fecha de ingreso y egreso, junto con la fecha de cierre.", priority: "medium", order: 20, active: true },
+  { id: "asesor-21", text: "¿Se adjunta toda la documentación correspondiente a la OR?", block: "Devolución", description: "Incluir pre orden, hoja de campaña, datos de ElsaPro, etc.", priority: "medium", order: 21, active: true },
+  { id: "asesor-22", text: "¿El AS realizó seguimiento de los trabajos del Taller?", block: "Devolución", description: "Verificar cumplimiento de tiempos y gestionar desvíos.", priority: "high", order: 22, active: true },
+  { id: "asesor-23", text: "¿El AS verifico el funcionamiento en presence of the Client?", block: "Devolución", description: "Esperar al cliente con el capot levantado si aplica.", priority: "high", order: 23, active: true },
+  { id: "asesor-24", text: "¿Se solicitó autorización del cliente y se registró en OR?", block: "Devolución", description: "Ampliación de trabajo: contacto con el cliente y registro en OR.", priority: "high", order: 24, active: true },
+  { id: "asesor-25", text: "¿Se explicó al cliente la factura detallando repuestos y mano de obra?", block: "Devolución", description: "Detallar conceptos facturados antes de la entrega.", priority: "high", order: 25, active: true },
+  { id: "asesor-26", text: "¿Se informó al cliente sobre próximos servicios o mantenimientos?", block: "Devolución", description: "Recordatorio verbal o físico sobre servicios futuros.", priority: "medium", order: 26, active: true },
+  { id: "asesor-27", text: "¿El cliente firmó la conformidad al retirar el vehículo?", block: "Devolución", description: "Aclaración, DNI y fecha de retiro.", priority: "high", order: 27, active: true },
+  { id: "asesor-28", text: "¿Se informa al cliente sobre la app Mi VW y sus beneficios?", block: "Devolución", description: "Mencionar funcionalidades y colocar sello.", priority: "medium", order: 28, active: true },
+  { id: "asesor-29", text: "¿Se circula con el vehiculo dentro del CE a 10km/h?", block: "Devolución", description: "Circulación con balizas encendidas.", priority: "high", order: 29, active: true },
+  { id: "asesor-30", text: "¿Se gestionaron reclamos con solución, causa raíz y acciones?", block: "Devolución", description: "Análisis 5 porqués, acciones correctivas y seguimiento.", priority: "high", order: 30, active: true },
+  { id: "asesor-31", text: "¿Se respondió el reclamo dentro de las 48hs de su recepción?", block: "Devolución", description: "Tiempo máximo según protocolo de calidad.", priority: "high", order: 31, active: true },
+  { id: "asesor-32", text: "¿Se clasifican correctamente los residuos?", block: "Seguridad y Ambiente", description: "Clasificación correcta de residuos.", priority: "medium", order: 32, active: true },
+];
+
 export const SUBGERENTE_CHECKLIST_ITEMS: AuditTemplateItem[] = [
   {
     id: "subgerente-01",
@@ -886,7 +924,7 @@ export const SUBGERENTE_CHECKLIST_ITEMS: AuditTemplateItem[] = [
     weight: 1,
     order: 9,
     active: true,
-    scoreLinks: [{ area: "Ordenes", weight: 100, destinationItemText: "10. Creación del Comprobante de servicio DSP" }]
+    scoreLinks: [{ area: "Ordenes", weight: 100, destinationItemText: "10. Creación del Comprobante de servicio DSP: Creación e impresión del comprobante de servicio de ELSA." }]
   },
   {
     id: "subgerente-10",
@@ -900,7 +938,7 @@ export const SUBGERENTE_CHECKLIST_ITEMS: AuditTemplateItem[] = [
   },
   {
     id: "subgerente-11",
-    text: "11. Se verifica Vehiculo de Sustitución. Funcionalidad correcta y seguridad adecuada para el uso, Niveles de líquidos(refrigerante, limpiaparabrisas, aceite...), Sin suciedad, Sin desperfectos",
+    text: "11. Se verifica Vehiculo de Sustitución. Funcionalidad correcta and seguridad adecuada para el uso, Niveles de líquidos(refrigerante, limpiaparabrisas, aceite...), Sin suciedad, Sin desperfectos",
     block: "Servicios al Cliente",
     priority: "medium",
     allowsNa: true,
@@ -920,7 +958,7 @@ export const SUBGERENTE_CHECKLIST_ITEMS: AuditTemplateItem[] = [
   },
   {
     id: "subgerente-13",
-    text: "13. Nichos hidrantes en condiciones óptimas (señalizado, de fácil acceso, mangueras ordenadas, conectadas a la toma de agua, con lanza presente y llave o martillo para abrir y/o romper el vidrio en caso de emergencia) *Auditable-No Medible",
+    text: "13. Nichos hidrantes en condiciones óptimas (señalizado, de fácil acceso, mangueras ordenadas, conectadas a la toma de agua, con lanza presente and llave o martillo para abrir and/or romper el vidrio en caso de emergencia) *Auditable-No Medible",
     block: "Seguridad y Ambiente",
     priority: "medium",
     allowsNa: true,
@@ -958,7 +996,7 @@ export const SUBGERENTE_CHECKLIST_ITEMS: AuditTemplateItem[] = [
     weight: 1,
     order: 16,
     active: true,
-    scoreLinks: [{ area: "Asesores de servicio", weight: 100, destinationItemText: "¿Se circula con el vehículo dentro del CE a 10km/h con balizas?" }]
+    scoreLinks: [{ area: "Asesores de servicio", weight: 100, destinationItemText: "¿Se circula con el vehiculo dentro del CE a 10km/h?" }]
   },
 ];
 
@@ -978,38 +1016,7 @@ export const STAFF: Record<Role, string[]> = {
 
 export const AUDIT_QUESTIONS: Record<Role, string[]> = {
   "Asesores de servicio": [
-    "¿Se tiene la información necesaria para recibir al cliente? (Verificar historial en VW ElsaPro y SIAC)",
-    "¿Se registran/verifican correctamente los datos del cliente? (Nombre, mail, dni, dirección, etc)",
-    "¿Se registran/verifican correctamente los datos de la unidad (VIN completo, modelo, km exacto)",
-    "¿Se registran/verifican correctamente los datos del concesionario vendedor y fecha de venta?",
-    "¿Se registran correctamente los requerimientos y observaciones en la OR?",
-    "¿En caso de ruidos o fallas aleatorias, se involucra al personal de Taller/Controller?",
-    "¿Se verifica la existencia de auxilio, extintor, gato, herramientas?",
-    "¿Se verifica la presencia de objetos de valor del cliente y tuercas antirrobo?",
-    "¿Se colocan fundas al volante y asiento delante del cliente?",
-    "¿Se verifica funcionamiento del tablero, bocina, luces, nivel de combustible?",
-    "¿Se controla visualmente el exterior del vehículo con el cliente?",
-    "¿Se tomaron fotografías de la unidad al momento de la recepción?",
-    "¿Se registra fecha/hora de ingreso e informa correctamente la fecha/hora prometida?",
-    "¿Se ofrece servicio de Remis o traslado?",
-    "¿Se explica al cliente el trabajo a realizar y se detalla presupuesto?",
-    "¿Se consulta y registra la forma de pago? ¿Se informa el horario de atención?",
-    "¿El cliente firmó la OR y se registró su nombre, DNI, parentesco y fecha?",
-    "¿El asesor firmó y aclaró su nombre en la OR?",
-    "¿Se cargaron correctamente los trabajos realizados en SIAC?",
-    "¿Se registró fecha/hora de cierre en sistema y OR?",
-    "¿Se adjunta toda la documentación correspondiente a la OR (pre orden, ElsaPro, etc)?",
-    "¿El AS realizó seguimiento de los trabajos del Taller?",
-    "¿El AS verificó el funcionamiento en presencia del cliente?",
-    "¿Se solicitó autorización del cliente para ampliaciones y se registró en OR?",
-    "¿Se explicó al cliente la factura detallando repuestos y mano de obra?",
-    "¿Se informó al cliente sobre próximos servicios o mantenimientos?",
-    "¿El cliente firmó la conformidad al retirar el vehículo?",
-    "¿Se informa al cliente sobre la app Mi VW y sus beneficios?",
-    "¿Se circula con el vehículo dentro del CE a 10km/h con balizas?",
-    "¿Se gestionaron reclamos con solución, causa raíz y acciones (5 porqués)?",
-    "¿Se respondió el reclamo dentro de las 48hs de su recepción?",
-    "¿Se clasifican correctamente los residuos?"
+    ...ASESOR_CHECKLIST_ITEMS.map((item) => item.text)
   ],
   "Asesores de cita": [
     "¿Se confirmó la cita con 24hs de antelación?",
@@ -1033,7 +1040,7 @@ export const AUDIT_QUESTIONS: Record<Role, string[]> = {
     "Productos tóxicos y/o inflamables rotulados.",
     "Espacios de circulaci?n despejados.",
     "Descarte correcto de documentación con datos personales de clientes.",
-    "Circulación vehicular dentro del CE a 10km/h con balizas encendidas."
+    "Circulación vehicular dentro del CE a 10km/h with balizas encendidas."
   ],
   "Subgerente de servicio": [
     ...SUBGERENTE_CHECKLIST_ITEMS.map((item) => item.text)

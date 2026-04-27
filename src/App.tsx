@@ -224,6 +224,7 @@ function AuditApp() {
   const [auditEntryTab, setAuditEntryTab] = useState<"areas" | "scores">("areas");
   const [showBatchReportModal, setShowBatchReportModal] = useState(false);
   const [deleteConfirmModal, setDeleteConfirmModal] = useState<{ show: boolean; auditId: string; auditName: string }>({ show: false, auditId: "", auditName: "" });
+  const [activeAuditBlock, setActiveAuditBlock] = useState<string | null>(null);
   const [preDeliverySection, setPreDeliverySection] = useState<"general" | "legajos">("general");
   const [preDeliveryActiveLegajoIndex, setPreDeliveryActiveLegajoIndex] = useState(0);
   const [draftSaveState, setDraftSaveState] = useState<"idle" | "saving" | "saved">("idle");
@@ -450,7 +451,9 @@ function AuditApp() {
     ? preDeliverySection === "general"
       ? preDeliveryGeneralItems
       : activePreDeliveryLegajoItems
-    : displayedAuditItems;
+    : activeAuditBlock 
+      ? displayedAuditItems.filter(item => item.block === activeAuditBlock)
+      : displayedAuditItems;
   const isAuditItemAnswered = React.useCallback((auditItem: AuditTemplateItem, items: AuditSession["items"] = sessionItems) => (
     items.some((item) => (item.id === auditItem.id || item.question === auditItem.text) && item.status)
   ), [sessionItems]);
@@ -1742,6 +1745,10 @@ function AuditApp() {
                       onSelectCategory={(category) => {
                         setSelectedRole(category.name);
                         setAuditEntryTab("areas");
+                        
+                        const blocks = Array.from(new Set(category.items.map(i => i.block).filter(Boolean))) as string[];
+                        setActiveAuditBlock(blocks.length > 0 ? blocks[0] : null);
+
                         if (category.name === "Pre Entrega" || category.name === "Ordenes") {
                           setSelectedStaff("");
                         }
@@ -1910,6 +1917,9 @@ function AuditApp() {
                     isOrdersAudit={isOrdersAudit}
                     isPreDeliveryAudit={isPreDeliveryAudit}
                     visibleAuditItems={visibleAuditItems}
+                    activeAuditBlock={activeAuditBlock}
+                    setActiveAuditBlock={setActiveAuditBlock}
+                    availableBlocks={Array.from(new Set(displayedAuditItems.map(i => i.block).filter(Boolean))) as string[]}
                     isQuickAuditMode={isQuickAuditMode}
                     setIsQuickAuditMode={setIsQuickAuditMode}
                     draftSaveState={draftSaveState}

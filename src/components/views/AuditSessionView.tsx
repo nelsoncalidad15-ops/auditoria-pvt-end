@@ -2,6 +2,7 @@ import {
   Save, 
   ChevronDown,
   FileCheck,
+  Layout,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "../../lib/utils";
@@ -14,6 +15,9 @@ interface AuditSessionViewProps {
   isOrdersAudit: boolean;
   isPreDeliveryAudit: boolean;
   visibleAuditItems: AuditTemplateItem[];
+  activeAuditBlock: string | null;
+  setActiveAuditBlock: React.Dispatch<React.SetStateAction<string | null>>;
+  availableBlocks: string[];
   isQuickAuditMode: boolean;
   setIsQuickAuditMode: React.Dispatch<React.SetStateAction<boolean>>;
   draftSaveState: "idle" | "saving" | "saved";
@@ -51,6 +55,9 @@ export function AuditSessionView({
   isOrdersAudit,
   isPreDeliveryAudit,
   visibleAuditItems,
+  activeAuditBlock,
+  setActiveAuditBlock,
+  availableBlocks,
   isQuickAuditMode,
   setIsQuickAuditMode,
   draftSaveState,
@@ -122,6 +129,53 @@ export function AuditSessionView({
         
         {/* Contenido Principal (Ahora a la izquierda) */}
         <div className="space-y-6 order-1">
+          {/* Mobile Section Switcher */}
+          {availableBlocks.length > 1 && !isPreDeliveryAudit && (
+            <div className="lg:hidden flex overflow-x-auto gap-2 pb-2 custom-scrollbar">
+              {availableBlocks.map(block => (
+                <button
+                  key={block}
+                  onClick={() => setActiveAuditBlock(block)}
+                  className={cn(
+                    "shrink-0 px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all",
+                    activeAuditBlock === block
+                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-lg"
+                      : "bg-white dark:bg-slate-900 text-slate-500 border border-slate-100 dark:border-white/5"
+                  )}
+                >
+                  {block}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {isPreDeliveryAudit && (
+            <div className="lg:hidden flex gap-2 mb-4">
+               <button
+                  onClick={() => setPreDeliverySection("general")}
+                  className={cn(
+                    "flex-1 px-4 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all",
+                    preDeliverySection === "general"
+                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-lg"
+                      : "bg-white dark:bg-slate-900 text-slate-500 border border-slate-100 dark:border-white/5"
+                  )}
+                >
+                  General
+                </button>
+                <button
+                  onClick={() => setPreDeliverySection("legajos")}
+                  className={cn(
+                    "flex-1 px-4 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all",
+                    preDeliverySection === "legajos"
+                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-lg"
+                      : "bg-white dark:bg-slate-900 text-slate-500 border border-slate-100 dark:border-white/5"
+                  )}
+                >
+                  Legajos
+                </button>
+            </div>
+          )}
+
           {isPreDeliveryAudit && preDeliverySection === "legajos" && (
             <div className="premium-card p-6 bg-white dark:bg-slate-900 border-white/5 shadow-2xl">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -464,34 +518,54 @@ export function AuditSessionView({
             )}
           </div>
 
-          {isPreDeliveryAudit && (
+          {(isPreDeliveryAudit || availableBlocks.length > 1) && (
             <div className="premium-card p-6 bg-white dark:bg-slate-900 border-white/5 shadow-2xl">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 mb-4 tracking-[0.2em]">Sections</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 mb-4 tracking-[0.2em]">Secciones</p>
               <div className="grid grid-cols-1 gap-2">
-                <button
-                  onClick={() => setPreDeliverySection("general")}
-                  className={cn(
-                    "flex items-center gap-3 p-3.5 rounded-2xl transition-all font-black text-[11px] uppercase tracking-widest",
-                    preDeliverySection === "general" 
-                      ? "bg-[--accent-neon] text-[#050a14] shadow-lg shadow-[--accent-neon-glow]" 
-                      : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
-                  )}
-                >
-                  <FileCheck className="h-4 w-4" />
-                  General
-                </button>
-                <button
-                  onClick={() => setPreDeliverySection("legajos")}
-                  className={cn(
-                    "flex items-center gap-3 p-3.5 rounded-2xl transition-all font-black text-[11px] uppercase tracking-widest",
-                    preDeliverySection === "legajos" 
-                      ? "bg-[--accent-neon] text-[#050a14] shadow-lg shadow-[--accent-neon-glow]" 
-                      : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
-                  )}
-                >
-                  <ChevronDown className="h-4 w-4" />
-                  Legajos
-                </button>
+                {isPreDeliveryAudit ? (
+                  <>
+                    <button
+                      onClick={() => setPreDeliverySection("general")}
+                      className={cn(
+                        "flex items-center gap-3 p-3.5 rounded-2xl transition-all font-black text-[11px] uppercase tracking-widest",
+                        preDeliverySection === "general" 
+                          ? "bg-[--accent-neon] text-[#050a14] shadow-lg shadow-[--accent-neon-glow]" 
+                          : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                      )}
+                    >
+                      <FileCheck className="h-4 w-4" />
+                      General
+                    </button>
+                    <button
+                      onClick={() => setPreDeliverySection("legajos")}
+                      className={cn(
+                        "flex items-center gap-3 p-3.5 rounded-2xl transition-all font-black text-[11px] uppercase tracking-widest",
+                        preDeliverySection === "legajos" 
+                          ? "bg-[--accent-neon] text-[#050a14] shadow-lg shadow-[--accent-neon-glow]" 
+                          : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                      )}
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                      Legajos
+                    </button>
+                  </>
+                ) : (
+                  availableBlocks.map(block => (
+                    <button
+                      key={block}
+                      onClick={() => setActiveAuditBlock(block)}
+                      className={cn(
+                        "flex items-center gap-3 p-3.5 rounded-2xl transition-all font-black text-[11px] uppercase tracking-widest text-left",
+                        activeAuditBlock === block 
+                          ? "bg-[--accent-neon] text-[#050a14] shadow-lg shadow-[--accent-neon-glow]" 
+                          : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                      )}
+                    >
+                      <Layout className="h-4 w-4" />
+                      {block}
+                    </button>
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -521,6 +595,7 @@ export function AuditSessionView({
                   <div className="flex items-center gap-2">
                     <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">
+                      {activeAuditItem?.block && <span className="mr-2 opacity-50">{activeAuditItem.block}</span>}
                       Ítem {activeAuditItemIndex + 1} de {visibleAuditItems.length}
                     </p>
                   </div>
@@ -605,10 +680,6 @@ export function AuditSessionView({
                   </button>
                 </motion.div>
               )}
-            </div>
-          </motion.div>
-        </div>
-      )}
             </div>
           </motion.div>
         </div>

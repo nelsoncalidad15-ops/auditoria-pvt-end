@@ -236,7 +236,7 @@ function AuditItemRowBase({
         </div>
 
         {!quickMode && (
-          <div className="flex flex-col gap-2 shrink-0 self-center md:self-center">
+          <div className="flex flex-col items-center justify-center w-full md:w-auto shrink-0 gap-3">
             {guidance && (
               <button
                 onClick={(e) => { e.stopPropagation(); setShowGuidance(!showGuidance); }}
@@ -248,7 +248,7 @@ function AuditItemRowBase({
                 <HelpCircle className="h-4 w-4" />
               </button>
             )}
-            <div className="flex gap-2">
+            <div className="flex justify-center gap-3 w-full">
               {[
                 { id: "pass", label: "OK", icon: CheckCircle2, bg: "bg-emerald-500", glow: "rgba(16, 185, 129, 0.4)" },
                 { id: "fail", label: "NO", icon: XCircle, bg: "bg-red-500", glow: "rgba(239, 68, 68, 0.4)" },
@@ -264,13 +264,13 @@ function AuditItemRowBase({
                     setTimeout(() => setLastStatusChange(null), 1000);
                   }}
                   className={cn(
-                    "flex flex-col items-center justify-center gap-1 h-16 w-20 md:w-24 rounded-2xl border-2 transition-all active:scale-95 relative overflow-hidden",
+                    "flex flex-col items-center justify-center gap-1 h-20 w-24 md:h-16 md:w-20 rounded-[2rem] border-2 transition-all active:scale-95 relative overflow-hidden",
                     item?.status === btn.id
                       ? `${btn.bg} border-transparent text-white shadow-lg`
-                      : "bg-white dark:bg-slate-900 border-white/5 text-slate-500 hover:border-white/10",
+                      : "bg-white dark:bg-slate-900 border-slate-100 dark:border-white/5 text-slate-500 hover:border-slate-200 dark:hover:border-white/10",
                     btn.id === "na" && !allowsNa && "opacity-20 cursor-not-allowed"
                   )}
-                  style={{ boxShadow: item?.status === btn.id ? `0 10px 20px ${btn.glow}` : 'none' }}
+                  style={{ boxShadow: item?.status === btn.id ? `0 10px 25px ${btn.glow}` : 'none' }}
                 >
                   <AnimatePresence>
                     {lastStatusChange === btn.id && (
@@ -282,7 +282,7 @@ function AuditItemRowBase({
                       />
                     )}
                   </AnimatePresence>
-                  <btn.icon className="h-5 w-5 relative z-10" />
+                  <btn.icon className={cn("h-6 w-6 relative z-10 transition-transform", item?.status === btn.id && "scale-110")} />
                   <span className="text-[10px] font-black uppercase tracking-widest relative z-10">{btn.label}</span>
                 </button>
               ))}

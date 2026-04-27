@@ -1,4 +1,4 @@
-import { AUDIT_QUESTIONS, OR_CHECKLIST_ITEMS, PRE_DELIVERY_CHECKLIST_ITEMS, STAFF, SUBGERENTE_CHECKLIST_ITEMS } from "../constants";
+import { ASESOR_CHECKLIST_ITEMS, AUDIT_QUESTIONS, OR_CHECKLIST_ITEMS, PRE_DELIVERY_CHECKLIST_ITEMS, STAFF, SUBGERENTE_CHECKLIST_ITEMS } from "../constants";
 import { createClientId } from "../lib/utils";
 import { AuditCategory, AuditStructureScope, AuditTemplateItem, ScoreLink } from "../types";
 
@@ -121,6 +121,10 @@ function getCategoryDefaultItems(name: string, questions: string[]): AuditTempla
 
   if (name === "Subgerente de servicio") {
     return buildTemplateItems(name, SUBGERENTE_CHECKLIST_ITEMS);
+  }
+
+  if (name === "Asesores de servicio") {
+    return buildTemplateItems(name, ASESOR_CHECKLIST_ITEMS);
   }
 
   return questions.map((question, index) => ({
