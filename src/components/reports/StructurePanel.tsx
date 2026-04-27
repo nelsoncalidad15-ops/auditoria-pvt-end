@@ -78,6 +78,7 @@ interface StructurePanelProps {
   handleAddItem: () => void;
   handleMoveItem: (itemId: string, direction: "up" | "down") => void;
   lastStructureSavedAt: string | null;
+  hasPendingStructureChanges: boolean;
 }
 
 type TabType = "categories" | "questions" | "matrix";
@@ -112,6 +113,7 @@ export function StructurePanel({
   isSavingStructureToCloud,
   isSavingStructureToSheet,
   isLoadingStructureFromCloud,
+  hasPendingStructureChanges,
   structureStorageLabel
 }: StructurePanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>("categories");
@@ -186,20 +188,31 @@ export function StructurePanel({
 
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
           {/* Sync Buttons */}
-          <div className="flex items-center gap-2 bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-slate-200 dark:border-white/5">
+          <div className="flex items-center gap-2 bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-slate-200 dark:border-white/5 relative">
+            {hasPendingStructureChanges && (
+              <motion.div 
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute -top-1 -right-1 h-4 w-4 bg-amber-500 rounded-full border-2 border-white dark:border-slate-900 z-10 flex items-center justify-center shadow-lg"
+              >
+                <div className="h-1.5 w-1.5 bg-white rounded-full animate-pulse" />
+              </motion.div>
+            )}
             <button 
               onClick={handleSaveStructureToSheet}
               disabled={isSavingStructureToSheet}
               title="Guardar configuración en el Google Sheet"
               className={cn(
                 "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                structureStorageLabel === 'sheet' 
+                structureStorageLabel === 'sheet' && !hasPendingStructureChanges
                   ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20" 
-                  : "bg-white dark:bg-white/10 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20 hover:bg-emerald-50"
+                  : hasPendingStructureChanges 
+                    ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20 animate-pulse"
+                    : "bg-white dark:bg-white/10 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20 hover:bg-emerald-50"
               )}
             >
               <Table className="h-4 w-4" />
-              {isSavingStructureToSheet ? "Enviando..." : "Sincronizar Sheet"}
+              {isSavingStructureToSheet ? "Enviando..." : hasPendingStructureChanges ? "Publicar Cambios" : "Sincronizar Sheet"}
             </button>
             
             <button 

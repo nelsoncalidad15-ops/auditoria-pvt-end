@@ -73,6 +73,7 @@ export function useAuditStructure({
   const [isSavingStructureToSheet, setIsSavingStructureToSheet] = useState(false);
   const [structureStorageLabel, setStructureStorageLabel] = useState<"local" | "cloud" | "sheet">("local");
   const [lastStructureSavedAt, setLastStructureSavedAt] = useState<string | null>(null);
+  const [hasPendingStructureChanges, setHasPendingStructureChanges] = useState(false);
   const [reportFilter, setReportFilter] = useState(createInitialReportFilter);
 
   const auditCategories = auditCategoryScopes[selectedStructureScope] ?? auditCategoryScopes.global;
@@ -119,6 +120,7 @@ export function useAuditStructure({
     }));
     saveAuditCategories(nextCategories, selectedStructureScope);
     setStructureStorageLabel("local");
+    setHasPendingStructureChanges(true);
     setLastStructureSavedAt(new Date().toISOString());
   }, [selectedStructureScope]);
 
@@ -434,6 +436,7 @@ export function useAuditStructure({
     try {
       await saveAuditCategoriesToCloud(auditCategories, selectedStructureScope, userEmail);
       setStructureStorageLabel("cloud");
+      setHasPendingStructureChanges(false);
       alert("Estructura guardada en Firestore.");
     } catch (error) {
       console.error("Save structure to cloud failed:", error);
@@ -458,6 +461,7 @@ export function useAuditStructure({
         updatedByEmail: userEmail ?? "anónimo",
       });
       setStructureStorageLabel("sheet");
+      setHasPendingStructureChanges(false);
       setLastStructureSavedAt(new Date().toISOString());
       alert("Estructura enviada al Sheet correctamente.");
     } catch (error) {
@@ -553,6 +557,7 @@ export function useAuditStructure({
     isLoadingStructureFromCloud,
     isSavingStructureToCloud,
     isSavingStructureToSheet,
+    hasPendingStructureChanges,
     structureStorageLabel,
     lastStructureSavedAt,
     reportFilter,

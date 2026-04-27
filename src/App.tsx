@@ -338,6 +338,7 @@ function AuditApp() {
     handleSaveStructureToCloud,
     handleSaveStructureToSheet,
     isSavingStructureToSheet,
+    hasPendingStructureChanges,
   } = useAuditStructure({
     isAuthReady,
     isCloudStructureAvailable: isFirebaseEnabled,
@@ -1960,6 +1961,7 @@ function AuditApp() {
                   isLoadingStructureFromCloud={isLoadingStructureFromCloud}
                   isSavingStructureToCloud={isSavingStructureToCloud}
                   isSavingStructureToSheet={isSavingStructureToSheet}
+                  hasPendingStructureChanges={hasPendingStructureChanges}
                   handleLoadStructureFromCloud={handleLoadStructureFromCloud}
                   handleSaveStructureToCloud={handleSaveStructureToCloud}
                   handleSaveStructureToSheet={handleSaveStructureToSheet}
