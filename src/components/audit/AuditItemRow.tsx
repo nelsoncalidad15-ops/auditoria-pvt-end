@@ -69,6 +69,8 @@ function AuditItemRowBase({
   description,
   scoreAreas = [],
   allowsNa = true,
+  priority,
+  guidance,
   requiresCommentOnFail = false,
   emphasized = false,
   showStructuredQuestion = false,
