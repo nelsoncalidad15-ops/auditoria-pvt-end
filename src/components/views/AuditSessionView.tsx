@@ -461,63 +461,96 @@ export function AuditSessionView({
         </aside>
       </div>
 
-      {/* Quick Bar Mobile */}
+      {/* Quick Bar Mobile - Premium Controller */}
       {isQuickAuditMode && activeAuditItem && (
-        <div className="fixed inset-x-0 bottom-[1rem] z-40 px-4 lg:hidden safe-area-bottom">
+        <div className="fixed inset-x-0 bottom-4 z-50 px-4 lg:hidden safe-area-bottom">
           <motion.div 
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="mx-auto max-w-lg rounded-[2.5rem] border border-white/10 bg-slate-900/90 p-5 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10"
+            className="mx-auto max-w-lg rounded-[2.5rem] bg-slate-900/95 border border-white/10 shadow-2xl backdrop-blur-xl ring-4 ring-black/20 overflow-hidden"
           >
-            <div className="flex items-start justify-between gap-4 mb-5">
-              <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-blue-400">
-                  Ítem {activeAuditItemIndex + 1}/{visibleAuditItems.length}
-                </p>
-                <p className="mt-1 line-clamp-2 text-sm font-black text-white leading-tight tracking-tight">
-                  {isPreDeliveryAudit && preDeliverySection === "legajos" 
-                    ? formatPreDeliveryLegajoQuestion(activeAuditItem.text) 
-                    : activeAuditItem.text}
-                </p>
-              </div>
-              <span className={cn(
-                "shrink-0 rounded-xl px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] border",
-                activeAuditSessionItem?.status === "pass" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
-                activeAuditSessionItem?.status === "fail" ? "bg-red-500/10 text-red-500 border-red-500/20" :
-                activeAuditSessionItem?.status === "na" ? "bg-slate-500/10 text-slate-400 border-white/10" :
-                "bg-amber-500/10 text-amber-500 border-amber-500/20"
-              )}>
-                {getAuditItemStatusLabel(activeAuditSessionItem?.status)}
-              </span>
+            {/* Progress Micro-bar */}
+            <div className="absolute top-0 left-0 w-full h-1 bg-white/5">
+               <motion.div 
+                 className="h-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                 initial={{ width: 0 }}
+                 animate={{ width: `${(answeredCount / visibleAuditItems.length) * 100}%` }}
+               />
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              <button
-                type="button"
-                onClick={() => toggleItemStatus(activeAuditItem.text, "pass")}
-                className="h-14 rounded-2xl bg-emerald-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
-              >
-                CUMPLE
-              </button>
-              <button
-                type="button"
-                onClick={() => toggleItemStatus(activeAuditItem.text, "fail")}
-                className="h-14 rounded-2xl bg-red-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-red-500/20 active:scale-95 transition-all"
-              >
-                FALLA
-              </button>
-              <button
-                type="button"
-                disabled={activeAuditItem.allowsNa === false}
-                onClick={() => toggleItemStatus(activeAuditItem.text, "na")}
-                className={cn(
-                  "h-14 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 border",
-                  activeAuditItem.allowsNa !== false
-                    ? "bg-white/10 text-white border-white/10"
-                    : "bg-white/5 text-slate-600 border-white/5 cursor-not-allowed"
-                )}
-              >
-                N/A
-              </button>
+
+            <div className="p-5 pt-6">
+              <div className="flex items-start justify-between gap-4 mb-5">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">
+                      Ítem {activeAuditItemIndex + 1} de {visibleAuditItems.length}
+                    </p>
+                  </div>
+                  <p className="mt-1.5 line-clamp-2 text-[13px] font-bold text-white leading-snug tracking-tight">
+                    {isPreDeliveryAudit && preDeliverySection === "legajos" 
+                      ? formatPreDeliveryLegajoQuestion(activeAuditItem.text) 
+                      : activeAuditItem.text}
+                  </p>
+                </div>
+                
+                <div className="flex flex-col items-end gap-1">
+                  <span className={cn(
+                    "shrink-0 rounded-xl px-3 py-1 text-[9px] font-black uppercase tracking-widest border",
+                    activeAuditSessionItem?.status === "pass" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                    activeAuditSessionItem?.status === "fail" ? "bg-red-500/10 text-red-500 border-red-500/20" :
+                    activeAuditSessionItem?.status === "na" ? "bg-slate-500/10 text-slate-400 border-white/10" :
+                    "bg-white/5 text-slate-500 border-white/5"
+                  )}>
+                    {activeAuditSessionItem?.status ? getAuditItemStatusLabel(activeAuditSessionItem.status) : "Pendiente"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => toggleItemStatus(activeAuditItem.text, "pass")}
+                  className={cn(
+                    "h-14 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all active:scale-90 flex flex-col items-center justify-center gap-1",
+                    activeAuditSessionItem?.status === "pass" 
+                      ? "bg-emerald-500 text-white shadow-[0_8px_20px_rgba(16,185,129,0.3)]" 
+                      : "bg-white/5 text-emerald-500 border border-emerald-500/20"
+                  )}
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  CUMPLE
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleItemStatus(activeAuditItem.text, "fail")}
+                  className={cn(
+                    "h-14 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all active:scale-90 flex flex-col items-center justify-center gap-1",
+                    activeAuditSessionItem?.status === "fail" 
+                      ? "bg-red-500 text-white shadow-[0_8px_20px_rgba(239,68,68,0.3)]" 
+                      : "bg-white/5 text-red-500 border border-red-500/20"
+                  )}
+                >
+                  <XCircle className="h-4 w-4" />
+                  FALLA
+                </button>
+                <button
+                  type="button"
+                  disabled={activeAuditItem.allowsNa === false}
+                  onClick={() => toggleItemStatus(activeAuditItem.text, "na")}
+                  className={cn(
+                    "h-14 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all active:scale-90 border flex flex-col items-center justify-center gap-1",
+                    activeAuditSessionItem?.status === "na"
+                      ? "bg-slate-700 text-white border-white/20"
+                      : activeAuditItem.allowsNa !== false
+                        ? "bg-white/5 text-slate-400 border-white/5"
+                        : "bg-white/5 text-slate-700 border-white/5 opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  <MinusCircle className="h-4 w-4" />
+                  N/A
+                </button>
+              </div>
             </div>
           </motion.div>
         </div>

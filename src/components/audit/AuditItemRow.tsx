@@ -234,81 +234,85 @@ function AuditItemRowBase({
           )}
         </div>
 
-        <div className="flex flex-col gap-2 shrink-0 self-end md:self-center">
-          {guidance && (
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowGuidance(!showGuidance); }}
-              className={cn(
-                "hidden md:flex items-center justify-center h-8 w-8 rounded-full transition-all",
-                showGuidance ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-              )}
-            >
-              <HelpCircle className="h-4 w-4" />
-            </button>
-          )}
-          <div className="flex gap-2">
-            {[
-              { id: "pass", label: "OK", icon: CheckCircle2, bg: "bg-emerald-500", glow: "rgba(16, 185, 129, 0.4)" },
-              { id: "fail", label: "NO", icon: XCircle, bg: "bg-red-500", glow: "rgba(239, 68, 68, 0.4)" },
-              { id: "na", label: "N/A", icon: MinusCircle, bg: "bg-slate-500", glow: "rgba(100, 116, 139, 0.4)" },
-            ].map((btn) => (
+        {!quickMode && (
+          <div className="flex flex-col gap-2 shrink-0 self-end md:self-center">
+            {guidance && (
               <button
-                key={btn.id}
-                disabled={btn.id === "na" && !allowsNa}
-                onClick={(e) => { 
-                  e.stopPropagation(); 
-                  onStatusToggle(btn.id as any);
-                  setLastStatusChange(btn.id);
-                  setTimeout(() => setLastStatusChange(null), 1000);
-                }}
+                onClick={(e) => { e.stopPropagation(); setShowGuidance(!showGuidance); }}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1.5 h-14 w-16 md:w-20 rounded-2xl border-2 transition-all active:scale-95 relative overflow-hidden",
-                  item?.status === btn.id
-                    ? `${btn.bg} border-transparent text-white shadow-lg`
-                    : "bg-white dark:bg-slate-900 border-white/5 text-slate-500 hover:border-white/10",
-                  btn.id === "na" && !allowsNa && "opacity-20 cursor-not-allowed"
+                  "hidden md:flex items-center justify-center h-8 w-8 rounded-full transition-all",
+                  showGuidance ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                 )}
-                style={{ boxShadow: item?.status === btn.id ? `0 10px 20px ${btn.glow}` : 'none' }}
               >
-                <AnimatePresence>
-                  {lastStatusChange === btn.id && (
-                    <motion.div
-                      initial={{ scale: 0, opacity: 1 }}
-                      animate={{ scale: 3, opacity: 0 }}
-                      exit={{ opacity: 0 }}
-                      className="absolute inset-0 bg-white/40 rounded-full"
-                    />
-                  )}
-                </AnimatePresence>
-                <btn.icon className="h-4 w-4 relative z-10" />
-                <span className="text-[9px] font-black uppercase tracking-widest relative z-10">{btn.label}</span>
+                <HelpCircle className="h-4 w-4" />
               </button>
-            ))}
+            )}
+            <div className="flex gap-2">
+              {[
+                { id: "pass", label: "OK", icon: CheckCircle2, bg: "bg-emerald-500", glow: "rgba(16, 185, 129, 0.4)" },
+                { id: "fail", label: "NO", icon: XCircle, bg: "bg-red-500", glow: "rgba(239, 68, 68, 0.4)" },
+                { id: "na", label: "N/A", icon: MinusCircle, bg: "bg-slate-500", glow: "rgba(100, 116, 139, 0.4)" },
+              ].map((btn) => (
+                <button
+                  key={btn.id}
+                  disabled={btn.id === "na" && !allowsNa}
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    onStatusToggle(btn.id as any);
+                    setLastStatusChange(btn.id);
+                    setTimeout(() => setLastStatusChange(null), 1000);
+                  }}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1.5 h-14 w-16 md:w-20 rounded-2xl border-2 transition-all active:scale-95 relative overflow-hidden",
+                    item?.status === btn.id
+                      ? `${btn.bg} border-transparent text-white shadow-lg`
+                      : "bg-white dark:bg-slate-900 border-white/5 text-slate-500 hover:border-white/10",
+                    btn.id === "na" && !allowsNa && "opacity-20 cursor-not-allowed"
+                  )}
+                  style={{ boxShadow: item?.status === btn.id ? `0 10px 20px ${btn.glow}` : 'none' }}
+                >
+                  <AnimatePresence>
+                    {lastStatusChange === btn.id && (
+                      <motion.div
+                        initial={{ scale: 0, opacity: 1 }}
+                        animate={{ scale: 3, opacity: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 bg-white/40 rounded-full"
+                      />
+                    )}
+                  </AnimatePresence>
+                  <btn.icon className="h-4 w-4 relative z-10" />
+                  <span className="text-[9px] font-black uppercase tracking-widest relative z-10">{btn.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      <div className="flex gap-2">
+      <div className={cn("flex gap-2", quickMode && "md:w-1/3 ml-auto")}>
         <button
           onClick={(e) => { e.stopPropagation(); setShowComment(!showComment); }}
           className={cn(
-            "flex-1 h-12 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all",
-            showComment || hasComment ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900" : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+            "flex-1 h-12 md:h-10 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all",
+            showComment || hasComment ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900" : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700"
           )}
         >
           <History className="h-4 w-4" />
-          {hasComment ? "Nota" : "Añadir nota"}
+          <span className="hidden sm:inline">{hasComment ? "Ver Nota" : "Añadir Nota"}</span>
+          <span className="sm:hidden">{hasComment ? "Nota" : "Nota"}</span>
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
           disabled={isProcessingPhoto}
           className={cn(
-            "flex-1 h-12 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500",
-            hasPhoto && "text-blue-600 dark:text-blue-400"
+            "flex-1 h-12 md:h-10 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700",
+            hasPhoto && "text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20"
           )}
         >
           <Camera className="h-4 w-4" />
-          {isProcessingPhoto ? "Procesando..." : hasPhoto ? "Foto lista" : "Foto"}
+          <span className="hidden sm:inline">{isProcessingPhoto ? "Procesando..." : hasPhoto ? "Foto lista" : "Añadir Foto"}</span>
+          <span className="sm:hidden">{isProcessingPhoto ? "..." : "Foto"}</span>
         </button>
       </div>
 
