@@ -487,7 +487,8 @@ export function StructurePanel({
                    <div className="space-y-1">
                       <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Matriz de Vínculos de Calidad</h4>
                       <p className="text-xs font-medium text-slate-500">
-                        Defina cómo el resultado de un área impacta automáticamente en otra (vínculos en cascada).
+                        Defina cómo el resultado de un área impacta automáticamente en otra. 
+                        <span className="text-blue-500 font-bold ml-1">Esta configuración se guarda en la Nube (Firestore) al sincronizar.</span>
                       </p>
                    </div>
                    
@@ -518,17 +519,19 @@ export function StructurePanel({
                    </div>
                 </div>
 
-                <div className="overflow-x-auto border border-slate-100 dark:border-white/5 rounded-2xl">
+                <div className="overflow-x-auto border border-slate-100 dark:border-white/5 rounded-2xl custom-scrollbar">
                   {sourceMatrixItems.length > 0 && targetMatrixItems.length > 0 ? (
                     <table className="w-full border-collapse">
                        <thead>
                           <tr className="bg-slate-50 dark:bg-white/5 border-b border-slate-100 dark:border-white/5">
-                             <th className="p-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-1/3">Origen \ Destino</th>
+                             <th className="p-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest min-w-[300px]">Origen \ Destino</th>
                              {targetMatrixItems.map((item, i) => (
-                               <th key={item.id} className="p-4 text-center">
-                                  <div className="flex flex-col items-center gap-1">
-                                     <span className="h-6 w-6 rounded-full bg-slate-900 dark:bg-blue-600 text-[10px] font-black text-white flex items-center justify-center">{i+1}</span>
-                                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter truncate max-w-[80px]">{item.text}</span>
+                               <th key={item.id} className="p-4 text-center min-w-[160px]">
+                                  <div className="flex flex-col items-center gap-2">
+                                     <span className="h-7 w-7 rounded-full bg-slate-900 dark:bg-blue-600 text-[10px] font-black text-white flex items-center justify-center shadow-lg">{i+1}</span>
+                                     <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tight leading-tight max-w-[140px] break-words">
+                                       {item.text}
+                                     </span>
                                   </div>
                                </th>
                              ))}
@@ -540,20 +543,20 @@ export function StructurePanel({
                                <td className="p-4">
                                   <div className="flex items-start gap-3">
                                      <span className="text-[10px] font-black text-slate-300 mt-0.5">{(r+1).toString().padStart(2, '0')}</span>
-                                     <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 leading-tight">{source.text}</p>
+                                     <p className="text-xs font-bold text-slate-700 dark:text-slate-300 leading-snug">{source.text}</p>
                                   </div>
                                </td>
                                {targetMatrixItems.map(target => {
                                   const isLinked = source.scoreLinks?.some(l => l.area === selectedTargetAreaName && l.destinationItemId === target.id);
                                   return (
-                                    <td key={target.id} className="p-2 text-center">
+                                    <td key={target.id} className="p-4 text-center">
                                        <button 
                                          onClick={() => toggleMatrixCell(source.id, target.id)}
                                          className={cn(
-                                           "h-10 w-10 rounded-xl border transition-all flex items-center justify-center text-xs",
+                                           "h-12 w-12 mx-auto rounded-2xl border transition-all flex items-center justify-center text-xs",
                                            isLinked 
                                             ? "bg-emerald-500 border-emerald-400 text-white shadow-lg shadow-emerald-500/20" 
-                                            : "bg-white dark:bg-white/5 border-slate-200 dark:border-white/5 text-slate-300 hover:border-emerald-500/50"
+                                            : "bg-white dark:bg-white/5 border-slate-200 dark:border-white/5 text-slate-300 hover:border-emerald-500/50 hover:text-emerald-500"
                                          )}
                                        >
                                           {isLinked ? "✓" : "·"}
