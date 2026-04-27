@@ -291,6 +291,43 @@ export function AuditSessionView({
                 />
               </div>
             </div>
+
+            {/* Submit Actions for Mobile - Only visible when not in LG screen */}
+            <div className="mt-8 space-y-4 lg:hidden">
+              <button
+                onClick={() => handleAuditSubmit("finish")}
+                disabled={isSubmitDisabled}
+                className={cn(
+                  "w-full h-16 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl relative overflow-hidden",
+                  !isSubmitDisabled
+                    ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed opacity-50"
+                )}
+              >
+                {isSendingToSheet ? (
+                  <div className="w-5 h-5 border-2 border-current/30 border-t-current rounded-full animate-spin" />
+                ) : (
+                  <Save className="h-5 w-5" />
+                )}
+                <span>{isSendingToSheet ? "PROCESANDO..." : "FINALIZAR AUDITORÍA"}</span>
+              </button>
+
+              {(isOrdersAudit || isServiceAdvisorAudit || isTechnicianAudit) && (
+                <button
+                  onClick={() => handleAuditSubmit("continue")}
+                  disabled={isSubmitDisabled}
+                  className={cn(
+                    "w-full h-14 rounded-[1.5rem] font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 border transition-all active:scale-95",
+                    !isSubmitDisabled
+                      ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white border-slate-200 dark:border-white/10"
+                      : "bg-transparent text-slate-400 border-slate-100 dark:border-white/5 cursor-not-allowed"
+                  )}
+                >
+                  <Save className="h-4 w-4" />
+                  {isServiceAdvisorAudit ? "PRÓXIMO CLIENTE" : isTechnicianAudit ? "PRÓXIMO TÉCNICO" : "PRÓXIMA ORDEN"}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -551,6 +588,27 @@ export function AuditSessionView({
                   N/A
                 </button>
               </div>
+
+              {/* Botón de Finalizar Rápido en Mobile */}
+              {answeredItemsCount === totalItemsCount && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  className="mt-4 pt-4 border-t border-white/10"
+                >
+                  <button
+                    onClick={() => handleAuditSubmit("finish")}
+                    disabled={isSubmitDisabled}
+                    className="w-full h-12 rounded-xl bg-blue-600 text-white font-black text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+                  >
+                    {isSendingToSheet ? "PROCESANDO..." : "FINALIZAR AHORA"}
+                  </button>
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
             </div>
           </motion.div>
         </div>
