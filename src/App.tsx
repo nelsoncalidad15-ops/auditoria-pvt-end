@@ -1138,11 +1138,12 @@ function AuditApp() {
 
   const handleDeleteAudit = React.useCallback((auditId: string) => {
     removeDraftAudit(auditId);
+    removeLocalAuditHistoryItem(auditId);
     setCompletedAuditReports((current) =>
       current.filter((report) => report.session.id !== auditId)
     );
     setDeleteConfirmModal({ show: false, auditId: "", auditName: "" });
-  }, [removeDraftAudit]);
+  }, [removeDraftAudit, removeLocalAuditHistoryItem]);
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingOrdersSubmitMode, setPendingOrdersSubmitMode] = useState<OrdersSubmitMode>("finish");
@@ -2079,6 +2080,7 @@ function AuditApp() {
                   onSelectAudit={setSelectedAudit}
                   onExportCsv={exportToCSV}
                   onSyncData={syncData}
+                  onDeleteAudit={(audit) => setDeleteConfirmModal({ show: true, auditId: audit.id, auditName: audit.auditBatchName || audit.staffName || "Auditoria sin nombre" })}
                   isSyncing={isSyncing}
                   isHistorySyncConfigured={isHistorySyncConfigured}
                   isUsingExternalHistory={isUsingExternalHistory}

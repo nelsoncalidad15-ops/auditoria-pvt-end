@@ -223,6 +223,7 @@ export function useAuditSync({ isAuthReady, user, hasWebhookUrl, webhookUrl, has
     isUsingExternalHistory,
     historySyncModeLabel,
     upsertLocalAuditHistory,
+    removeLocalAuditHistoryItem,
     refreshExternalHistory,
     prependExternalAudit,
     saveToFirestore,

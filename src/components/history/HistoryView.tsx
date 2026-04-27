@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { AlertCircle, ArrowLeft, ChevronRight, ClipboardList, Clock, FileText, History, Save, Search, TrendingUp } from "lucide-react";
+import { AlertCircle, ArrowLeft, ChevronRight, ClipboardList, Clock, FileText, History, Save, Search, TrendingUp, Trash2 } from "lucide-react";
 
 import { cn } from "../../lib/utils";
 import { AuditSession, HistoryPanel } from "../../types";
@@ -56,6 +56,7 @@ export const HistoryView = memo(function HistoryView({
   onSelectAudit,
   onExportCsv,
   onSyncData,
+  onDeleteAudit,
   isSyncing,
   isHistorySyncConfigured,
   isUsingExternalHistory,
@@ -194,7 +195,24 @@ export const HistoryView = memo(function HistoryView({
                           </p>
                         </div>
                       </div>
-                      <ChevronRight className={cn("h-5 w-5 transition-transform group-hover:translate-x-1", selectedHistoryAudit?.id === item.id ? "text-white dark:text-slate-900" : "text-slate-300")} />
+                      <div className="flex items-center gap-3 shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteAudit(item);
+                          }}
+                          className={cn(
+                            "h-9 w-9 rounded-xl flex items-center justify-center transition-all active:scale-90",
+                            selectedHistoryAudit?.id === item.id 
+                              ? "bg-white/10 text-white hover:bg-white/20" 
+                              : "bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white"
+                          )}
+                          title="Eliminar registro"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                        <ChevronRight className={cn("h-5 w-5 transition-transform group-hover:translate-x-1", selectedHistoryAudit?.id === item.id ? "text-white dark:text-slate-900" : "text-slate-300")} />
+                      </div>
                     </div>
                     <div className={cn(
                       "mt-4 pt-4 border-t flex items-center justify-between",
