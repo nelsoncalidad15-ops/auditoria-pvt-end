@@ -773,7 +773,7 @@ export const PRE_DELIVERY_CHECKLIST_ITEMS: AuditTemplateItem[] = [
   },
   {
     id: "pre-entrega-38",
-    text: "38. Circulacion vehicular dentro del CE a 10 km/h con balizas encendidas.",
+    text: "38. Circulacion vehicular dentro del CE a 10 km/h with balizas encendidas.",
     description: "Se promediara con el resultado del tecnico PDI.",
     required: true,
     block: "Seguridad y ambiente / promedio con tecnico PDI",
@@ -796,11 +796,177 @@ export const PRE_DELIVERY_CHECKLIST_ITEMS: AuditTemplateItem[] = [
   },
 ];
 
+export const SUBGERENTE_CHECKLIST_ITEMS: AuditTemplateItem[] = [
+  {
+    id: "subgerente-01",
+    text: "1. ¿Realiza auditorias de ordenes semanales? Se verifica cumplimiento de llenado de OR y Check de Elsa.",
+    block: "Gestión de Servicio",
+    priority: "high",
+    allowsNa: false,
+    weight: 1,
+    order: 1,
+    active: true,
+  },
+  {
+    id: "subgerente-02",
+    text: "2. Gestiona la respuesta inmediata a los reclamos/ seguimientos de clientes",
+    block: "Gestión de Servicio",
+    priority: "high",
+    allowsNa: false,
+    weight: 1,
+    order: 2,
+    active: true,
+  },
+  {
+    id: "subgerente-03",
+    text: "3. Se formula planes de acción y se realiza seguimiento de los distintos programas de VW (TdT, Mystery call, CEM, Auditorías de Proceso, Q Checks y seguimiento de acciones (N-1) ) y su eficiencia.",
+    block: "Programas VW",
+    priority: "medium",
+    allowsNa: true,
+    weight: 1,
+    order: 3,
+    active: true,
+  },
+  {
+    id: "subgerente-04",
+    text: "4. Orden y limpieza de puestos trabajo (sala de asesores). Carteleria oferta del servicio de recogida y entrega o de transporte alternativo en cada escritorio, App mi VW (Auditable y medible)",
+    block: "Infraestructura y Procesos",
+    priority: "medium",
+    allowsNa: false,
+    weight: 1,
+    order: 4,
+    active: true,
+  },
+  {
+    id: "subgerente-05",
+    text: "5. Realiza devolución de indicadores (Tableros) al cierre de cada mes? Ver registro con firma de asesores.",
+    block: "Gestión de Equipo",
+    priority: "medium",
+    allowsNa: false,
+    weight: 1,
+    order: 5,
+    active: true,
+  },
+  {
+    id: "subgerente-06",
+    text: "6. Cantidad de Q Check (cumplimiento de cantidad y calidad según portal)",
+    block: "Calidad",
+    priority: "high",
+    allowsNa: true,
+    weight: 1,
+    order: 6,
+    active: true,
+  },
+  {
+    id: "subgerente-07",
+    text: "7. Controla el funcionamiento de los Tv´s. Como medio de comunicación hacia los clientes",
+    block: "Instalaciones",
+    priority: "low",
+    allowsNa: true,
+    weight: 1,
+    order: 7,
+    active: true,
+  },
+  {
+    id: "subgerente-08",
+    text: "8. Trabajo de 3°: Formularios completos y adjuntos a la OR.",
+    block: "Gestión Documental",
+    priority: "medium",
+    allowsNa: true,
+    weight: 1,
+    order: 8,
+    active: true,
+  },
+  {
+    id: "subgerente-09",
+    text: "9. Se verifica cumplimiento de Plan de Mantenimiento Digital (Linked: Creación del Comprobante de servicio DSP)",
+    block: "Procesos",
+    priority: "high",
+    allowsNa: false,
+    weight: 1,
+    order: 9,
+    active: true,
+    scoreLinks: [{ area: "Ordenes", weight: 100, destinationItemText: "10. Creación del Comprobante de servicio DSP" }]
+  },
+  {
+    id: "subgerente-10",
+    text: "10. Factura Impresa (VER lo solicitado por TdT sin vehículo preparado) ¿La factura contiene los detalles requeridos? (Datos del cliente, repuestos, mano de obra, precio y cantidad, VIN y número de OR). Debe contener claramente identificado precios y trabajos realizados.",
+    block: "Facturación",
+    priority: "medium",
+    allowsNa: false,
+    weight: 1,
+    order: 10,
+    active: true,
+  },
+  {
+    id: "subgerente-11",
+    text: "11. Se verifica Vehiculo de Sustitución. Funcionalidad correcta y seguridad adecuada para el uso, Niveles de líquidos(refrigerante, limpiaparabrisas, aceite...), Sin suciedad, Sin desperfectos",
+    block: "Servicios al Cliente",
+    priority: "medium",
+    allowsNa: true,
+    weight: 1,
+    order: 11,
+    active: true,
+  },
+  {
+    id: "subgerente-12",
+    text: "12. Matafuegos en condiciones óptimas (controlar vencimiento, manómetro indicando presión correcta (verde) sin interrupciones en el paso, de fácil alcance, bien señalizado)",
+    block: "Seguridad y Ambiente",
+    priority: "high",
+    allowsNa: false,
+    weight: 1,
+    order: 12,
+    active: true,
+  },
+  {
+    id: "subgerente-13",
+    text: "13. Nichos hidrantes en condiciones óptimas (señalizado, de fácil acceso, mangueras ordenadas, conectadas a la toma de agua, con lanza presente y llave o martillo para abrir y/o romper el vidrio en caso de emergencia) *Auditable-No Medible",
+    block: "Seguridad y Ambiente",
+    priority: "medium",
+    allowsNa: true,
+    weight: 1,
+    order: 13,
+    active: true,
+  },
+  {
+    id: "subgerente-14",
+    text: "14. Clasificación correcta de residuos (Promedio de Asesores)",
+    block: "Seguridad y Ambiente",
+    priority: "medium",
+    allowsNa: false,
+    weight: 1,
+    order: 14,
+    active: true,
+    scoreLinks: [{ area: "Asesores de servicio", weight: 100, destinationItemText: "¿Se clasifican correctamente los residuos?" }]
+  },
+  {
+    id: "subgerente-15",
+    text: "15. Botiquín: Se debe contar con botiquín de fácil acceso. Se controlarán fechas de vencimiento e inventario.",
+    block: "Seguridad y Ambiente",
+    priority: "medium",
+    allowsNa: false,
+    weight: 1,
+    order: 15,
+    active: true,
+  },
+  {
+    id: "subgerente-16",
+    text: "16. Circulación vehicular dentro del CE (Promedio de Asesores)",
+    block: "Seguridad y Ambiente",
+    priority: "high",
+    allowsNa: false,
+    weight: 1,
+    order: 16,
+    active: true,
+    scoreLinks: [{ area: "Asesores de servicio", weight: 100, destinationItemText: "¿Se circula con el vehículo dentro del CE a 10km/h con balizas?" }]
+  },
+];
+
 export const STAFF: Record<Role, string[]> = {
   "Asesores de servicio": ["Mauro Gutierrez", "Cristian Cardozo", "Carlos Farina"],
   "Asesores de cita": ["Pablo Guantay"],
   "Técnicos": ["J. Araya", "N. Poclava", "R. Garcia", "P. Fernandez", "E. Cruz", "I. Alanoca"],
-  "Subgerente de servicio": ["Subgerente 1"],
+  "Subgerente de servicio": ["Nelson Notario"],
   "Jefe de Taller": ["Marcelo Pereyra"],
   "Garantía": ["Garantía 1"],
   "Repuestos": ["Repuestos 1"],
@@ -842,7 +1008,8 @@ export const AUDIT_QUESTIONS: Record<Role, string[]> = {
     "¿Se informa al cliente sobre la app Mi VW y sus beneficios?",
     "¿Se circula con el vehículo dentro del CE a 10km/h con balizas?",
     "¿Se gestionaron reclamos con solución, causa raíz y acciones (5 porqués)?",
-    "¿Se respondió el reclamo dentro de las 48hs de su recepción?"
+    "¿Se respondió el reclamo dentro de las 48hs de su recepción?",
+    "¿Se clasifican correctamente los residuos?"
   ],
   "Asesores de cita": [
     "¿Se confirmó la cita con 24hs de antelación?",
@@ -869,11 +1036,7 @@ export const AUDIT_QUESTIONS: Record<Role, string[]> = {
     "Circulación vehicular dentro del CE a 10km/h con balizas encendidas."
   ],
   "Subgerente de servicio": [
-    "¿Se supervis? el cumplimiento de los procesos de recepción y entrega?",
-    "¿Se verificó la correcta carga de datos en SIAC y ElsaPro?",
-    "¿Se atendieron reclamos de clientes en tiempo y forma (48hs)?",
-    "¿Se controló la calidad de las reparaciones y el orden del taller",
-    "¿Se verificó la firma de conformidad de los clientes en las OR?"
+    ...SUBGERENTE_CHECKLIST_ITEMS.map((item) => item.text)
   ],
   "Jefe de Taller": [
     "Verifica la utilización de los protectores para vehículos en taller.",
@@ -999,9 +1162,3 @@ export const AUDIT_QUESTIONS: Record<Role, string[]> = {
     "28. Lavador (Checklist): Coloca tildes en check list (lavado)."
   ],
 };
-
-
-
-
-
-
