@@ -3,15 +3,11 @@ import {
   ArrowRight, 
   ClipboardCheck, 
   History as HistoryIcon, 
-  Settings2, 
+  Settings2,
+  FileText 
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { AuditSession } from "../../types";
-import { 
-  ResponsiveContainer, 
-  AreaChart, 
-  Area 
-} from "recharts";
 
 interface CommandCenterViewProps {
   history: AuditSession[];
@@ -28,11 +24,6 @@ export function CommandCenterView({
 }: CommandCenterViewProps) {
   // Derive average compliance
   const avgCompliance = Math.round(history.reduce((acc, s) => acc + s.totalScore, 0) / (history.length || 1));
-
-  // Derive trend data for sparklines
-  const trendData = history.slice(-10).map((s) => ({
-    score: s.totalScore
-  }));
 
   return (
     <div className="space-y-8 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-1000">
@@ -51,151 +42,155 @@ export function CommandCenterView({
               {new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
             </p>
             <div className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-white/5 border border-white/10 text-blue-500">
-                  <Activity className="h-5 w-5" />
-                </div>
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-300">QUALITY</h3>
-              </div>
-              <div className="px-2 py-1 rounded bg-blue-500/10 border border-blue-500/20 text-blue-500 text-[9px] font-black uppercase tracking-widest animate-pulse">
-                LIVE
-              </div>
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400/80">Live Sync Active</span>
             </div>
-            
-            <div className="flex items-end justify-between gap-4 mb-8">
-              <div className="h-[60px] flex-1">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={trendData}>
-                    <Area type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={3} fill="#3b82f6" fillOpacity={0.1} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="text-right">
-                <p className="text-3xl font-black text-white tracking-tighter">{avgCompliance}%</p>
-              </div>
-            </div>
-            
-            <button onClick={onOpenHistory} className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-blue-500 hover:text-[#050a14] hover:border-blue-500 transition-all">
-              DETAILS
-            </button>
-          </div>
-
-          {/* Module 2: Field Audits */}
-          <div className="glass-container p-6 relative overflow-hidden group">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-white/5 border border-white/10 text-blue-400">
-                  <ClipboardCheck className="h-5 w-5" />
-                </div>
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-300">AUDITS</h3>
-              </div>
-              <Settings2 className="h-4 w-4 text-slate-600" />
-            </div>
-
-            <div className="space-y-4 mb-8">
-              <div className="space-y-2">
-                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-500">
-                  <span>Active</span>
-                  <span>{history.length}</span>
-                </div>
-                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-500 rounded-full" style={{ width: '65%' }} />
-                </div>
-              </div>
-            </div>
-            
-            <button onClick={onStartAudit} className="w-full py-3 rounded-xl bg-blue-500 text-[#050a14] font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 hover:scale-[1.02] active:scale-95 transition-all">
-              ACCESS
-            </button>
-          </div>
-
-          {/* Module 3: Historical Reports */}
-          <div className="glass-container p-6 relative overflow-hidden group">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-white/5 border border-white/10 text-purple-400">
-                  <HistoryIcon className="h-5 w-5" />
-                </div>
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-300">REPORTS</h3>
-              </div>
-            </div>
-
-            <div className="flex gap-4 mb-8">
-               <div className="p-3 rounded-2xl bg-white/5 border border-white/10 flex-1">
-                 <p className="text-2xl font-black text-white">{history.length}</p>
-                 <p className="text-[9px] font-bold text-slate-500 uppercase mt-1">Total</p>
-               </div>
-               <div className="p-3 rounded-2xl bg-white/5 border border-white/10 flex-1">
-                 <p className="text-2xl font-black text-white">{history.filter(s => s.totalScore < 70).length}</p>
-                 <p className="text-[9px] font-bold text-slate-500 uppercase mt-1">Issues</p>
-               </div>
-            </div>
-            
-            <button onClick={onOpenHistory} className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-white/10 transition-all">
-              HISTORY
-            </button>
-          </div>
-
-          {/* Module 4: System Configuration */}
-          <div className="glass-container p-6 relative overflow-hidden group">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-white/5 border border-white/10 text-emerald-400">
-                  <Settings2 className="h-5 w-5" />
-                </div>
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-300">SETUP</h3>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-6 mb-8">
-              <div className="relative h-16 w-16">
-                <svg className="h-full w-full" viewBox="0 0 36 36">
-                  <path className="text-white/5" strokeDasharray="100, 100" stroke="currentColor" strokeWidth="3" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                  <path className="text-emerald-500" strokeDasharray="85, 100" stroke="currentColor" strokeWidth="3" strokeLinecap="round" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-white">READY</div>
-              </div>
-            </div>
-            
-            <button onClick={onOpenStructure} className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-white/10 transition-all">
-              CONFIG
-            </button>
           </div>
         </div>
+        
+        <div className="flex items-center gap-3 bg-white dark:bg-white/5 p-2 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm">
+           <div className="px-4 py-2 border-r border-slate-100 dark:border-white/5">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Auditorías Hoy</p>
+              <p className="text-lg font-black text-slate-900 dark:text-white">{history.length}</p>
+           </div>
+           <div className="px-4 py-2">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Calidad Promedio</p>
+              <p className="text-lg font-black text-emerald-600">{avgCompliance}%</p>
+           </div>
+        </div>
+      </div>
 
-        {/* Activity Sidebar */}
-        <div className="glass-container p-6 flex flex-col h-full bg-white/[0.01]">
-          <div className="flex items-center justify-between mb-6">
-             <div className="flex items-center gap-2">
-               <div className="h-2 w-2 rounded-full bg-blue-500 neon-glow" />
-               <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">ACTIVITY LOG</h3>
+      {/* Main Grid Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* Left Column: Core Controls */}
+        <div className="lg:col-span-8 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Quick Access: Quality */}
+            <div className="premium-card group bg-white dark:bg-slate-900 border-white/5 p-6 hover:border-blue-500/50 transition-all shadow-xl">
+              <div className="flex items-start justify-between mb-8">
+                <div className="h-12 w-12 rounded-2xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                  <Activity className="h-6 w-6" />
+                </div>
+                <div className="px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-500/10 text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Live Status</div>
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Indicador de Calidad</p>
+              <h4 className="text-4xl font-black text-slate-900 dark:text-white mb-6">{avgCompliance}<span className="text-lg text-slate-400 font-bold">%</span></h4>
+              <button 
+                onClick={onOpenHistory}
+                className="w-full py-4 rounded-[1.25rem] bg-slate-50 dark:bg-white/5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 dark:text-slate-400 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 transition-all"
+              >
+                Ver Detalles
+              </button>
+            </div>
+
+            {/* Quick Access: Active Audits */}
+            <div className="premium-card group bg-white dark:bg-slate-900 border-white/5 p-6 hover:border-blue-500/50 transition-all shadow-xl">
+              <div className="flex items-start justify-between mb-8">
+                <div className="h-12 w-12 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                  <ClipboardCheck className="h-6 w-6" />
+                </div>
+                <button className="h-8 w-8 rounded-xl bg-slate-50 dark:bg-white/5 flex items-center justify-center text-slate-400 hover:text-blue-500 transition-colors">
+                   <Settings2 className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Auditorías en Curso</p>
+              <div className="flex items-end justify-between mb-6">
+                <h4 className="text-4xl font-black text-slate-900 dark:text-white">00</h4>
+                <div className="h-2 w-24 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden mb-2">
+                   <div className="h-full w-0 bg-emerald-500" />
+                </div>
+              </div>
+              <button 
+                onClick={onStartAudit}
+                className="w-full py-4 rounded-[1.25rem] bg-blue-600 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-blue-500/20 hover:scale-[1.02] active:scale-95 transition-all"
+              >
+                Acceso Rápido
+              </button>
+            </div>
+          </div>
+
+          {/* Secondary Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div className="premium-card bg-white dark:bg-slate-900 border-white/5 p-6 shadow-xl">
+                <div className="flex items-center gap-4 mb-6">
+                   <div className="h-10 w-10 rounded-xl bg-purple-50 dark:bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                      <FileText className="h-5 w-5" />
+                   </div>
+                   <h5 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Reportes Mensuales</h5>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                   <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Emitidos</p>
+                      <p className="text-xl font-black text-slate-900 dark:text-white">{history.length}</p>
+                   </div>
+                   <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Críticos</p>
+                      <p className="text-xl font-black text-red-500">{history.filter(s => s.totalScore < 70).length}</p>
+                   </div>
+                </div>
+             </div>
+
+             <div className="premium-card bg-white dark:bg-slate-900 border-white/5 p-6 shadow-xl">
+                <div className="flex items-center gap-4 mb-6">
+                   <div className="h-10 w-10 rounded-xl bg-cyan-50 dark:bg-cyan-500/10 flex items-center justify-center text-cyan-600 dark:text-cyan-400">
+                      <Settings2 className="h-5 w-5" />
+                   </div>
+                   <h5 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">System Config</h5>
+                </div>
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
+                   <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[10px] font-black text-center">READY</div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">Cloud Sync OK</p>
+                   </div>
+                   <button 
+                    onClick={onOpenStructure}
+                    className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-500"
+                   >
+                    Config
+                   </button>
+                </div>
              </div>
           </div>
-          
-          <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-            {history.slice(0, 8).map((item) => (
-              <div key={item.id} className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between group cursor-pointer hover:bg-white/5 transition-all">
-                <div className="flex items-center gap-3">
-                  <div className={cn(
-                    "h-9 w-9 rounded-lg flex items-center justify-center text-[10px] font-black border",
-                    item.totalScore >= 90 ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border-red-500/20 text-red-400"
-                  )}>
-                    {item.totalScore}%
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-black text-white truncate">{item.location}</p>
-                    <p className="text-[9px] font-bold text-slate-500 uppercase mt-0.5">{item.date}</p>
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-slate-700 group-hover:text-blue-500 transition-colors" />
-              </div>
-            ))}
-          </div>
-          
-          <button onClick={onOpenHistory} className="mt-6 w-full py-3 rounded-xl border border-white/5 bg-white/5 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors">
-            FULL LOGS
-          </button>
         </div>
+
+        {/* Right Column: Activity / Logs */}
+        <div className="lg:col-span-4">
+          <div className="premium-card bg-white dark:bg-slate-900 border-white/5 h-full flex flex-col shadow-xl">
+            <div className="p-6 border-b border-slate-100 dark:border-white/5">
+               <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                     <div className="h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                     <h5 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white">Activity Log</h5>
+                  </div>
+                  <button onClick={onOpenHistory} className="text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-blue-500">Full Logs</button>
+               </div>
+            </div>
+            <div className="flex-1 p-6 space-y-6 overflow-y-auto max-h-[600px] custom-scrollbar">
+               {history.slice(0, 8).map((item) => (
+                  <div key={item.id} className="flex gap-4 group cursor-pointer" onClick={onOpenHistory}>
+                     <div className={cn(
+                       "h-10 w-1 rounded-full transition-colors",
+                       item.totalScore >= 90 ? "bg-emerald-500" : item.totalScore >= 70 ? "bg-blue-500" : "bg-red-500"
+                     )} />
+                     <div className="space-y-1">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.date}</p>
+                        <p className="text-[13px] font-bold text-slate-700 dark:text-slate-300 leading-tight">Auditoría: <span className="text-blue-600 dark:text-blue-400">{item.location}</span></p>
+                        <p className="text-[11px] font-medium text-slate-500">Puntaje: {item.totalScore}%</p>
+                     </div>
+                  </div>
+               ))}
+               {history.length === 0 && (
+                 <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <HistoryIcon className="h-10 w-10 text-slate-200 mb-4" />
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Sin actividad reciente</p>
+                 </div>
+               )}
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );
