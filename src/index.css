@@ -33,21 +33,26 @@
 
 @media (prefers-color-scheme: light) {
 	:root {
-		/* Even in light preference, we keep a "dim" professional look if the user wants "professional" */
 		--bg: #f8fafc;
 		--bg-strong: #f1f5f9;
-		--panel: rgba(255, 255, 255, 0.85);
+		--panel: rgba(255, 255, 255, 0.7);
 		--panel-strong: #ffffff;
 		--text: #0f172a;
 		--text-muted: #475569;
 		--text-dim: #64748b;
-		--line: rgba(0, 0, 0, 0.06);
-		--brand: #1d4ed8;
-		--brand-strong: #1e40af;
+		--line: rgba(0, 0, 0, 0.08);
+		--brand: #2563eb;
+		--brand-strong: #1d4ed8;
 		--brand-soft: #eff6ff;
 		--success: #059669;
 		--warning: #d97706;
 		--danger: #dc2626;
+
+		/* Light Glass Tokens */
+		--glass-bg: rgba(255, 255, 255, 0.6);
+		--glass-border: rgba(0, 0, 0, 0.05);
+		--accent-neon: #2563eb;
+		--accent-neon-glow: rgba(37, 99, 235, 0.1);
 	}
 }
 
