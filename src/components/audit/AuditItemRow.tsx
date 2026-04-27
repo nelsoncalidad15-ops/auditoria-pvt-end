@@ -264,7 +264,7 @@ function AuditItemRowBase({
                     setTimeout(() => setLastStatusChange(null), 1000);
                   }}
                   className={cn(
-                    "flex flex-col items-center justify-center gap-1.5 h-14 w-16 md:w-20 rounded-2xl border-2 transition-all active:scale-95 relative overflow-hidden",
+                    "flex flex-col items-center justify-center gap-1 h-16 w-20 md:w-24 rounded-2xl border-2 transition-all active:scale-95 relative overflow-hidden",
                     item?.status === btn.id
                       ? `${btn.bg} border-transparent text-white shadow-lg`
                       : "bg-white dark:bg-slate-900 border-white/5 text-slate-500 hover:border-white/10",
@@ -282,8 +282,8 @@ function AuditItemRowBase({
                       />
                     )}
                   </AnimatePresence>
-                  <btn.icon className="h-4 w-4 relative z-10" />
-                  <span className="text-[9px] font-black uppercase tracking-widest relative z-10">{btn.label}</span>
+                  <btn.icon className="h-5 w-5 relative z-10" />
+                  <span className="text-[10px] font-black uppercase tracking-widest relative z-10">{btn.label}</span>
                 </button>
               ))}
             </div>
@@ -295,11 +295,11 @@ function AuditItemRowBase({
         <button
           onClick={(e) => { e.stopPropagation(); setShowComment(!showComment); }}
           className={cn(
-            "flex-1 h-12 md:h-10 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all",
+            "flex-1 h-10 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all",
             showComment || hasComment ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900" : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700"
           )}
         >
-          <History className="h-4 w-4" />
+          <History className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">{hasComment ? "Ver Nota" : "Añadir Nota"}</span>
           <span className="sm:hidden">{hasComment ? "Nota" : "Nota"}</span>
         </button>
@@ -307,11 +307,11 @@ function AuditItemRowBase({
           onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
           disabled={isProcessingPhoto}
           className={cn(
-            "flex-1 h-12 md:h-10 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700",
+            "flex-1 h-10 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700",
             hasPhoto && "text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20"
           )}
         >
-          <Camera className="h-4 w-4" />
+          <Camera className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">{isProcessingPhoto ? "Procesando..." : hasPhoto ? "Foto lista" : "Añadir Foto"}</span>
           <span className="sm:hidden">{isProcessingPhoto ? "..." : "Foto"}</span>
         </button>
