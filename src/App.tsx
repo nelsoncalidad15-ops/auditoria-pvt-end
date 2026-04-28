@@ -845,7 +845,7 @@ function AuditApp() {
     clearSelectedRole,
   });
 
-  const getAuditItemStatusLabel = (status?: "pass" | "fail" | "na") => {
+  const getAuditItemStatusLabel = (status?: string | null) => {
     if (status === "pass") return "Cumple";
     if (status === "fail") return "No cumple";
     if (status === "na") return "N/A";

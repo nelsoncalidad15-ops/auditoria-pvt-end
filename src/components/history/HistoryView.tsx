@@ -16,6 +16,7 @@ interface HistoryViewProps {
   setSearchTerm: (value: string) => void;
   onBack: () => void;
   onSelectAudit: (audit: AuditSession) => void;
+  onDeleteAudit: (audit: AuditSession) => void;
   onExportCsv: () => void;
   onSyncData: () => void;
   isSyncing: boolean;

@@ -1,6 +1,5 @@
 import { 
   Activity, 
-  ArrowRight, 
   ClipboardCheck, 
   History as HistoryIcon, 
   Settings2,
