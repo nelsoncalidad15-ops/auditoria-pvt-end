@@ -52,6 +52,8 @@ interface AuditSessionViewProps {
   handleAuditSubmit: (mode: "continue" | "finish") => void;
   getAuditItemStatusLabel: (status?: string | null) => string;
   formatPreDeliveryLegajoQuestion: (question: string) => string;
+  currentStaffAuditCount?: number;
+  recentStaffAudits?: any[];
 }
 
 export function AuditSessionView({
@@ -91,6 +93,8 @@ export function AuditSessionView({
   handleAuditSubmit,
   getAuditItemStatusLabel,
   formatPreDeliveryLegajoQuestion,
+  currentStaffAuditCount = 0,
+  recentStaffAudits = [],
 }: AuditSessionViewProps) {
   const sessionItems = session.items || [];
   const staffName = session.participants?.asesorServicio || session.staffName;
@@ -253,6 +257,15 @@ export function AuditSessionView({
                       <div>
                         <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 leading-none mb-1">Nº de OR</p>
                         <p className="text-sm font-black text-indigo-500 uppercase tracking-[0.1em]">{session.orderNumber}</p>
+                      </div>
+                    </div>
+                  )}
+                  {isOrdersAudit && (
+                    <div className="rounded-2xl bg-emerald-500/5 border border-emerald-500/10 px-4 py-2.5 flex items-center gap-3">
+                      <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 leading-none mb-1">Lote de ORs</p>
+                        <p className="text-sm font-black text-emerald-600 uppercase tracking-tight">OR {currentStaffAuditCount + 1} de 10</p>
                       </div>
                     </div>
                   )}
@@ -526,7 +539,7 @@ export function AuditSessionView({
                     )}
                   >
                     <Save className="h-3 w-3" />
-                    {isServiceAdvisorAudit ? "Next Client" : isTechnicianAudit ? "Next Tech" : "Next Order"}
+                    {isServiceAdvisorAudit ? "PRÓXIMO CLIENTE" : isTechnicianAudit ? "PRÓXIMO TÉCNICO" : "PRÓXIMA ORDEN"}
                   </button>
                 )}
             </div>
@@ -605,6 +618,30 @@ export function AuditSessionView({
                     </button>
                   ))
                 )}
+              </div>
+            </div>
+          )}
+
+          {recentStaffAudits.length > 0 && (
+            <div className="premium-card p-6 bg-white dark:bg-slate-900 border-white/5 shadow-2xl">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 mb-4">Sesiones Recientes</p>
+              <div className="space-y-3">
+                {recentStaffAudits.slice(0, 5).map((report, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-white/5">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black text-slate-900 dark:text-white truncate uppercase tracking-tight">
+                        {report.session.orderNumber ? `OR ${report.session.orderNumber}` : report.session.clientIdentifier || `Auditoría ${idx + 1}`}
+                      </p>
+                      <p className="text-[8px] font-bold text-slate-400 uppercase">{report.session.date}</p>
+                    </div>
+                    <div className={cn(
+                      "px-2 py-1 rounded-lg text-[10px] font-black",
+                      report.session.totalScore >= 90 ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500"
+                    )}>
+                      {report.session.totalScore}%
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

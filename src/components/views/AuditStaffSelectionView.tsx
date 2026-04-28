@@ -52,9 +52,9 @@ export function AuditStaffSelectionView({
   );
 
   const canContinue = selectedStaff.trim() !== "" && (
-    !isOrdersAudit || (orderNumber && /^\d{1,10}$/.test(orderNumber))
-  ) && (
-    !isServiceAdvisorAudit || (clientIdentifier && clientIdentifier.trim() !== "")
+    (isOrdersAudit && orderNumber && /^\d{1,10}$/.test(orderNumber)) ||
+    (isServiceAdvisorAudit && (clientIdentifier?.trim() || (orderNumber && /^\d{1,10}$/.test(orderNumber)))) ||
+    (isTechnicianAudit)
   );
 
   return (
@@ -167,12 +167,12 @@ export function AuditStaffSelectionView({
           <div className="premium-card p-6 bg-slate-950 text-white border-white/10 shadow-2xl space-y-8">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">Detalles de la Auditoría</p>
             
-            {isOrdersAudit && (
+            {(isOrdersAudit || isServiceAdvisorAudit) && (
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
                     <Hash className="h-3 w-3" />
-                    Número de OR
+                    Número de OR {isServiceAdvisorAudit && "(Opcional)"}
                   </label>
                   <input 
                     type="text"
@@ -183,9 +183,11 @@ export function AuditStaffSelectionView({
                     className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-6 font-black text-xl tracking-[0.2em] text-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 text-center"
                   />
                 </div>
-                <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10">
-                  <p className="text-[10px] font-bold text-slate-400 italic">Recordá que auditamos un mínimo de 10 ORs por cada asesor mensualmente.</p>
-                </div>
+                {isOrdersAudit && (
+                  <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10">
+                    <p className="text-[10px] font-bold text-slate-400 italic">Recordá que auditamos un mínimo de 10 ORs por cada asesor mensualmente.</p>
+                  </div>
+                )}
               </div>
             )}
 

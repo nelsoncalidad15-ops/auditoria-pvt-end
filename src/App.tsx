@@ -779,6 +779,15 @@ function AuditApp() {
       label: "Sin iniciar",
     };
   }, [displayedAuditItems.length, selectedStaff, sessionItems, technicianDraftSessions, technicianCompletedSessions, isTechnicianAudit]);
+  const currentStaffAuditCount = React.useMemo(() => {
+    if (!selectedStaff) return 0;
+    return completedAuditReports.filter((r) => 
+      r.session.staffName?.trim() === selectedStaff.trim() && 
+      (r.role === selectedRole || (isOrdersAudit && r.role === "Ordenes")) &&
+      r.session.date === session.date
+    ).length;
+  }, [completedAuditReports, selectedStaff, selectedRole, isOrdersAudit, session.date]);
+
   void _getTechnicianAuditState;
 
   const {
@@ -1212,16 +1221,10 @@ function AuditApp() {
     const completeSession: AuditSession = {
       ...normalizedSession as AuditSession,
       userProfile,
-      staffName: isOrdersAudit
-        ? session.participants?.asesorServicio || selectedStaff
-        : isServiceAdvisorAudit
-          ? selectedStaff.trim()
-        : isPreDeliveryAudit
-          ? undefined
-          : selectedStaff,
+      staffName: (selectedStaff || session.participants?.asesorServicio || session.staffName || "").trim(),
       role: selectedRole!,
-      orderNumber: isOrdersAudit ? session.orderNumber?.trim() || undefined : undefined,
-      clientIdentifier: isServiceAdvisorAudit ? session.clientIdentifier?.trim() || undefined : undefined,
+      orderNumber: (isOrdersAudit || isServiceAdvisorAudit) ? session.orderNumber?.trim() || undefined : undefined,
+      clientIdentifier: (isServiceAdvisorAudit || isPreDeliveryAudit) ? session.clientIdentifier?.trim() || undefined : undefined,
       auditedFileNames: isPreDeliveryAudit ? auditedFileNames.map((name) => name.trim()) : undefined,
       totalScore: complianceMetrics.compliance,
       items: finalItems,
@@ -1959,6 +1962,8 @@ function AuditApp() {
                     handleAuditSubmit={handleAuditSubmit}
                     getAuditItemStatusLabel={getAuditItemStatusLabel}
                     formatPreDeliveryLegajoQuestion={formatPreDeliveryLegajoQuestion}
+                    currentStaffAuditCount={currentStaffAuditCount}
+                    recentStaffAudits={completedAuditReports.filter(r => r.session.staffName?.trim() === selectedStaff?.trim() && r.role === selectedRole)}
                   />
                 </Suspense>
               )}
