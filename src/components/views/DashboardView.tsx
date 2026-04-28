@@ -108,11 +108,11 @@ export const DashboardView = memo(({ history }: DashboardViewProps) => {
               <div className={cn("h-11 w-11 rounded-2xl flex items-center justify-center border shadow-lg", kpi.bg, kpi.color, "border-white/10")}>
                 <kpi.icon className="h-5 w-5" />
               </div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">{kpi.sub}</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200">{kpi.sub}</p>
             </div>
             <div className="space-y-1 relative z-10">
-              <h3 className="text-3xl font-black tracking-tighter text-white leading-none">{kpi.value}</h3>
-              <p className="text-[11px] font-bold text-slate-300 uppercase tracking-[0.15em]">{kpi.label}</p>
+              <h3 className="text-3xl font-black tracking-tighter text-slate-900 dark:text-white leading-none">{kpi.value}</h3>
+              <p className="text-[11px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-[0.15em]">{kpi.label}</p>
             </div>
           </motion.div>
         ))}
@@ -126,9 +126,9 @@ export const DashboardView = memo(({ history }: DashboardViewProps) => {
           className="premium-card p-8 bg-white dark:bg-slate-900 h-[450px] flex flex-col"
         >
           <div className="mb-8">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Desempeño Mensual</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900 dark:text-slate-400 mb-2">Desempeño Mensual</h3>
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-black tracking-tight uppercase italic italic">Tendencia Consolidada</h2>
+              <h2 className="text-2xl font-black tracking-tight uppercase italic text-slate-900 dark:text-white">Tendencia Consolidada</h2>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-blue-600" />
@@ -213,8 +213,8 @@ export const DashboardView = memo(({ history }: DashboardViewProps) => {
           className="premium-card p-8 bg-white dark:bg-slate-900 h-[450px] flex flex-col"
         >
           <div className="mb-8">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Composición del Score</h3>
-            <h2 className="text-2xl font-black tracking-tight uppercase italic leading-none">Distribución Grupal</h2>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900 dark:text-slate-400 mb-2">Composición del Score</h3>
+            <h2 className="text-2xl font-black tracking-tight uppercase italic leading-none text-slate-900 dark:text-white">Distribución Grupal</h2>
           </div>
           <div className="flex-1 w-full flex items-center justify-center min-h-0">
             {isRefreshing ? (

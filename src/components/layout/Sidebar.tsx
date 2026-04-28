@@ -59,10 +59,10 @@ function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNaviga
               "group relative flex w-full items-center gap-4 rounded-2xl px-4 py-3.5 transition-all duration-300",
               isActive(item.id)
                 ? "bg-[--accent-neon] text-[#050a14] shadow-xl shadow-[--accent-neon-glow]"
-                : "text-slate-300 hover:bg-white/5 hover:text-white"
+                : "text-white hover:bg-white/10 hover:text-white"
             )}
           >
-            <item.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110 group-active:scale-90", isActive(item.id) ? "text-[#050a14]" : "text-slate-300 group-hover:text-white")} />
+            <item.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110 group-active:scale-90", isActive(item.id) ? "text-[#050a14]" : "text-white group-hover:text-white")} />
             {(true) && (
               <motion.span 
                 initial={{ opacity: 0 }} 
@@ -128,7 +128,7 @@ function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNaviga
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          "hidden lg:flex flex-col fixed inset-y-0 left-0 z-50 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] border-r border-white/5 bg-[#1e222d] shadow-2xl",
+          "hidden lg:flex flex-col fixed inset-y-0 left-0 z-50 transition-all duration-300 border-r border-white/10 bg-[#111827] shadow-[10px_0_30px_rgba(0,0,0,0.3)]",
           "w-[280px]",
           !show && "translate-x-[-100%]"
         )}
