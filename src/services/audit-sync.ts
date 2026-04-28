@@ -213,16 +213,21 @@ export async function sendStructureToWebhook(
   webhookUrl: string, 
   payload: { event: "structure_update"; scope: string; data: string; updatedByEmail: string }
 ) {
+  console.log("Enviando actualización de estructura a Google Sheets...", payload.scope);
+  
   const response = await fetch(webhookUrl, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify(payload),
   });
-
+  
   if (!response.ok) {
     throw new Error(`Error al sincronizar estructura (${response.status}).`);
   }
-
+  
+  const text = await response.text();
+  console.log("Respuesta de Google Sheets (Estructura):", text);
+  
   return true;
 }
 
