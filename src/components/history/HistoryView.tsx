@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { AlertCircle, ArrowLeft, ChevronRight, ClipboardList, Clock, FileText, History, Save, Search, TrendingUp, Trash2 } from "lucide-react";
+import { AlertCircle, ChevronRight, ClipboardList, Clock, FileText, History, Save, Search, TrendingUp, Trash2 } from "lucide-react";
 
 import { cn } from "../../lib/utils";
 import { AuditSession, HistoryPanel } from "../../types";
@@ -50,10 +50,8 @@ export const HistoryView = memo(function HistoryView({
   selectedHistoryAudit,
   historyAverageScore,
   nonCompliantAudits,
-  latestHistoryItem,
   searchTerm,
   setSearchTerm,
-  onBack,
   onSelectAudit,
   onExportCsv,
   onSyncData,

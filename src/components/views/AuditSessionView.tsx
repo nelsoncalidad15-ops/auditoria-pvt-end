@@ -3,6 +3,9 @@ import {
   ChevronDown,
   FileCheck,
   Layout,
+  CheckCircle2,
+  XCircle,
+  MinusCircle
 } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "../../lib/utils";
@@ -621,7 +624,7 @@ export function AuditSessionView({
                <motion.div 
                  className="h-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
                  initial={{ width: 0 }}
-                 animate={{ width: `${(answeredCount / visibleAuditItems.length) * 100}%` }}
+                 animate={{ width: `${(answeredItemsCount / visibleAuditItems.length) * 100}%` }}
                />
             </div>
 

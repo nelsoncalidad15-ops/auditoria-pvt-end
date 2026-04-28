@@ -176,45 +176,52 @@ export function normalizeAuditCategories(categories: AuditCategory[] | unknown):
     return defaultCategories;
   }
 
-  return categories.map((category: any) => {
+  const normalized = categories.map((category: any) => {
     const defaultCategory = defaultCategories.find((item) => item.name === category.name);
     const shouldUpgradeCategory = shouldUpgradePreDeliveryCategory(category);
 
     return ({
-    id: category.id || slugify(category.name),
-    name: category.name,
-    description: typeof category.description === "string" ? category.description : "",
-    staffOptions: Array.isArray(category.staffOptions) ? category.staffOptions : [],
-    items: shouldUpgradeCategory && defaultCategory
-      ? defaultCategory.items
-      : Array.isArray(category.items)
-      ? category.items.map((item: any, index: number) => ({
-          id: item.id || `${slugify(category.name)}-${index + 1}`,
-          text: item.text,
-          required: false,
-          block: typeof item.block === "string" && item.block.trim() ? item.block.trim() : "General",
-          priority: item.priority === "high" || item.priority === "medium" || item.priority === "low" ? item.priority : "medium",
-          guidance: typeof item.guidance === "string" ? item.guidance : "",
-          requiresCommentOnFail: typeof item.requiresCommentOnFail === "boolean" ? item.requiresCommentOnFail : false,
-          description: typeof item.description === "string" ? item.description : "",
-          responsibleRoles: Array.isArray(item.responsibleRoles) ? item.responsibleRoles : [],
-          sector: typeof item.sector === "string" && item.sector.trim() ? item.sector : "resumen",
-          allowsNa: typeof item.allowsNa === "boolean" ? item.allowsNa : true,
-          weight: typeof item.weight === "number" ? item.weight : 1,
-          order: typeof item.order === "number" ? item.order : index + 1,
-          active: typeof item.active === "boolean" ? item.active : true,
-          scoreLinks: (() => {
-            const normalizedLinks = buildScoreLinks(category.name, item.text, item.scoreLinks, item.scoreAreas);
-            return normalizedLinks;
-          })(),
-          scoreAreas: (() => {
-            const normalizedLinks = buildScoreLinks(category.name, item.text, item.scoreLinks, item.scoreAreas);
-            return buildScoreAreas(normalizedLinks);
-          })(),
-        }))
-      : [],
+      id: category.id || slugify(category.name),
+      name: category.name,
+      description: typeof category.description === "string" ? category.description : "",
+      staffOptions: Array.isArray(category.staffOptions) ? category.staffOptions : [],
+      items: shouldUpgradeCategory && defaultCategory
+        ? defaultCategory.items
+        : Array.isArray(category.items)
+        ? category.items.map((item: any, index: number) => ({
+            id: item.id || `${slugify(category.name)}-${index + 1}`,
+            text: item.text,
+            required: false,
+            block: typeof item.block === "string" && item.block.trim() ? item.block.trim() : "General",
+            priority: item.priority === "high" || item.priority === "medium" || item.priority === "low" ? item.priority : "medium",
+            guidance: typeof item.guidance === "string" ? item.guidance : "",
+            requiresCommentOnFail: typeof item.requiresCommentOnFail === "boolean" ? item.requiresCommentOnFail : false,
+            description: typeof item.description === "string" ? item.description : "",
+            responsibleRoles: Array.isArray(item.responsibleRoles) ? item.responsibleRoles : [],
+            sector: typeof item.sector === "string" && item.sector.trim() ? item.sector : "resumen",
+            allowsNa: typeof item.allowsNa === "boolean" ? item.allowsNa : true,
+            weight: typeof item.weight === "number" ? item.weight : 1,
+            order: typeof item.order === "number" ? item.order : index + 1,
+            active: typeof item.active === "boolean" ? item.active : true,
+            scoreLinks: (() => {
+              const normalizedLinks = buildScoreLinks(category.name, item.text, item.scoreLinks, item.scoreAreas);
+              return normalizedLinks;
+            })(),
+            scoreAreas: (() => {
+              const normalizedLinks = buildScoreLinks(category.name, item.text, item.scoreLinks, item.scoreAreas);
+              return buildScoreAreas(normalizedLinks);
+            })(),
+          }))
+        : [],
+    });
   });
-  });
+
+  // Include any missing default categories
+  const missingDefaults = defaultCategories.filter(
+    (defaultCat) => !normalized.some((cat) => cat.name === defaultCat.name)
+  );
+
+  return [...normalized, ...missingDefaults];
 }
 
 export function getStoredAuditCategories(scope: AuditStructureScope = "global"): AuditCategory[] {

@@ -143,3 +143,10 @@ export interface IncompleteAuditListItem {
   totalScore?: number;
   _source?: "history";
 }
+
+export interface CompletedAuditReport {
+  role: Role;
+  session: AuditSession;
+  auditorName?: string;
+  templateItems?: AuditTemplateItem[];
+}

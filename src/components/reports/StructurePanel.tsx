@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { motion } from "motion/react";
 import { 
   ArrowDown, 
   ArrowUp, 
@@ -6,7 +7,6 @@ import {
   Link2, 
   ListChecks, 
   PlusCircle, 
-  Settings2, 
   Trash2,
   ChevronRight,
   Info,
@@ -41,14 +41,11 @@ interface StructurePanelProps {
   updateCategory: (categoryId: string, updater: (category: AuditCategory) => AuditCategory) => void;
   handleDuplicateCategory: (categoryId: string) => void;
   handleDeleteCategory: (categoryId: string) => void;
-  handleDuplicateItem: (categoryId: string, itemId: string) => void;
   handleDeleteItem: (categoryId: string, itemId: string) => void;
   newCategoryName: string;
   setNewCategoryName: (value: string) => void;
   newCategoryDescription: string;
   setNewCategoryDescription: (value: string) => void;
-  newCategoryStaff: string;
-  setNewCategoryStaff: (value: string) => void;
   handleAddCategory: () => void;
   newItemText: string;
   setNewItemText: (value: string) => void;
@@ -93,14 +90,11 @@ export function StructurePanel({
   updateCategory,
   handleDuplicateCategory,
   handleDeleteCategory,
-  handleDuplicateItem,
   handleDeleteItem,
   newCategoryName,
   setNewCategoryName,
   newCategoryDescription,
   setNewCategoryDescription,
-  newCategoryStaff,
-  setNewCategoryStaff,
   handleAddCategory,
   newItemText,
   setNewItemText,
@@ -109,15 +103,12 @@ export function StructurePanel({
   lastStructureSavedAt,
   handleSaveStructureToCloud,
   handleSaveStructureToSheet,
-  handleLoadStructureFromCloud,
   isSavingStructureToCloud,
   isSavingStructureToSheet,
-  isLoadingStructureFromCloud,
   hasPendingStructureChanges,
   structureStorageLabel
 }: StructurePanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>("categories");
-  const [selectedScoreItemId, setSelectedScoreItemId] = useState("");
   const [itemSearch, setItemSearch] = useState("");
   const [showOnlyActive, setShowOnlyActive] = useState(false);
   const [selectedSourceAreaName, setSelectedSourceAreaName] = useState("");

@@ -1,5 +1,5 @@
 import React from "react";
-import { History, LayoutDashboard, LucideIcon, Plus, Home } from "lucide-react";
+import { History, LayoutDashboard, LucideIcon, Plus } from "lucide-react";
 import { Sidebar } from "../components/layout/Sidebar";
 import { Topbar } from "../components/layout/Topbar";
 import { cn } from "../lib/utils";

@@ -1,5 +1,5 @@
 import { memo, useState } from "react";
-import { LogOut, Home, History, LayoutGrid, Settings, LucideIcon, X, Menu, ChevronLeft, ChevronRight } from "lucide-react";
+import { LogOut, Settings, LucideIcon, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "../../lib/utils";
 

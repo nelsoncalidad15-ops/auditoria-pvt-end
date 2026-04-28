@@ -67,17 +67,13 @@ function AuditItemRowBase({
   index,
   item,
   description,
-  scoreAreas = [],
   allowsNa = true,
-  priority,
   guidance,
   requiresCommentOnFail = false,
   emphasized = false,
   showStructuredQuestion = false,
   isActive = false,
   observationSuggestions = [],
-  weight = 1,
-  responsibleRoles = [],
   onActivate,
   onStatusToggle,
   onCommentUpdate,
@@ -102,7 +98,6 @@ function AuditItemRowBase({
   
   const hasComment = Boolean(item?.comment?.trim());
   const hasPhoto = Boolean(item?.photoUrl);
-  const linkedScoreAreas = scoreAreas.filter((area) => area.trim());
 
   useEffect(() => {
     if (item?.status === "fail" && requiresCommentOnFail && !item?.comment?.trim()) {

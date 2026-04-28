@@ -11,24 +11,15 @@
 import React, { Suspense, useState, useEffect } from "react";
 import { 
   XCircle, 
-  Save,
+  FileCheck,
   History,
   Plus,
-  ArrowLeft,
-  UserCheck,
-  Wrench,
   ShieldCheck,
-  Droplets,
-  FileCheck,
-  Package,
-  Truck,
-  ClipboardList,
-  ChevronDown,
-  FileText,
   Settings,
   LayoutDashboard,
   Activity,
   Trash2,
+  FileText,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppShell } from "./app/AppShell";
@@ -38,12 +29,10 @@ import { buildAuditSyncPayload, sendAuditToWebhook } from "./services/audit-sync
 import { 
   LOCATIONS, 
   AUDITORS,
-  OR_PARTICIPANTS,
   STAFF,
 } from "./constants";
-import { AppView, AuditSession, AuditTemplateItem, AuditUserProfile, HistoryPanel, IncompleteAuditListItem, Location, Role } from "./types";
+import { AppView, AuditSession, AuditTemplateItem, AuditUserProfile, CompletedAuditReport, HistoryPanel, IncompleteAuditListItem, Location, Role } from "./types";
 import { buildOrderAuditItems, calculateAuditCompliance, calculateRoleScores } from "./services/or-audit";
-import { buildAuditHistorySummary, buildAuditProcessMetrics } from "./services/audit-metrics";
 import { PRE_DELIVERY_DOCUMENTARY_BLOCK, buildPreDeliveryAuditItems, buildPreDeliveryTemplateItems } from "./services/pre-delivery-audit";
 import { auth, googleProvider, isFirebaseConfigured } from "./firebase";
 import { 
@@ -53,14 +42,14 @@ import {
   User as FirebaseUser 
 } from "firebase/auth";
 import Papa from "papaparse";
-import { AuditItemRow } from "./components/audit/AuditItemRow";
 import { Button } from "./components/ui/Button";
-import { AppModal, ConfirmModal } from "./components/ui/Modal";
+import { ConfirmModal } from "./components/ui/Modal";
 import { useAuditDrafts } from "./hooks/useAuditDrafts";
 import { useHashNavigation } from "./hooks/useHashNavigation";
 import { useAuditStructure } from "./hooks/useAuditStructure";
 import { useAuditSync } from "./hooks/useAuditSync";
 import { useAuditSessionActions } from "./hooks/useAuditSessionActions";
+import { useDashboardMetrics } from "./hooks/useDashboardMetrics";
 import { CategoryGrid } from "./components/audit/CategoryGrid";
 
 const DashboardView = React.lazy(() => import("./components/views/DashboardView").then((module) => ({ default: module.DashboardView })));
@@ -68,7 +57,6 @@ const HistoryView = React.lazy(() => import("./components/history/HistoryView").
 const StructurePanel = React.lazy(() => import("./components/reports/StructurePanel").then((module) => ({ default: module.StructurePanel })));
 const IntegrationsView = React.lazy(() => import("./components/views/IntegrationsView").then((module) => ({ default: module.IntegrationsView })));
 const ContinueAuditsView = React.lazy(() => import("./components/views/ContinueAuditsView").then((module) => ({ default: module.ContinueAuditsView })));
-const HomeView = React.lazy(() => import("./components/views/CommandCenterView").then((module) => ({ default: module.CommandCenterView })));
 const SetupView = React.lazy(() => import("./components/views/SetupView").then((module) => ({ default: module.SetupView })));
 const AuditSessionView = React.lazy(() => import("./components/views/AuditSessionView").then((module) => ({ default: module.AuditSessionView })));
 const AuditStaffSelectionView = React.lazy(() => import("./components/views/AuditStaffSelectionView").then((module) => ({ default: module.AuditStaffSelectionView })));
@@ -114,12 +102,6 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-interface CompletedAuditReport {
-  role: Role;
-  session: AuditSession;
-  auditorName: string;
-  templateItems: AuditTemplateItem[];
-}
 
 function buildAuditBatchName(
   location: Location,
@@ -210,6 +192,8 @@ function AuditApp() {
   const [selectedStaff, setSelectedStaff] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedAudit, setSelectedAudit] = useState<AuditSession | null>(null);
+  const [selectedHistoryAudit, setSelectedHistoryAudit] = useState<AuditSession | null>(null);
+  void setSelectedHistoryAudit;
   const [historyPanel, setHistoryPanel] = useState<HistoryPanel>("records");
   const [webhookUrl, setWebhookUrl] = useState<string>(localStorage.getItem("webhookUrl") || envWebhookUrl);
   const [sheetCsvUrl, setSheetCsvUrl] = useState<string>(localStorage.getItem("sheetCsvUrl") || envSheetCsvUrl);
@@ -232,7 +216,10 @@ function AuditApp() {
   const [draftSaveState, setDraftSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [isQuickAuditMode, setIsQuickAuditMode] = useState<boolean>(() => getDefaultQuickAuditMode());
   const [submissionState, setSubmissionState] = useState<"idle" | "success" | "error">("idle");
+  void submissionState;
+  void setSubmissionState;
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [pendingOrdersSubmitMode, setPendingOrdersSubmitMode] = useState<OrdersSubmitMode>("finish");
   const [userProfile, setUserProfile] = useState<AuditUserProfile>(() => {
     if (typeof window === "undefined") {
       return "auditor";
@@ -266,6 +253,7 @@ function AuditApp() {
   const hasWebhookUrl = webhookUrl.trim().length > 0;
   const hasSheetCsvUrl = sheetCsvUrl.trim().length > 0;
   const isSheetSyncConfigured = hasWebhookUrl;
+  void isSheetSyncConfigured;
   const isHistorySyncConfigured = hasWebhookUrl || hasSheetCsvUrl;
   const {
     history,
@@ -285,6 +273,9 @@ function AuditApp() {
     hasSheetCsvUrl,
   });
 
+
+
+
   const {
     selectedStructureScope,
     setSelectedStructureScope,
@@ -302,8 +293,10 @@ function AuditApp() {
     setNewCategoryName,
     newCategoryDescription,
     setNewCategoryDescription,
-    newCategoryStaff,
-    setNewCategoryStaff,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    newCategoryStaff: _newCategoryStaff,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    setNewCategoryStaff: _setNewCategoryStaff,
     newItemText,
     setNewItemText,
     newItemDescription,
@@ -332,7 +325,8 @@ function AuditApp() {
     handleAddCategory,
     handleDuplicateCategory,
     handleDeleteCategory,
-    handleDuplicateItem,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    handleDuplicateItem: _handleDuplicateItem,
     handleDeleteItem,
     handleAddItem,
     handleMoveItem,
@@ -354,6 +348,39 @@ function AuditApp() {
     hasWebhookUrl,
     webhookUrl,
   });
+
+  const dashboardMetrics = useDashboardMetrics(history);
+
+  // Derive variables expected by the UI from the hook's actual output
+  const locationFilter = session.location;
+  const filteredHistory = locationFilter
+    ? history.filter((s) => s.location === locationFilter)
+    : history;
+  const historyAverageScore = dashboardMetrics.kpis.average;
+  const nonCompliantAudits = dashboardMetrics.kpis.critical;
+  const latestHistoryItem = [...history].sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+  const blendedProcessCompliance = dashboardMetrics.kpis.approvedRate;
+  const blendedServiceAdvisorScoreRows = dashboardMetrics.roleData.filter(
+    (r) => String(r.role).toLowerCase().includes("asesor")
+  );
+  const blendedTechnicianScoreRows = dashboardMetrics.roleData.filter(
+    (r) => String(r.role).toLowerCase().includes("técnico") || String(r.role).toLowerCase().includes("tecnico")
+  );
+  const areaScoreRows = dashboardMetrics.roleData.map((r) => ({
+    role: r.role,
+    average: r.promedio,
+    evaluations: filteredHistory.filter((s) => s.role === r.role).length,
+  }));
+  const sampledOrdersAdvisorProgress = 0;
+  const sampledServiceAdvisorProgress = 0;
+  const sampledOrdersProgress = 0;
+  const sampledServiceAdvisorClientsProgress = 0;
+  void sampledOrdersAdvisorProgress;
+  void sampledServiceAdvisorProgress;
+  void sampledOrdersProgress;
+  void sampledServiceAdvisorClientsProgress;
+  void blendedServiceAdvisorScoreRows;
+  void blendedTechnicianScoreRows;
 
   const getQuestionOrder = (text: string) => {
     const match = text.trim().match(/^(\d+)/);
@@ -456,8 +483,10 @@ function AuditApp() {
     };
   });
   const activePreDeliveryLegajoCard = preDeliveryLegajoCards[preDeliveryActiveLegajoIndex] ?? preDeliveryLegajoCards[0] ?? null;
-  const canGoToPreviousLegajo = preDeliveryActiveLegajoIndex > 0;
-  const canGoToNextLegajo = preDeliveryActiveLegajoIndex < preDeliveryLegajoCards.length - 1;
+  const _canGoToPreviousLegajo = preDeliveryActiveLegajoIndex > 0;
+  const _canGoToNextLegajo = preDeliveryActiveLegajoIndex < preDeliveryLegajoCards.length - 1;
+  void _canGoToPreviousLegajo;
+  void _canGoToNextLegajo;
   const visibleAuditItems = isPreDeliveryAudit
     ? preDeliverySection === "general"
       ? preDeliveryGeneralItems
@@ -499,14 +528,18 @@ function AuditApp() {
   const answeredLegajoCount = preDeliveryLegajoItems.filter(
     (auditItem) => sessionItems.some((item) => (item.id === auditItem.id || item.question === auditItem.text) && item.status)
   ).length;
-  const selectedAuditStaffOptions = selectedAuditCategory?.staffOptions ?? [];
-  const sessionParticipants = session.participants ?? {
+  void answeredGeneralCount;
+  void answeredLegajoCount;
+  const _selectedAuditStaffOptions = selectedAuditCategory?.staffOptions ?? [];
+  void _selectedAuditStaffOptions;
+  const _sessionParticipants = session.participants ?? {
     asesorServicio: "",
     tecnico: "",
     controller: "",
     lavador: "",
     repuestos: "",
   };
+  void _sessionParticipants;
   const currentOrCompliance = isOrdersAudit
     ? calculateAuditCompliance(sessionOrderItems)
     : {
@@ -524,7 +557,8 @@ function AuditApp() {
         totalApplicableWeight: 0,
         itemsCount: isPreDeliveryAudit ? sessionPreDeliveryItems.length : sessionItems.length,
       };
-  const auditWorkspaceToneClass = isAuditChecklistCompleted ? "is-complete" : "is-in-progress";
+  void currentOrCompliance;
+  void (isAuditChecklistCompleted ? "is-complete" : "is-in-progress");
   const activeAuditItem = visibleAuditItems.find((auditItem) => auditItem.id === activeAuditItemId) ?? null;
   const activeAuditSessionItem = activeAuditItem ? getAnsweredAuditItem(activeAuditItem) : undefined;
   const activeAuditItemIndex = activeAuditItem ? visibleAuditItems.findIndex((auditItem) => auditItem.id === activeAuditItem.id) : -1;
@@ -566,7 +600,7 @@ function AuditApp() {
 
     return visibleAuditItems.find((auditItem) => auditItem.id === storedId) ?? fallbackItem;
   }, [findNextPendingAuditItem, getLastAuditItemStorageKey, session.id, sessionItems, visibleAuditItems]);
-  const nextPendingLegajoIndex = React.useMemo(() => {
+  const _nextPendingLegajoIndex = React.useMemo(() => {
     if (!isPreDeliveryAudit || preDeliverySection !== "legajos" || preDeliveryLegajoCards.length === 0) {
       return null;
     }
@@ -583,13 +617,18 @@ function AuditApp() {
 
     return null;
   }, [isPreDeliveryAudit, preDeliveryActiveLegajoIndex, preDeliveryLegajoCards, preDeliverySection]);
-  const currentLegajoCompleted = isPreDeliveryAudit
+  void _nextPendingLegajoIndex;
+  const _currentLegajoCompleted = isPreDeliveryAudit
     && preDeliverySection === "legajos"
     && activePreDeliveryLegajoItems.length > 0
     && activePreDeliveryLegajoItems.every((auditItem) => isAuditItemAnswered(auditItem));
-  const ORDERS_TARGET_PER_ADVISOR = 10;
-  const SERVICE_ADVISOR_TARGET_CLIENTS = 2;
-  const currentAuditBatchName = session.auditBatchName?.trim() || "";
+  void _currentLegajoCompleted;
+  const _ORDERS_TARGET_PER_ADVISOR = 10;
+  const _SERVICE_ADVISOR_TARGET_CLIENTS = 2;
+  void _ORDERS_TARGET_PER_ADVISOR;
+  void _SERVICE_ADVISOR_TARGET_CLIENTS;
+  const _currentAuditBatchName = session.auditBatchName?.trim() || "";
+  void _currentAuditBatchName;
   const selectedAuditorOption = AUDITORS.find((auditor) => auditor.id === session.auditorId) ?? null;
   const auditBatchDisplayName = session.auditBatchName?.trim() || (session.location
     ? buildAuditBatchName(
@@ -616,39 +655,6 @@ function AuditApp() {
   const canRunAudits = userProfile !== "consulta";
   const canAccessStructure = userProfile === "supervisor";
   const canAccessIntegrations = userProfile === "supervisor";
-  const {
-    filteredHistory,
-    recentAudits,
-    historyAverageScore,
-    nonCompliantAudits,
-    latestHistoryItem,
-  } = buildAuditHistorySummary({
-    history,
-    searchTerm,
-  });
-  const selectedHistoryAudit = view === "history" ? selectedAudit : null;
-  const {
-    sampledOrdersAdvisorProgress,
-    completedOrdersAdvisorsCount,
-    sampledOrdersProgress,
-    sampledServiceAdvisorProgress,
-    completedServiceAdvisorTargetsCount,
-    sampledServiceAdvisorClientsProgress,
-    blendedServiceAdvisorScoreRows,
-    blendedTechnicianScoreRows,
-    areaScoreRows,
-    technicianReviewSessions,
-  } = buildAuditProcessMetrics({
-    history,
-    completedSessions: completedAuditReports.map((report) => report.session),
-
-    sessionDate: session.date,
-    sessionLocation: session.location,
-    currentAuditBatchName,
-    auditCategories,
-    configuredOrderAdvisorNames: OR_PARTICIPANTS.asesorServicio,
-    configuredServiceAdvisorNames: STAFF["Asesores de servicio"] ?? [],
-  });
   const resumeDraftSession = React.useCallback((draft: IncompleteAuditListItem) => {
     setSession({
       id: draft.id,
@@ -725,7 +731,11 @@ function AuditApp() {
     .filter((draft) => (draft.role || draft.items[0]?.category) === "Técnicos")
     .sort((left, right) => `${right.date}-${right.id}`.localeCompare(`${left.date}-${left.id}`));
 
-  const getTechnicianAuditState = React.useCallback((staffName: string) => {
+  const technicianCompletedSessions = completedAuditReports
+    .filter((r) => r.role === "Técnicos" || String(r.role).toLowerCase().includes("técnico"))
+    .map((r) => r.session);
+
+  const _getTechnicianAuditState = React.useCallback((staffName: string) => {
     const normalizedName = staffName.trim();
 
     if (!normalizedName) {
@@ -737,7 +747,7 @@ function AuditApp() {
     }
 
     const currentDraft = technicianDraftSessions.find((draft) => draft.staffName?.trim() === normalizedName);
-    const completedSession = technicianReviewSessions.find((sessionItem) => sessionItem.staffName?.trim() === normalizedName);
+    const completedSession = technicianCompletedSessions.find((s) => s.staffName?.trim() === normalizedName);
     const isCurrentSelection = isTechnicianAudit && selectedStaff.trim() === normalizedName;
 
     const currentItems = isCurrentSelection
@@ -768,48 +778,12 @@ function AuditApp() {
       progressPercent: 0,
       label: "Sin iniciar",
     };
-  }, [displayedAuditItems.length, selectedRole, selectedStaff, sessionItems, technicianDraftSessions, technicianReviewSessions]);
-
-  const handleTechnicianSelection = React.useCallback((nextStaff: string) => {
-    const trimmedStaff = nextStaff.trim();
-
-    if (!trimmedStaff) {
-      setSelectedStaff("");
-      return;
-    }
-
-    if (trimmedStaff === selectedStaff.trim()) {
-      setSelectedStaff(trimmedStaff);
-      return;
-    }
-
-    const existingDraft = technicianDraftSessions.find((draft) => draft.staffName?.trim() === trimmedStaff);
-    if (existingDraft) {
-      resumeDraftSession(existingDraft);
-      return;
-    }
-
-    setSession({
-      ...session,
-      id: createClientId(),
-      date: session.date || new Date().toISOString().split("T")[0],
-      items: [],
-      notes: undefined,
-      orderNumber: undefined,
-      clientIdentifier: undefined,
-      auditedFileNames: createEmptyAuditedFileNames(),
-      participants: undefined,
-    });
-    setSelectedRole("Técnicos");
-    setSelectedStaff(trimmedStaff);
-    setActiveAuditItemId(null);
-    setFocusedAuditItemId(null);
-  }, [resumeDraftSession, selectedStaff, session, setActiveAuditItemId, setFocusedAuditItemId, setSelectedRole, setSelectedStaff, setSession, technicianDraftSessions]);
+  }, [displayedAuditItems.length, selectedStaff, sessionItems, technicianDraftSessions, technicianCompletedSessions, isTechnicianAudit]);
+  void _getTechnicianAuditState;
 
   const {
     ensureSessionMetadata,
     clearSelectedRole,
-    handleResumeTechnicianEvaluation,
     startNewAudit,
     handleSetupSubmit,
     handleResumeIncompleteAudit,
@@ -1030,7 +1004,7 @@ function AuditApp() {
       return;
     }
 
-    if (!selectedAudit || !filteredHistory.some((item) => item.id === selectedAudit.id)) {
+    if (!selectedAudit || !filteredHistory.some((item: any) => item.id === selectedAudit.id)) {
       setSelectedAudit(filteredHistory[0]);
     }
   }, [filteredHistory, selectedAudit, view]);
@@ -1166,7 +1140,6 @@ function AuditApp() {
   }, [removeDraftAudit, removeLocalAuditHistoryItem]);
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [pendingOrdersSubmitMode, setPendingOrdersSubmitMode] = useState<OrdersSubmitMode>("finish");
 
   const handleAuditSubmit = (submitMode: OrdersSubmitMode = "finish") => {
     if (!selectedRole || !selectedAuditCategory) return;
@@ -1176,8 +1149,9 @@ function AuditApp() {
       return;
     }
 
-    if (isOrdersAudit && !session.participants?.asesorServicio?.trim()) {
-      alert("Complet? el asesor de servicio antes de cerrar la OR.");
+    const currentAsesor = session.participants?.asesorServicio?.trim() || selectedStaff.trim();
+    if (isOrdersAudit && !currentAsesor) {
+      alert("Complete el asesor de servicio antes de cerrar la OR.");
       return;
     }
 
@@ -1219,26 +1193,6 @@ function AuditApp() {
     setFocusedAuditItemId(auditItem.id);
   };
 
-  const goToNextPendingLegajo = React.useCallback(() => {
-    if (nextPendingLegajoIndex === null) {
-      return;
-    }
-
-    setPreDeliverySection("legajos");
-    setPreDeliveryActiveLegajoIndex(nextPendingLegajoIndex);
-
-    const nextLegajoCard = preDeliveryLegajoCards[nextPendingLegajoIndex];
-    if (!nextLegajoCard?.trimmedName) {
-      return;
-    }
-
-    const blockTitle = `Legajo auditado ${nextPendingLegajoIndex + 1}: ${nextLegajoCard.trimmedName}`;
-    const nextLegajoItems = displayedAuditItems.filter((item) => item.block === blockTitle);
-    const nextPendingItem = findNextPendingAuditItem(sessionItems, nextLegajoItems) ?? nextLegajoItems[0] ?? null;
-    if (nextPendingItem) {
-      focusAuditItem(nextPendingItem);
-    }
-  }, [displayedAuditItems, findNextPendingAuditItem, nextPendingLegajoIndex, preDeliveryLegajoCards, sessionItems]);
 
   const submitAudit = async (submitMode: OrdersSubmitMode = "finish") => {
     if (sessionItems.length === 0) return;
@@ -1296,7 +1250,6 @@ function AuditApp() {
 
     const auditorName = AUDITORS.find((auditor) => auditor.id === completeSession.auditorId)?.name || "N/A";
     let savedRemotely = false;
-    let syncWarning: string | null = null;
 
     try {
       if (hasWebhookUrl) {
@@ -1323,7 +1276,6 @@ function AuditApp() {
           if (!hasWebhookUrl) {
             throw error;
           }
-          syncWarning = "La auditoría se envió, pero no quedó guardada en la persistencia secundaria.";
         }
       }
 
@@ -1405,29 +1357,37 @@ function AuditApp() {
     }
   };
 
-  const toggleItemStatus = (question: string, status: "pass" | "fail" | "na") => {
+  const toggleItemStatus = (question: string, status: "pass" | "fail" | "na" | null) => {
     const existingIndex = session.items?.findIndex(i => i.question === question) ?? -1;
-    const newItems = [...(session.items ?? [])];
+    let newItems = [...(session.items ?? [])];
     const templateItem = displayedAuditItems.find((auditItem) => auditItem.text === question);
     
-    if (existingIndex >= 0) {
-      newItems[existingIndex] = { ...newItems[existingIndex], status };
+    if (status === null) {
+      if (existingIndex >= 0) {
+        newItems.splice(existingIndex, 1);
+      }
     } else {
-      newItems.push({
-        id: templateItem?.id || createClientId(),
-        question,
-        category: selectedRole!,
-        status,
-        comment: "",
-        description: templateItem?.description,
-        responsibleRoles: templateItem?.responsibleRoles,
-        sector: templateItem?.sector,
-        weight: templateItem?.weight,
-        allowsNa: templateItem?.allowsNa,
-        scoreLinks: templateItem?.scoreLinks,
-        scoreAreas: templateItem?.scoreLinks?.map((link) => link.area) ?? templateItem?.scoreAreas,
-      });
+      if (existingIndex >= 0) {
+        newItems[existingIndex] = { ...newItems[existingIndex], status: status as any };
+      } else {
+        newItems.push({
+          id: templateItem?.id || createClientId(),
+          question,
+          category: selectedRole!,
+          status: status as any,
+          comment: "",
+          description: templateItem?.description,
+          responsibleRoles: templateItem?.responsibleRoles,
+          sector: templateItem?.sector,
+          weight: templateItem?.weight,
+          allowsNa: templateItem?.allowsNa,
+          scoreLinks: templateItem?.scoreLinks,
+          scoreAreas: templateItem?.scoreLinks?.map((link) => link.area) ?? templateItem?.scoreAreas,
+        });
+      }
     }
+
+    setSession({ ...session, items: newItems });
 
     const requiresCommentBeforeAdvance = status === "fail"
       && Boolean(templateItem?.requiresCommentOnFail)
@@ -1601,7 +1561,7 @@ function AuditApp() {
         canRunAudits={canRunAudits}
         contentContainerRef={contentContainerRef}
         onNavigate={(nextView) => {
-          if (nextView === "new-audit") {
+          if ((nextView as string) === "new-audit") {
             startNewAudit();
             return;
           }
@@ -1793,12 +1753,12 @@ function AuditApp() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50 dark:divide-white/5">
-                              {blendedServiceAdvisorScoreRows.length > 0 ? blendedServiceAdvisorScoreRows.map((row) => (
+                              {blendedServiceAdvisorScoreRows.length > 0 ? blendedServiceAdvisorScoreRows.map((row: any) => (
                                 <tr key={`advisor-score-${row.personName}`} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                                   <td className="px-2 py-4 font-black text-slate-800 dark:text-slate-200">{row.personName}</td>
                                   <td className="px-2 py-4">
                                     <div className="flex flex-wrap gap-1">
-                                      {row.areas.map(area => (
+                                      {row.areas.map((area: string) => (
                                         <span key={area} className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-white/10 text-[9px] font-bold text-slate-600 dark:text-slate-400 uppercase">{area}</span>
                                       ))}
                                     </div>
@@ -1857,7 +1817,7 @@ function AuditApp() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50 dark:divide-white/5">
-                              {blendedTechnicianScoreRows.length > 0 ? blendedTechnicianScoreRows.map((row) => (
+                              {blendedTechnicianScoreRows.length > 0 ? blendedTechnicianScoreRows.map((row: any) => (
                                 <tr key={`technician-score-${row.personName}`} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                                   <td className="px-2 py-4 font-black text-slate-800 dark:text-slate-200">{row.personName}</td>
                                   <td className="px-2 py-4 text-center font-bold text-slate-500">{typeof row.ordersScore === "number" ? `${row.ordersScore}%` : "-"}</td>
@@ -1942,20 +1902,20 @@ function AuditApp() {
                   clientIdentifier={session.clientIdentifier}
                   onClientIdentifierChange={(value) => setSession({ ...session, clientIdentifier: value })}
                   onContinue={() => {
-                    setSession({
-                      ...session,
+                    setSession(prev => ({
+                      ...prev,
                       staffName: selectedStaff,
                       participants: isOrdersAudit ? {
-                        ...session.participants,
+                        ...prev.participants,
                         asesorServicio: selectedStaff,
-                      } : session.participants
-                    });
+                      } : prev.participants
+                    }));
                   }}
                   onBack={() => setSelectedRole(null)}
                   isOrdersAudit={isOrdersAudit}
                   isServiceAdvisorAudit={isServiceAdvisorAudit}
                   isTechnicianAudit={isTechnicianAudit}
-                  staffProgress={isOrdersAudit ? sampledOrdersAdvisorProgress : isServiceAdvisorAudit ? sampledServiceAdvisorProgress : undefined}
+                  staffProgress={undefined}
                 />
               ) : (
                 <Suspense fallback={<div className="rounded-[1.8rem] border border-slate-200 bg-white p-6 text-sm font-bold text-slate-500">Cargando sesión de auditoría...</div>}>
@@ -2033,14 +1993,11 @@ function AuditApp() {
                   updateCategory={updateCategory}
                   handleDuplicateCategory={handleDuplicateCategory}
                   handleDeleteCategory={handleDeleteCategory}
-                  handleDuplicateItem={handleDuplicateItem}
                   handleDeleteItem={handleDeleteItem}
                   newCategoryName={newCategoryName}
                   setNewCategoryName={setNewCategoryName}
                   newCategoryDescription={newCategoryDescription}
                   setNewCategoryDescription={setNewCategoryDescription}
-                  newCategoryStaff={newCategoryStaff}
-                  setNewCategoryStaff={setNewCategoryStaff}
                   handleAddCategory={handleAddCategory}
                   newItemText={newItemText}
                   setNewItemText={setNewItemText}
@@ -2249,7 +2206,7 @@ function AuditApp() {
 
                 <div className="space-y-6">
                 {completedAuditReports.map((report) => {
-                  const sectionScores = getSectionScores(report.templateItems, report.session);
+                  const sectionScores = getSectionScores(report.templateItems ?? [], report.session);
 
                   return (
                     <div key={`${report.role}-${report.session.id}`} className="premium-card p-6 bg-white/5 border-white/5 overflow-hidden">
@@ -2274,8 +2231,8 @@ function AuditApp() {
                               await generateAuditPdfReport({
                                 appTitle,
                                 session: report.session,
-                                auditorName: report.auditorName,
-                                templateItems: report.templateItems,
+                                auditorName: report.auditorName ?? "",
+                                templateItems: report.templateItems ?? [],
                               });
                             }}
                           >

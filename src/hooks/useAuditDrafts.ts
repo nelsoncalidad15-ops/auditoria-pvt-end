@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AuditSession, Location, Role } from "../types";
+import { AuditSession, Location, Role, AppView } from "../types";
 
 const AUDIT_DRAFTS_STORAGE_KEY = "auditDrafts";
-
-type AuditView = "dashboard" | "home" | "setup" | "audit" | "history" | "structure" | "integrations" | "continuar";
 
 export interface AuditDraft {
   id: string;
@@ -27,7 +25,7 @@ interface UseAuditDraftsParams {
   selectedStaff: string;
   session: Partial<AuditSession>;
   sessionItems: AuditSession["items"];
-  view: AuditView;
+  view: AppView;
   onResume: (draft: AuditDraft) => void;
 }
 
