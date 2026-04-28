@@ -1163,11 +1163,18 @@ function AuditApp() {
   };
 
   const handleDeleteAudit = React.useCallback((auditId: string) => {
+    // 1. Borrar de los borradores activos
     removeDraftAudit(auditId);
+    
+    // 2. Borrar del historial local (respaldos)
     removeLocalAuditHistoryItem(auditId);
+    
+    // 3. Borrar de los reportes completados en memoria
     setCompletedAuditReports((current) =>
       current.filter((report) => report.session.id !== auditId)
     );
+    
+    // 4. Cerrar el modal
     setDeleteConfirmModal({ show: false, auditId: "", auditName: "" });
   }, [removeDraftAudit, removeLocalAuditHistoryItem]);
 

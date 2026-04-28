@@ -102,7 +102,7 @@ export function SetupView({
                   className={cn(
                     "w-full premium-card p-4 text-left flex items-center justify-between transition-all group relative overflow-hidden",
                     isActive 
-                      ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950 border-none shadow-2xl ring-2 ring-blue-500/50" 
+                      ? "bg-blue-600 text-white border-none shadow-2xl ring-2 ring-blue-500/50" 
                       : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-white/5"
                   )}
                 >
@@ -150,7 +150,7 @@ export function SetupView({
                   className={cn(
                     "w-full premium-card p-4 text-left flex items-center justify-between transition-all group relative overflow-hidden",
                     isActive 
-                      ? "bg-blue-600 text-white border-none shadow-2xl ring-2 ring-white/20" 
+                      ? "bg-blue-600 text-white border-none shadow-2xl ring-2 ring-blue-500/50" 
                       : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-white/5"
                   )}
                 >
