@@ -233,9 +233,21 @@ function AuditApp() {
   const isFirebaseEnabled = isFirebaseConfigured && Boolean(auth) && Boolean(googleProvider);
 
   const formatAuditMonthLabel = React.useCallback((dateValue?: string) => {
-    const parsedDate = dateValue ? new Date(`${dateValue}T00:00:00`) : new Date();
-    const monthLabel = new Intl.DateTimeFormat("es-AR", { month: "long" }).format(parsedDate).trim();
-    return monthLabel ? monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1) : "Mes";
+    try {
+      const dateToParse = dateValue && dateValue.includes("-") ? `${dateValue}T00:00:00` : dateValue;
+      const parsedDate = dateToParse ? new Date(dateToParse) : new Date();
+      
+      // Verificar si la fecha es válida
+      if (isNaN(parsedDate.getTime())) {
+        return "Mes";
+      }
+
+      const monthLabel = new Intl.DateTimeFormat("es-AR", { month: "long" }).format(parsedDate).trim();
+      return monthLabel ? monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1) : "Mes";
+    } catch (e) {
+      console.error("Error formatting month label:", e);
+      return "Mes";
+    }
   }, []);
 
   const ensureSessionIdentity = React.useCallback((currentSession: Partial<AuditSession>) => {
@@ -628,7 +640,13 @@ function AuditApp() {
         session.location,
         session.date,
         history
-          .filter((auditSession) => auditSession.location === session.location && auditSession.date.startsWith((session.date || "").slice(0, 7)) && auditSession.auditBatchName?.trim())
+          .filter((auditSession) => 
+            auditSession.location === session.location && 
+            auditSession.date && 
+            session.date &&
+            auditSession.date.startsWith(session.date.slice(0, 7)) && 
+            auditSession.auditBatchName?.trim()
+          )
           .map((auditSession) => auditSession.auditBatchName!.trim()),
         formatAuditMonthLabel,
       )
