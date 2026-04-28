@@ -676,6 +676,18 @@ function AuditApp() {
     setView(draft.role ? "audit" : "setup");
   }, []);
 
+  const advisorGoal = (OR_PARTICIPANTS.asesorServicio.length || 1) * 10;
+  
+  const sampledOrdersProgress = React.useMemo(() => {
+    const count = completedAuditReports.filter(r => r.role === "Ordenes").length;
+    return Math.min(100, Math.round((count / advisorGoal) * 100));
+  }, [completedAuditReports, advisorGoal]);
+
+  const sampledServiceAdvisorClientsProgress = React.useMemo(() => {
+    const count = completedAuditReports.filter(r => r.role === "Asesores de servicio").length;
+    return Math.min(100, Math.round((count / advisorGoal) * 100));
+  }, [completedAuditReports, advisorGoal]);
+
   const {
     sortedDraftAudits,
     removeDraftAudit,
@@ -1721,6 +1733,7 @@ function AuditApp() {
                       completedReports={completedAuditReports}
                       sampledOrdersProgress={sampledOrdersProgress}
                       sampledServiceAdvisorClientsProgress={sampledServiceAdvisorClientsProgress}
+                      advisorGoal={advisorGoal}
                       auditCounts={completedAuditReports.reduce((acc, report) => {
                         const areaName = report.role;
                         acc[areaName] = (acc[areaName] || 0) + 1;

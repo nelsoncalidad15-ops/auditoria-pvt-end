@@ -22,6 +22,7 @@ interface CategoryGridProps {
   sampledServiceAdvisorClientsProgress?: number;
   onSelectCategory: (category: AuditCategory) => void;
   auditCounts?: Record<string, number>;
+  advisorGoal?: number;
 }
 
 export function CategoryGrid({
@@ -31,6 +32,7 @@ export function CategoryGrid({
   sampledServiceAdvisorClientsProgress,
   onSelectCategory,
   auditCounts = {},
+  advisorGoal = 10,
 }: CategoryGridProps) {
   const getIcon = (name: string) => {
     if (name.includes("Asesor")) return UserCheck;
@@ -99,7 +101,7 @@ export function CategoryGrid({
                     <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">{progress || 0}%</span>
                   </div>
                   <p className="text-[9px] font-black uppercase tracking-widest text-emerald-700/60 dark:text-emerald-400/60">
-                    {category.name === "Ordenes" ? `${count} / 10 ORs` : category.name === "Asesores de servicio" ? `${count} / 2 Clientes` : `${count} Audit.`}
+                    {category.name === "Ordenes" ? `${count} / ${advisorGoal} ORs` : category.name === "Asesores de servicio" ? `${count} / ${advisorGoal} Audit.` : `${count} Audit.`}
                   </p>
                 </div>
               ) : (
