@@ -230,8 +230,7 @@ function AuditItemRowBase({
           )}
         </div>
 
-        {!quickMode && (
-          <div className="flex flex-col items-center justify-center w-full md:w-auto shrink-0 gap-3">
+        <div className={cn("flex flex-col items-center justify-center w-full md:w-auto shrink-0 gap-3", quickMode && "hidden md:flex")}>
             {guidance && (
               <button
                 onClick={(e) => { e.stopPropagation(); setShowGuidance(!showGuidance); }}
@@ -282,8 +281,7 @@ function AuditItemRowBase({
                 </button>
               ))}
             </div>
-          </div>
-        )}
+        </div>
       </div>
 
       <div className={cn("flex gap-2", quickMode && "md:w-1/3 ml-auto")}>
