@@ -99,7 +99,7 @@ export const DashboardView = memo(({ history }: DashboardViewProps) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="premium-card p-6 bg-slate-900/50 border-white/5 hover:border-blue-500/30 transition-all group relative overflow-hidden"
+            className="premium-card p-6 bg-slate-900 border-white/10 hover:border-blue-500/30 transition-all group relative overflow-hidden"
           >
             <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
               <kpi.icon className="h-24 w-24" />
@@ -108,11 +108,11 @@ export const DashboardView = memo(({ history }: DashboardViewProps) => {
               <div className={cn("h-11 w-11 rounded-2xl flex items-center justify-center border shadow-lg", kpi.bg, kpi.color, "border-white/10")}>
                 <kpi.icon className="h-5 w-5" />
               </div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{kpi.sub}</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">{kpi.sub}</p>
             </div>
             <div className="space-y-1 relative z-10">
               <h3 className="text-3xl font-black tracking-tighter text-white leading-none">{kpi.value}</h3>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.15em]">{kpi.label}</p>
+              <p className="text-[11px] font-bold text-slate-300 uppercase tracking-[0.15em]">{kpi.label}</p>
             </div>
           </motion.div>
         ))}
@@ -132,11 +132,11 @@ export const DashboardView = memo(({ history }: DashboardViewProps) => {
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-blue-600" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Salta</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-800 dark:text-slate-200">Salta</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-teal-500" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Jujuy</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-800 dark:text-slate-200">Jujuy</span>
                 </div>
               </div>
             </div>
@@ -162,14 +162,14 @@ export const DashboardView = memo(({ history }: DashboardViewProps) => {
                     dataKey="month" 
                     axisLine={false} 
                     tickLine={false} 
-                    tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 700 }} 
+                    tick={{ fill: "#475569", fontSize: 10, fontWeight: 900 }} 
                     dy={10}
                   />
                   <YAxis 
                     domain={[0, 100]} 
                     axisLine={false} 
                     tickLine={false} 
-                    tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 700 }}
+                    tick={{ fill: "#475569", fontSize: 10, fontWeight: 900 }}
                   />
                   <Tooltip 
                     contentStyle={{ 
@@ -245,7 +245,7 @@ export const DashboardView = memo(({ history }: DashboardViewProps) => {
              {scoreBands.map((band: any) => (
                <div key={band.name} className="flex items-center gap-2">
                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: band.fill }} />
-                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{band.name}</span>
+                 <span className="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest">{band.name}</span>
                </div>
              ))}
           </div>

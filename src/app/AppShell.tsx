@@ -90,7 +90,7 @@ export function AppShell({
         onLogout={onLogout}
       />
 
-      <div ref={contentContainerRef} className="flex-1 flex flex-col min-h-[100dvh] relative">
+      <div ref={contentContainerRef} className="flex-1 flex flex-col min-h-[100dvh] relative lg:ml-[280px]">
         <Topbar
           appTitle={appTitle}
           view={view}

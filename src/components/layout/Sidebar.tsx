@@ -22,7 +22,6 @@ interface SidebarProps {
 }
 
 function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNavigate, onMobileClose, onLogout }: SidebarProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
   const isActive = (itemId: string) => (itemId === "home" ? view === "setup" || view === "audit" || view === "command-center" : view === itemId);
 
   const sidebarContent = (isMobile: boolean) => (
@@ -30,12 +29,12 @@ function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNaviga
       {/* Brand Section */}
       <div className={cn(
         "flex items-center gap-3 px-6 py-10 transition-all duration-300",
-        !isExpanded && !isMobile ? "px-4 justify-center" : "px-6"
+        "px-6"
       )}>
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[--accent-neon] text-[#050a14] shadow-lg shadow-[--accent-neon-glow]">
           <Settings className="h-6 w-6" />
         </div>
-        {(isExpanded || isMobile) && (
+        {(true) && (
           <motion.div 
             initial={{ opacity: 0, x: -10 }} 
             animate={{ opacity: 1, x: 0 }}
@@ -60,12 +59,11 @@ function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNaviga
               "group relative flex w-full items-center gap-4 rounded-2xl px-4 py-3.5 transition-all duration-300",
               isActive(item.id)
                 ? "bg-[--accent-neon] text-[#050a14] shadow-xl shadow-[--accent-neon-glow]"
-                : "text-slate-500 hover:bg-white/5 hover:text-white",
-              !isExpanded && !isMobile && "justify-center"
+                : "text-slate-300 hover:bg-white/5 hover:text-white"
             )}
           >
-            <item.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110 group-active:scale-90", isActive(item.id) ? "text-[#050a14]" : "text-slate-500 group-hover:text-white")} />
-            {(isExpanded || isMobile) && (
+            <item.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110 group-active:scale-90", isActive(item.id) ? "text-[#050a14]" : "text-slate-300 group-hover:text-white")} />
+            {(true) && (
               <motion.span 
                 initial={{ opacity: 0 }} 
                 animate={{ opacity: 1 }}
@@ -100,7 +98,7 @@ function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNaviga
             <div className="h-12 w-12 shrink-0 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white font-black group-hover:border-[--accent-neon] transition-colors">
               {user.displayName?.charAt(0) || "U"}
             </div>
-            {(isExpanded || isMobile) && (
+            {(true) && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-w-0">
                 <p className="text-sm font-black text-white truncate tracking-tight">{user.displayName}</p>
                 <p className="text-[10px] text-slate-500 truncate uppercase tracking-widest mt-0.5">{user.email}</p>
@@ -127,13 +125,11 @@ function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNaviga
 
   return (
     <>
-      {/* Desktop Sidebar (Rail) */}
+      {/* Desktop Sidebar */}
       <aside
-        onMouseEnter={() => setIsExpanded(true)}
-        onMouseLeave={() => setIsExpanded(false)}
         className={cn(
-          "hidden lg:flex flex-col fixed inset-y-0 left-0 z-50 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] border-r border-white/5 bg-[#050a14]/80 backdrop-blur-2xl",
-          isExpanded ? "w-[280px]" : "w-[88px]",
+          "hidden lg:flex flex-col fixed inset-y-0 left-0 z-50 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] border-r border-white/5 bg-[#1e222d] shadow-2xl",
+          "w-[280px]",
           !show && "translate-x-[-100%]"
         )}
       >
@@ -144,7 +140,7 @@ function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNaviga
       {/* Desktop Spacer */}
       <div className={cn(
         "hidden lg:block shrink-0 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]",
-        show ? (isExpanded ? "w-[280px]" : "w-[88px]") : "w-0"
+        show ? "w-[280px]" : "w-0"
       )} />
 
       {/* Mobile Drawer */}
