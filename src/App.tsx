@@ -411,7 +411,8 @@ function AuditApp() {
 
   const isOrdersAudit = matchesRole(selectedRole, "Ordenes", ["ordenes", "or postventa"]);
   const isServiceAdvisorAudit = matchesRole(selectedRole, "Asesores de servicio", ["asesor"]);
-  const isTechnicianAudit = matchesRole(selectedRole, "Técnicos", ["técnico", "taller"]);
+  const isWorkshopManagerAudit = matchesRole(selectedRole, "Jefe de Taller", ["jefe"]);
+  const isTechnicianAudit = matchesRole(selectedRole, "Técnicos", ["técnico", "taller"]) && !isWorkshopManagerAudit;
   const isPreDeliveryAudit = matchesRole(selectedRole, "Pre Entrega", ["pdi", "pre entrega"]);
   const auditedFileNames = Array.from({ length: 6 }, (_, index) => session.auditedFileNames?.[index] ?? "");
   const trimmedAuditedFileNames = auditedFileNames.map((name) => name.trim());
