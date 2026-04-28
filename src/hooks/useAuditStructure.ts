@@ -447,7 +447,7 @@ export function useAuditStructure({
   }, [auditCategories, hasAuthenticatedUser, isCloudStructureAvailable, selectedStructureScope, userEmail]);
 
   const handleSaveStructureToSheet = useCallback(async () => {
-    const effectiveWebhookUrl = webhookUrl || getStoredWebhookUrl();
+    const effectiveWebhookUrl = webhookUrl || localStorage.getItem("webhookUrl") || "";
     if (!effectiveWebhookUrl) {
       alert("No hay una URL de Webhook configurada para el Sheet. Por favor, configúrala en la sección de Integraciones.");
       return;

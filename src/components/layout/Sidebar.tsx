@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo } from "react";
 import { LogOut, Settings, LucideIcon, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "../../lib/utils";
@@ -27,23 +27,18 @@ function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNaviga
   const sidebarContent = (isMobile: boolean) => (
     <div className="flex flex-col h-full relative z-10">
       {/* Brand Section */}
-      <div className={cn(
-        "flex items-center gap-3 px-6 py-10 transition-all duration-300",
-        "px-6"
-      )}>
+      <div className="flex items-center gap-3 px-6 py-10 transition-all duration-300">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[--accent-neon] text-[#050a14] shadow-lg shadow-[--accent-neon-glow]">
           <Settings className="h-6 w-6" />
         </div>
-        {(true) && (
-          <motion.div 
-            initial={{ opacity: 0, x: -10 }} 
-            animate={{ opacity: 1, x: 0 }}
-            className="min-w-0"
-          >
-            <h1 className="text-xl font-black leading-none tracking-tighter text-white uppercase italic">{appTitle}</h1>
-            <p className="mt-1.5 text-[9px] font-black uppercase tracking-[0.25em] text-[--accent-neon] neon-text">SYSTEM CORE</p>
-          </motion.div>
-        )}
+        <motion.div 
+          initial={{ opacity: 0, x: -10 }} 
+          animate={{ opacity: 1, x: 0 }}
+          className="min-w-0"
+        >
+          <h1 className="text-xl font-black leading-none tracking-tighter text-white uppercase italic">{appTitle}</h1>
+          <p className="mt-1.5 text-[9px] font-black uppercase tracking-[0.25em] text-[--accent-neon] neon-text">SYSTEM CORE</p>
+        </motion.div>
       </div>
 
       {/* Navigation */}
@@ -63,60 +58,38 @@ function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNaviga
             )}
           >
             <item.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110 group-active:scale-90", isActive(item.id) ? "text-[#050a14]" : "text-white group-hover:text-white")} />
-            {(true) && (
-              <motion.span 
-                initial={{ opacity: 0 }} 
-                animate={{ opacity: 1 }}
-                className="text-xs font-black uppercase tracking-widest truncate"
-              >
-                {item.label}
-              </motion.span>
-            )}
-            {!isExpanded && !isMobile && (
-              <div className="absolute left-16 rounded-xl bg-[#0a0f1d] px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] text-white opacity-0 group-hover:opacity-100 transition-all transform translate-x-[-10px] group-hover:translate-x-0 pointer-events-none z-[100] border border-white/10 shadow-2xl">
-                {item.label}
-              </div>
-            )}
-            
-            {isActive(item.id) && !isExpanded && !isMobile && (
-              <div className="absolute left-0 w-1 h-6 bg-[#050a14] rounded-r-full" />
-            )}
+            <motion.span 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }}
+              className="text-xs font-black uppercase tracking-widest truncate"
+            >
+              {item.label}
+            </motion.span>
           </button>
         ))}
       </nav>
 
       {/* User Section */}
       {user && (
-        <div className={cn(
-          "p-6 border-t border-white/5 bg-black/40 backdrop-blur-md transition-all duration-300 rounded-t-3xl",
-          !isExpanded && !isMobile ? "px-2" : "px-6"
-        )}>
-          <div className={cn(
-            "flex items-center gap-4 mb-6",
-            !isExpanded && !isMobile ? "justify-center" : ""
-          )}>
+        <div className="p-6 border-t border-white/5 bg-black/40 backdrop-blur-md transition-all duration-300 rounded-t-3xl">
+          <div className="flex items-center gap-4 mb-6">
             <div className="h-12 w-12 shrink-0 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white font-black group-hover:border-[--accent-neon] transition-colors">
               {user.displayName?.charAt(0) || "U"}
             </div>
-            {(true) && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-w-0">
-                <p className="text-sm font-black text-white truncate tracking-tight">{user.displayName}</p>
-                <p className="text-[10px] text-slate-500 truncate uppercase tracking-widest mt-0.5">{user.email}</p>
-              </motion.div>
-            )}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-w-0">
+              <p className="text-sm font-black text-white truncate tracking-tight">{user.displayName}</p>
+              <p className="text-[10px] text-slate-500 truncate uppercase tracking-widest mt-0.5">{user.email}</p>
+            </motion.div>
           </div>
           <button
             onClick={() => {
               onLogout();
               if (isMobile) onMobileClose();
             }}
-            className={cn(
-              "flex w-full items-center justify-center gap-3 py-3.5 rounded-2xl border border-red-500/10 bg-red-500/5 text-[10px] font-black uppercase tracking-[0.2em] text-red-400 hover:bg-red-500 hover:text-white transition-all shadow-lg active:scale-95",
-              !isExpanded && !isMobile ? "px-0" : "px-4"
-            )}
+            className="flex w-full items-center justify-center gap-3 py-3.5 px-4 rounded-2xl border border-red-500/10 bg-red-500/5 text-[10px] font-black uppercase tracking-[0.2em] text-red-400 hover:bg-red-500 hover:text-white transition-all shadow-lg active:scale-95"
           >
             <LogOut className="h-4 w-4" />
-            {(isExpanded || isMobile) && <span>SIGN OUT</span>}
+            <span>SIGN OUT</span>
           </button>
         </div>
       )}

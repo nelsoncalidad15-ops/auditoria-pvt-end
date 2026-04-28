@@ -30,6 +30,7 @@ import {
   LOCATIONS, 
   AUDITORS,
   STAFF,
+  OR_PARTICIPANTS,
 } from "./constants";
 import { AppView, AuditSession, AuditTemplateItem, AuditUserProfile, CompletedAuditReport, HistoryPanel, IncompleteAuditListItem, Location, Role } from "./types";
 import { buildOrderAuditItems, calculateAuditCompliance, calculateRoleScores } from "./services/or-audit";
@@ -371,14 +372,6 @@ function AuditApp() {
     average: r.promedio,
     evaluations: filteredHistory.filter((s) => s.role === r.role).length,
   }));
-  const sampledOrdersAdvisorProgress = 0;
-  const sampledServiceAdvisorProgress = 0;
-  const sampledOrdersProgress = 0;
-  const sampledServiceAdvisorClientsProgress = 0;
-  void sampledOrdersAdvisorProgress;
-  void sampledServiceAdvisorProgress;
-  void sampledOrdersProgress;
-  void sampledServiceAdvisorClientsProgress;
   void blendedServiceAdvisorScoreRows;
   void blendedTechnicianScoreRows;
 
