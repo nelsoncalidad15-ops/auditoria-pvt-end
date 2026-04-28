@@ -41,7 +41,7 @@ export function SetupView({
   const canContinue = Boolean(selectedAuditorId && selectedLocation);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-10 py-6">
+    <div className="max-w-4xl mx-auto space-y-10 pt-2 pb-6">
       {/* Hero Section */}
       <div className="space-y-4 px-2">
         <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-black uppercase tracking-[0.2em] text-[10px]">

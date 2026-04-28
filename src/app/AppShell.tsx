@@ -106,7 +106,7 @@ export function AppShell({
           onLogin={() => {}}
         />
 
-        <main className={cn("p-4 md:p-8 flex-1 transition-all duration-300 relative z-10", getMainClassName(view))}>
+        <main className={cn("px-4 pb-4 pt-2 md:px-8 md:pb-8 md:pt-4 flex-1 transition-all duration-300 relative z-10", getMainClassName(view))}>
           <AnimatePresence mode="wait">
             <motion.div
               key={view}
