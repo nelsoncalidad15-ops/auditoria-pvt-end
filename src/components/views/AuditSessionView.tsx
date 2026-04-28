@@ -534,8 +534,8 @@ export function AuditSessionView({
                     className={cn(
                       "w-full h-12 rounded-xl font-black text-[10px] uppercase tracking-[0.15em] flex items-center justify-center gap-2 transition-all active:scale-95",
                       !isSubmitDisabled
-                        ? "bg-white/5 text-white border border-white/10 hover:bg-white/10"
-                        : "bg-transparent text-slate-600 border border-white/5 cursor-not-allowed"
+                        ? "bg-blue-600/10 text-blue-600 border border-blue-600/20 hover:bg-blue-600/20 dark:bg-white/5 dark:text-white dark:border-white/10"
+                        : "bg-transparent text-slate-400 border border-slate-100 dark:border-white/5 cursor-not-allowed"
                     )}
                   >
                     <Save className="h-3 w-3" />

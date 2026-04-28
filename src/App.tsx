@@ -1721,6 +1721,11 @@ function AuditApp() {
                       completedReports={completedAuditReports}
                       sampledOrdersProgress={sampledOrdersProgress}
                       sampledServiceAdvisorClientsProgress={sampledServiceAdvisorClientsProgress}
+                      auditCounts={completedAuditReports.reduce((acc, report) => {
+                        const areaName = report.role;
+                        acc[areaName] = (acc[areaName] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>)}
                       onSelectCategory={(category) => {
                         setSelectedRole(category.name);
                         setAuditEntryTab("areas");

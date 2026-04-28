@@ -21,6 +21,7 @@ interface CategoryGridProps {
   sampledOrdersProgress?: number;
   sampledServiceAdvisorClientsProgress?: number;
   onSelectCategory: (category: AuditCategory) => void;
+  auditCounts?: Record<string, number>;
 }
 
 export function CategoryGrid({
@@ -29,6 +30,7 @@ export function CategoryGrid({
   sampledOrdersProgress,
   sampledServiceAdvisorClientsProgress,
   onSelectCategory,
+  auditCounts = {},
 }: CategoryGridProps) {
   const getIcon = (name: string) => {
     if (name.includes("Asesor")) return UserCheck;
@@ -47,12 +49,13 @@ export function CategoryGrid({
       {categories.map((category, index) => {
         const Icon = getIcon(category.name);
         const report = completedReports.find((r) => r.role === category.name);
+        const count = auditCounts[category.name] || 0;
         
         let progress = report?.session.totalScore;
         if (category.name === "Ordenes") progress = sampledOrdersProgress;
         if (category.name === "Asesores de servicio") progress = sampledServiceAdvisorClientsProgress;
         
-        const isCompleted = typeof progress === "number";
+        const isCompleted = count > 0;
 
         return (
           <motion.button
@@ -85,14 +88,19 @@ export function CategoryGrid({
               </span>
               
               {isCompleted ? (
-                <div className="flex items-center gap-1.5 mt-2">
-                  <div className="flex-1 h-1.5 bg-emerald-200 dark:bg-emerald-500/20 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-emerald-500" 
-                      style={{ width: `${progress}%` }} 
-                    />
+                <div className="space-y-2 mt-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex-1 h-1.5 bg-emerald-200 dark:bg-emerald-500/20 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-emerald-500" 
+                        style={{ width: `${progress || 0}%` }} 
+                      />
+                    </div>
+                    <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">{progress || 0}%</span>
                   </div>
-                  <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">{progress}%</span>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-700/60 dark:text-emerald-400/60">
+                    {category.name === "Ordenes" ? `${count} / 10 ORs` : category.name === "Asesores de servicio" ? `${count} / 2 Clientes` : `${count} Audit.`}
+                  </p>
                 </div>
               ) : (
                 <div className="flex items-center justify-between mt-2 w-full">
