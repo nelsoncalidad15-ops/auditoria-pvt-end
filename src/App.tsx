@@ -176,8 +176,8 @@ type OrdersSubmitMode = "continue" | "finish";
 function AuditApp() {
   const appTitle = import.meta.env.VITE_APP_TITLE?.trim() || "Auditoría OR Postventa VW";
   const contentContainerRef = React.useRef<HTMLDivElement | null>(null);
-  const envWebhookUrl = import.meta.env.VITE_APPS_SCRIPT_URL?.trim() || "";
-  const envSheetCsvUrl = import.meta.env.VITE_SHEET_CSV_URL?.trim() || "";
+  const envWebhookUrl = import.meta.env.VITE_APPS_SCRIPT_URL?.trim() || ""; // Configured via GitHub Secrets
+  const envSheetCsvUrl = import.meta.env.VITE_SHEET_CSV_URL?.trim() || ""; // Configured via GitHub Secrets
   const storedIntegrationMeta = getStoredMeta(INTEGRATION_META_STORAGE_KEY);
   const storedSyncMeta = getStoredMeta(SYNC_META_STORAGE_KEY);
   const storedExportMeta = getStoredMeta(EXPORT_META_STORAGE_KEY);
