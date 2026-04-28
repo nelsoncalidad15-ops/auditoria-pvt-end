@@ -99,20 +99,17 @@ function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNaviga
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside
-        className={cn(
-          "hidden lg:flex flex-col fixed inset-y-0 left-0 z-50 border-r border-white/10 bg-[#111827] shadow-[10px_0_30px_rgba(0,0,0,0.3)]",
-          "w-[280px]"
-        )}
-      >
-        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
-        {sidebarContent(false)}
-      </aside>
-
-      {/* Desktop Spacer */}
-      <div className={cn(
-        "hidden lg:block shrink-0 w-[280px]"
-      )} />
+      {show && (
+        <aside
+          className={cn(
+            "hidden lg:flex flex-col fixed inset-y-0 left-0 z-50 border-r border-white/10 bg-[#111827] shadow-[10px_0_30px_rgba(0,0,0,0.3)]",
+            "w-[280px]"
+          )}
+        >
+          <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
+          {sidebarContent(false)}
+        </aside>
+      )}
 
       {/* Mobile Drawer */}
       <AnimatePresence>
