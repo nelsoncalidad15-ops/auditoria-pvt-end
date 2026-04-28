@@ -447,14 +447,15 @@ export function useAuditStructure({
   }, [auditCategories, hasAuthenticatedUser, isCloudStructureAvailable, selectedStructureScope, userEmail]);
 
   const handleSaveStructureToSheet = useCallback(async () => {
-    if (!hasWebhookUrl) {
-      alert("No hay una URL de Webhook configurada para el Sheet.");
+    const effectiveWebhookUrl = webhookUrl || getStoredWebhookUrl();
+    if (!effectiveWebhookUrl) {
+      alert("No hay una URL de Webhook configurada para el Sheet. Por favor, configúrala en la sección de Integraciones.");
       return;
     }
 
     setIsSavingStructureToSheet(true);
     try {
-      await sendStructureToWebhook(webhookUrl, {
+      await sendStructureToWebhook(effectiveWebhookUrl, {
         event: "structure_update",
         scope: selectedStructureScope,
         data: JSON.stringify(auditCategories),
