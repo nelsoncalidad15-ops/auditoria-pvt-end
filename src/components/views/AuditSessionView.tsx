@@ -13,6 +13,8 @@ interface AuditSessionViewProps {
   session: Partial<AuditSession>;
   selectedRole: Role | null;
   isOrdersAudit: boolean;
+  isServiceAdvisorAudit: boolean;
+  isTechnicianAudit: boolean;
   isPreDeliveryAudit: boolean;
   visibleAuditItems: AuditTemplateItem[];
   activeAuditBlock: string | null;
@@ -53,6 +55,8 @@ export function AuditSessionView({
   session,
   selectedRole,
   isOrdersAudit,
+  isServiceAdvisorAudit,
+  isTechnicianAudit,
   isPreDeliveryAudit,
   visibleAuditItems,
   activeAuditBlock,
@@ -86,6 +90,7 @@ export function AuditSessionView({
   formatPreDeliveryLegajoQuestion,
 }: AuditSessionViewProps) {
   const sessionItems = session.items || [];
+  const staffName = session.participants?.asesorServicio || session.staffName;
   
   // Logic: Calculate Progress
   const totalItemsCount = visibleAuditItems.length;
@@ -107,8 +112,6 @@ export function AuditSessionView({
     return templateItem.requiresCommentOnFail && sessionItem?.status === "fail" && !sessionItem?.comment?.trim();
   });
 
-  const isServiceAdvisorAudit = selectedRole === "Asesores de servicio";
-  const isTechnicianAudit = selectedRole === "Técnicos";
   const preDeliveryGeneralItems = visibleAuditItems.filter((item) => !(item.block || "").startsWith("Legajo auditado "));
 
   return (
@@ -229,6 +232,39 @@ export function AuditSessionView({
                   {isQuickAuditMode ? "MODO RÁPIDO" : "MODO COMPLETO"}
                 </button>
               </div>
+
+              {(isOrdersAudit || isServiceAdvisorAudit || isTechnicianAudit) && (
+                <div className="mb-8 flex flex-wrap gap-3">
+                  {staffName && (
+                    <div className="rounded-2xl bg-blue-500/5 border border-blue-500/10 px-4 py-2.5 flex items-center gap-3">
+                      <div className="h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 leading-none mb-1">Responsable</p>
+                        <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{staffName}</p>
+                      </div>
+                    </div>
+                  )}
+                  {session.orderNumber && (
+                    <div className="rounded-2xl bg-indigo-500/5 border border-indigo-500/10 px-4 py-2.5 flex items-center gap-3">
+                      <div className="h-2 w-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 leading-none mb-1">Nº de OR</p>
+                        <p className="text-sm font-black text-indigo-500 uppercase tracking-[0.1em]">{session.orderNumber}</p>
+                      </div>
+                    </div>
+                  )}
+                  {session.clientIdentifier && (
+                    <div className="rounded-2xl bg-amber-500/5 border border-amber-500/10 px-4 py-2.5 flex items-center gap-3">
+                      <div className="h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 leading-none mb-1">Cliente / VIN</p>
+                        <p className="text-sm font-black text-amber-600 uppercase tracking-tight">{session.clientIdentifier}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
 
               <div className="space-y-4">
                 {isPreDeliveryAudit ? (

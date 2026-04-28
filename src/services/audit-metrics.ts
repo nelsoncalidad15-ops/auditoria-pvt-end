@@ -219,8 +219,10 @@ export function buildAuditProcessMetrics({
 
   const sampledOrdersHistory = dedupeSessions(
     allSessions.filter((auditSession) => {
+      const normalizedRole = auditSession.role?.trim().toLowerCase() || "";
       const isOrdersSession = auditSession.entityType === "or"
-        || auditSession.role === "Ordenes"
+        || normalizedRole === "ordenes"
+        || normalizedRole.includes("or postventa")
         || Boolean(auditSession.orderNumber?.trim());
 
       return isOrdersSession && isSessionInCurrentSamplingScope(auditSession);
@@ -258,9 +260,10 @@ export function buildAuditProcessMetrics({
   );
 
   const sampledServiceAdvisorHistory = dedupeSessions(
-    allSessions.filter((auditSession) =>
-      auditSession.role === "Asesores de servicio" && isSessionInCurrentSamplingScope(auditSession),
-    ),
+    allSessions.filter((auditSession) => {
+      const normalizedRole = auditSession.role?.trim().toLowerCase() || "";
+      return (normalizedRole === "asesores de servicio" || normalizedRole.includes("asesor")) && isSessionInCurrentSamplingScope(auditSession);
+    }),
     (auditSession) => `${auditSession.role || "sin-rol"}-${auditSession.date || "sin-fecha"}-${auditSession.staffName || "sin-asesor"}-${auditSession.clientIdentifier || "sin-cliente"}`,
   );
 
@@ -309,16 +312,19 @@ export function buildAuditProcessMetrics({
     return Boolean(isSameMonth && isSameLocation);
   });
 
-  const processOrdersSessions = processScoreSessions.filter((auditSession) =>
-    auditSession.entityType === "or"
-      || auditSession.role === "Ordenes"
-      || Boolean(auditSession.orderNumber?.trim()),
-  );
+  const processOrdersSessions = processScoreSessions.filter((auditSession) => {
+    const normalizedRole = auditSession.role?.trim().toLowerCase() || "";
+    return auditSession.entityType === "or"
+      || normalizedRole === "ordenes"
+      || normalizedRole.includes("or postventa")
+      || Boolean(auditSession.orderNumber?.trim());
+  });
 
   const advisorScoreRows = calculatePersonScores(processOrdersSessions, "asesor", "asesorServicio");
   const serviceAdvisorScoreRows = Array.from(
     processScoreSessions.reduce((acc, auditSession) => {
-      if (auditSession.role !== "Asesores de servicio") {
+      const normalizedRole = auditSession.role?.trim().toLowerCase() || "";
+      if (normalizedRole !== "asesores de servicio" && !normalizedRole.includes("asesor")) {
         return acc;
       }
 
@@ -388,8 +394,8 @@ export function buildAuditProcessMetrics({
   const technicianScoreRows = calculatePersonScores(processOrdersSessions, "tecnico", "tecnico");
   const technicianCategoryScoreRows = Array.from(
     processScoreSessions.reduce((acc, auditSession) => {
-      const roleName = auditSession.role || auditSession.items[0]?.category || "";
-      if (roleName !== "Técnicos") {
+      const normalizedRole = (auditSession.role || auditSession.items[0]?.category || "").trim().toLowerCase();
+      if (normalizedRole !== "técnicos" && !normalizedRole.includes("técnico") && !normalizedRole.includes("taller")) {
         return acc;
       }
 
@@ -590,8 +596,9 @@ export function buildAuditProcessMetrics({
 
   const technicianReviewSessions = processScoreSessions
     .filter((auditSession) => {
-      const roleName = auditSession.role || auditSession.items[0]?.category || "";
-      return roleName === "Técnicos" && Boolean(auditSession.staffName?.trim());
+      const normalizedRole = (auditSession.role || auditSession.items[0]?.category || "").trim().toLowerCase();
+      const isTechRole = normalizedRole === "técnicos" || normalizedRole.includes("técnico") || normalizedRole.includes("taller");
+      return isTechRole && Boolean(auditSession.staffName?.trim());
     })
     .sort((left, right) => `${right.date}-${right.id}`.localeCompare(`${left.date}-${left.id}`))
     .reduce((acc, auditSession) => {

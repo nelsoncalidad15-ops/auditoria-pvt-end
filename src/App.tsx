@@ -71,6 +71,8 @@ const ContinueAuditsView = React.lazy(() => import("./components/views/ContinueA
 const HomeView = React.lazy(() => import("./components/views/CommandCenterView").then((module) => ({ default: module.CommandCenterView })));
 const SetupView = React.lazy(() => import("./components/views/SetupView").then((module) => ({ default: module.SetupView })));
 const AuditSessionView = React.lazy(() => import("./components/views/AuditSessionView").then((module) => ({ default: module.AuditSessionView })));
+const AuditStaffSelectionView = React.lazy(() => import("./components/views/AuditStaffSelectionView").then((module) => ({ default: module.AuditStaffSelectionView })));
+
 
 function ErrorBoundary({ children }: { children: React.ReactNode }) {
   const [error, setError] = React.useState<any>(null);
@@ -366,10 +368,19 @@ function AuditApp() {
 
     return left.text.localeCompare(right.text);
   });
-  const isOrdersAudit = selectedRole === "Ordenes";
-  const isServiceAdvisorAudit = selectedRole === "Asesores de servicio";
-  const isTechnicianAudit = selectedRole === "Técnicos";
-  const isPreDeliveryAudit = selectedRole === "Pre Entrega";
+  // Helper for case-insensitive role matching
+  // Helper for case-insensitive role matching and keyword detection
+  const matchesRole = (role: string | null, target: string, keywords: string[] = []) => {
+    if (!role) return false;
+    const normalizedRole = role.trim().toLowerCase();
+    const normalizedTarget = target.trim().toLowerCase();
+    return normalizedRole === normalizedTarget || keywords.some(k => normalizedRole.includes(k.toLowerCase()));
+  };
+
+  const isOrdersAudit = matchesRole(selectedRole, "Ordenes", ["ordenes", "or postventa"]);
+  const isServiceAdvisorAudit = matchesRole(selectedRole, "Asesores de servicio", ["asesor"]);
+  const isTechnicianAudit = matchesRole(selectedRole, "Técnicos", ["técnico", "taller"]);
+  const isPreDeliveryAudit = matchesRole(selectedRole, "Pre Entrega", ["pdi", "pre entrega"]);
   const auditedFileNames = Array.from({ length: 6 }, (_, index) => session.auditedFileNames?.[index] ?? "");
   const trimmedAuditedFileNames = auditedFileNames.map((name) => name.trim());
   const preDeliveryAuditItems = isPreDeliveryAudit
@@ -524,7 +535,7 @@ function AuditApp() {
       : "Borrador listo";
   const observationSuggestions = isPreDeliveryAudit && preDeliverySection === "legajos"
     ? DEFAULT_OBSERVATION_SUGGESTIONS
-    : selectedRole === "Lavadero"
+    : matchesRole(selectedRole, "Lavadero", ["lavadero", "lavado"])
       ? [
           "Falta limpieza",
           "Detalle incompleto",
@@ -727,7 +738,7 @@ function AuditApp() {
 
     const currentDraft = technicianDraftSessions.find((draft) => draft.staffName?.trim() === normalizedName);
     const completedSession = technicianReviewSessions.find((sessionItem) => sessionItem.staffName?.trim() === normalizedName);
-    const isCurrentSelection = selectedRole === "Técnicos" && selectedStaff.trim() === normalizedName;
+    const isCurrentSelection = isTechnicianAudit && selectedStaff.trim() === normalizedName;
 
     const currentItems = isCurrentSelection
       ? sessionItems
@@ -1160,27 +1171,27 @@ function AuditApp() {
   const handleAuditSubmit = (submitMode: OrdersSubmitMode = "finish") => {
     if (!selectedRole || !selectedAuditCategory) return;
 
-    if (selectedRole === "Ordenes" && !/^\d{6}$/.test(session.orderNumber?.trim() || "")) {
-      alert("Ingresá un número de OR válido de 6 dígitos.");
+    if (isOrdersAudit && !/^\d{1,10}$/.test(session.orderNumber?.trim() || "")) {
+      alert("Ingresá un número de OR válido (solo números).");
       return;
     }
 
-    if (selectedRole === "Ordenes" && !session.participants?.asesorServicio?.trim()) {
+    if (isOrdersAudit && !session.participants?.asesorServicio?.trim()) {
       alert("Complet? el asesor de servicio antes de cerrar la OR.");
       return;
     }
 
-    if (selectedRole === "Asesores de servicio" && !selectedStaff.trim()) {
+    if (isServiceAdvisorAudit && !selectedStaff.trim()) {
       alert("Seleccioná el asesor de servicio antes de cerrar la auditoría.");
       return;
     }
 
-    if (selectedRole === "Asesores de servicio" && !session.clientIdentifier?.trim()) {
+    if (isServiceAdvisorAudit && !session.clientIdentifier?.trim()) {
       alert("Ingresá el nombre o VIN del cliente auditado.");
       return;
     }
 
-    if (selectedRole === "Técnicos" && !selectedStaff.trim()) {
+    if (isTechnicianAudit && !selectedStaff.trim()) {
       alert("Seleccioná el técnico antes de cerrar la auditoría.");
       return;
     }
@@ -1247,22 +1258,22 @@ function AuditApp() {
     const completeSession: AuditSession = {
       ...normalizedSession as AuditSession,
       userProfile,
-      staffName: selectedRole === "Ordenes"
+      staffName: isOrdersAudit
         ? session.participants?.asesorServicio || selectedStaff
-        : selectedRole === "Asesores de servicio"
+        : isServiceAdvisorAudit
           ? selectedStaff.trim()
         : isPreDeliveryAudit
           ? undefined
           : selectedStaff,
       role: selectedRole!,
-      orderNumber: selectedRole === "Ordenes" ? session.orderNumber?.trim() || undefined : undefined,
-      clientIdentifier: selectedRole === "Asesores de servicio" ? session.clientIdentifier?.trim() || undefined : undefined,
+      orderNumber: isOrdersAudit ? session.orderNumber?.trim() || undefined : undefined,
+      clientIdentifier: isServiceAdvisorAudit ? session.clientIdentifier?.trim() || undefined : undefined,
       auditedFileNames: isPreDeliveryAudit ? auditedFileNames.map((name) => name.trim()) : undefined,
       totalScore: complianceMetrics.compliance,
       items: finalItems,
       participants: session.participants,
       roleScores,
-      entityType: selectedRole === "Ordenes" ? "or" : "general",
+      entityType: isOrdersAudit ? "or" : "general",
     };
     const shouldKeepOrdersAdvisor = completeSession.role === "Ordenes" && submitMode === "continue";
     const shouldKeepServiceAdvisor = completeSession.role === "Asesores de servicio" && submitMode === "continue";
@@ -1349,7 +1360,10 @@ function AuditApp() {
       setIsSendingToSheet(false);
       setActiveAuditItemId(null);
       setFocusedAuditItemId(null);
-      setSelectedStaff(shouldKeepServiceAdvisor ? (completeSession.staffName?.trim() || "") : "");
+      
+      const shouldKeepStaff = (shouldKeepOrdersAdvisor || shouldKeepServiceAdvisor);
+      setSelectedStaff(shouldKeepStaff ? (completeSession.staffName?.trim() || "") : "");
+      
       setView("audit");
       setSession({
         id: createClientId(),
@@ -1357,7 +1371,8 @@ function AuditApp() {
         auditBatchName: completeSession.auditBatchName,
         auditorId: completeSession.auditorId,
         location: completeSession.location,
-        clientIdentifier: undefined,
+        orderNumber: undefined, // Reset for next order
+        clientIdentifier: undefined, // Reset for next client
         auditedFileNames: createEmptyAuditedFileNames(),
         participants: isOrdersAudit ? nextOrdersParticipants : undefined,
         items: [],
@@ -1366,6 +1381,7 @@ function AuditApp() {
       if (!((completeSession.role === "Ordenes" || completeSession.role === "Asesores de servicio" || completeSession.role === "Técnicos") && submitMode === "continue")) {
         setSelectedRole(null);
       }
+
 
       if (shouldKeepTechnicianFlow) {
         setSelectedStaff("");
@@ -1749,7 +1765,7 @@ function AuditApp() {
                         const blocks = Array.from(new Set(category.items.map(i => i.block).filter(Boolean))) as string[];
                         setActiveAuditBlock(blocks.length > 0 ? blocks[0] : null);
 
-                        if (category.name === "Pre Entrega" || category.name === "Ordenes") {
+                        if (category.name === "Pre Entrega") {
                           setSelectedStaff("");
                         }
                       }}
@@ -1909,12 +1925,46 @@ function AuditApp() {
                     </div>
                   )}
                 </div>
+              ) : selectedRole && (
+                !selectedStaff || 
+                (isOrdersAudit && !session.orderNumber) || 
+                (isServiceAdvisorAudit && !session.clientIdentifier)
+              ) && !isPreDeliveryAudit ? (
+                <AuditStaffSelectionView
+                  role={selectedRole}
+                  staffList={
+                    Object.entries(STAFF).find(([key]) => key.toLowerCase() === selectedRole.toLowerCase())?.[1] || []
+                  }
+                  selectedStaff={selectedStaff}
+                  onSelectStaff={setSelectedStaff}
+                  orderNumber={session.orderNumber}
+                  onOrderNumberChange={(value) => setSession({ ...session, orderNumber: value })}
+                  clientIdentifier={session.clientIdentifier}
+                  onClientIdentifierChange={(value) => setSession({ ...session, clientIdentifier: value })}
+                  onContinue={() => {
+                    setSession({
+                      ...session,
+                      staffName: selectedStaff,
+                      participants: isOrdersAudit ? {
+                        ...session.participants,
+                        asesorServicio: selectedStaff,
+                      } : session.participants
+                    });
+                  }}
+                  onBack={() => setSelectedRole(null)}
+                  isOrdersAudit={isOrdersAudit}
+                  isServiceAdvisorAudit={isServiceAdvisorAudit}
+                  isTechnicianAudit={isTechnicianAudit}
+                  staffProgress={isOrdersAudit ? sampledOrdersAdvisorProgress : isServiceAdvisorAudit ? sampledServiceAdvisorProgress : undefined}
+                />
               ) : (
                 <Suspense fallback={<div className="rounded-[1.8rem] border border-slate-200 bg-white p-6 text-sm font-bold text-slate-500">Cargando sesión de auditoría...</div>}>
                   <AuditSessionView
                     session={session}
                     selectedRole={selectedRole}
                     isOrdersAudit={isOrdersAudit}
+                    isServiceAdvisorAudit={isServiceAdvisorAudit}
+                    isTechnicianAudit={isTechnicianAudit}
                     isPreDeliveryAudit={isPreDeliveryAudit}
                     visibleAuditItems={visibleAuditItems}
                     activeAuditBlock={activeAuditBlock}
@@ -2123,9 +2173,9 @@ function AuditApp() {
         onClose={() => setShowConfirmModal(false)}
         onConfirm={confirmAuditSubmit}
         title={pendingOrdersSubmitMode === "continue"
-          ? (selectedRole === "Asesores de servicio"
+          ? (isServiceAdvisorAudit
               ? "¿Guardar y continuar con otro asesor?"
-              : selectedRole === "Técnicos"
+              : isTechnicianAudit
                 ? "¿Guardar y continuar con otro técnico?"
                 : "¿Guardar y continuar con otra OR?")
           : "¿Guardar y finalizar auditoría?"}
