@@ -21,7 +21,6 @@ function doGet(e) {
 function doPost(e) {
   try {
     var payload = JSON.parse(e.postData.contents || '{}');
-    validatePayload_(payload);
 
     var spreadsheet = getSpreadsheet_();
     var summarySheet = getOrCreateSheet_(spreadsheet, SUMMARY_SHEET_NAME, [
@@ -71,6 +70,21 @@ function doPost(e) {
       'comment',
       'photoUrl'
     ]);
+
+    if (payload && payload.event === 'audit_delete') {
+      validateDeletePayload_(payload);
+
+      return ContentService
+        .createTextOutput(JSON.stringify({
+          ok: true,
+          deletedAuditId: payload.auditId,
+          deletedSummaryRows: deleteRowsByAuditId_(summarySheet, payload.auditId),
+          deletedItemRows: deleteRowsByAuditId_(itemsSheet, payload.auditId)
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    validatePayload_(payload);
     var normalizedItemRows = normalizeItemRows_(payload.audit, payload.sheet.itemRows || []);
 
     appendSummaryRow_(summarySheet, payload.sheet.summaryRow);
@@ -380,6 +394,39 @@ function copyObject_(value) {
     copy[key] = value[key];
   });
   return copy;
+}
+
+function validateDeletePayload_(payload) {
+  if (!payload || payload.event !== 'audit_delete') {
+    throw new Error('Payload invÃ¡lido para eliminaciÃ³n: event');
+  }
+
+  if (!payload.auditId) {
+    throw new Error('Payload invÃ¡lido para eliminaciÃ³n: auditId');
+  }
+}
+
+function deleteRowsByAuditId_(sheet, auditId) {
+  if (!auditId || sheet.getLastRow() <= 1) {
+    return 0;
+  }
+
+  var values = sheet.getDataRange().getDisplayValues();
+  var headers = values[0] || [];
+  var auditIdIndex = headers.indexOf('auditId');
+  if (auditIdIndex === -1) {
+    throw new Error('La hoja ' + sheet.getName() + ' no contiene la columna auditId.');
+  }
+
+  var deletedRows = 0;
+  for (var rowIndex = values.length - 1; rowIndex >= 1; rowIndex -= 1) {
+    if (String(values[rowIndex][auditIdIndex] || '').trim() === String(auditId).trim()) {
+      sheet.deleteRow(rowIndex + 1);
+      deletedRows += 1;
+    }
+  }
+
+  return deletedRows;
 }
 
 function validatePayload_(payload) {

@@ -1,4 +1,4 @@
-export type Location = "Salta" | "Jujuy";
+export type Location = "Salta" | "Jujuy" | "Sin ubicación";
 
 export type AuditStructureScope = "global" | Location;
 export type AuditItemPriority = "high" | "medium" | "low";
@@ -6,6 +6,7 @@ export type AuditItemStatus = "pass" | "fail" | "na";
 export type AuditUserProfile = "auditor" | "supervisor" | "consulta";
 export type AppView = "dashboard" | "home" | "setup" | "audit" | "history" | "structure" | "integrations" | "continuar" | "command-center";
 export type HistoryPanel = "records" | "exports";
+export type AuditSource = "local" | "sheet" | "firestore";
 
 export type OrResponsibleRole =
   | "asesor"
@@ -107,6 +108,7 @@ export interface AuditPersonScore {
 
 export interface AuditSession {
   id: string;
+  childAuditIds?: string[];
   date: string;
   auditBatchName?: string;
   auditorId: string;
@@ -123,6 +125,7 @@ export interface AuditSession {
   roleScores?: AuditRoleScore[];
   entityType?: "general" | "or";
   userProfile?: AuditUserProfile;
+  source?: AuditSource;
 }
 
 export interface IncompleteAuditListItem {

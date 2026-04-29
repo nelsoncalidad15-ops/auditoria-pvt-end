@@ -83,6 +83,9 @@ interface AuditWebhookResponse {
   ok: boolean;
   auditId?: string;
   uploadedPhotos?: number;
+  deletedAuditId?: string;
+  deletedSummaryRows?: number;
+  deletedItemRows?: number;
   error?: string;
 }
 
@@ -209,6 +212,36 @@ export async function sendAuditToWebhook(webhookUrl: string, payload: AuditSyncP
   return parsedResponse;
 }
 
+export async function deleteAuditFromWebhook(webhookUrl: string, auditId: string) {
+  const response = await fetch(webhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({
+      event: "audit_delete",
+      auditId,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`No se pudo eliminar la auditoría en Sheets (${response.status}).`);
+  }
+
+  const responseText = await response.text();
+  let parsedResponse: AuditWebhookResponse;
+
+  try {
+    parsedResponse = JSON.parse(responseText) as AuditWebhookResponse;
+  } catch {
+    throw new Error("Apps Script respondió con un formato inválido al eliminar.");
+  }
+
+  if (!parsedResponse.ok) {
+    throw new Error(parsedResponse.error || "Apps Script rechazó la eliminación.");
+  }
+
+  return parsedResponse;
+}
+
 export async function sendStructureToWebhook(
   webhookUrl: string, 
   payload: { event: "structure_update"; scope: string; data: string; updatedByEmail: string }
@@ -245,7 +278,15 @@ function parseNumber(value: unknown) {
 }
 
 function isLocation(value: string): value is Location {
-  return value === "Salta" || value === "Jujuy";
+  return value === "Salta" || value === "Jujuy" || value === "Sin ubicación";
+}
+
+function normalizeLocation(value: string): Location {
+  if (value === "Salta" || value === "Jujuy") {
+    return value;
+  }
+
+  return "Sin ubicación";
 }
 
 function normalizeStatus(value: string): AuditSheetItemRow["status"] {
@@ -297,9 +338,9 @@ export async function fetchAuditHistoryFromWebhook(webhookUrl: string): Promise<
   }, new Map<string, Array<AuditSheetItemRow & { questionIndex: number }>>());
 
   return summaryRows
-    .filter((row): row is AuditSheetSummaryRow & { location: Location } => Boolean(row.auditId && row.auditDate && isLocation(row.location)))
+    .filter((row) => Boolean(row.auditId && row.auditDate))
     .map((row) => {
-      const location = row.location;
+      const location = normalizeLocation(String(row.location || "").trim());
 
       return {
         id: row.auditId,
@@ -320,6 +361,7 @@ export async function fetchAuditHistoryFromWebhook(webhookUrl: string): Promise<
           repuestos: row.repuestos || "",
         },
         entityType: (row.entityType === "or" ? "or" : "general") as "or" | "general",
+        source: "sheet" as const,
         items: (itemsByAuditId.get(row.auditId) ?? [])
           .sort((left, right) => left.questionIndex - right.questionIndex)
           .map((itemRow, index) => ({

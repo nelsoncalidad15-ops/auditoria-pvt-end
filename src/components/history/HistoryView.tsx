@@ -187,7 +187,7 @@ export const HistoryView = memo(function HistoryView({
                         </div>
                         <div className="min-w-0">
                           <p className={cn("text-sm font-black truncate", selectedHistoryAudit?.id === item.id ? "text-white dark:text-slate-900" : "text-slate-900 dark:text-white")}>
-                            {item.staffName || "Sin responsable"}
+                            {item.auditBatchName || "Auditoría general"}
                           </p>
                           <p className={cn("text-[10px] font-bold uppercase tracking-widest mt-0.5", selectedHistoryAudit?.id === item.id ? "text-slate-400 dark:text-slate-500" : "text-slate-400")}>
                             {item.date} • {item.location}
@@ -221,6 +221,14 @@ export const HistoryView = memo(function HistoryView({
                         <span className={cn("text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg", selectedHistoryAudit?.id === item.id ? "bg-white/10 text-white dark:bg-slate-900/10 dark:text-slate-900" : "bg-slate-100 dark:bg-white/5 text-slate-500")}>
                           {item.role || item.items[0]?.category}
                         </span>
+                        <span className={cn("text-[9px] font-black uppercase tracking-widest", selectedHistoryAudit?.id === item.id ? "text-slate-400" : "text-slate-500")}>
+                          {item.items.length} items
+                        </span>
+                        {item.source === "sheet" && (
+                          <span className={cn("text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg", selectedHistoryAudit?.id === item.id ? "bg-blue-500/20 text-blue-200" : "bg-blue-50 text-blue-600")}>
+                            Sheets
+                          </span>
+                        )}
                         {item.orderNumber && (
                           <span className={cn("text-[9px] font-black uppercase tracking-widest", selectedHistoryAudit?.id === item.id ? "text-blue-400" : "text-blue-600")}>
                             OR: {item.orderNumber}

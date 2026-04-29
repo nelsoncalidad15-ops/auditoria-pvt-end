@@ -23,6 +23,7 @@ Si `DRIVE_FOLDER_ID` no está definido, las imágenes se guardan en Mi unidad de
 ## Endpoints disponibles
 
 - POST a la URL `exec`: guarda la auditoría en `Auditorias` y `AuditoriaItems`; si un ítem trae una foto en base64, la sube a Drive y guarda la URL final
+- POST a la URL `exec` con `{ "event": "audit_delete", "auditId": "..." }`: elimina esa auditoría de `Auditorias` y `AuditoriaItems`
 - GET a la URL `exec`: responde estado del servicio
 - GET a la URL `exec` con `?mode=history`: devuelve `summaryRows` e `itemRows` para sincronizar el historial completo desde la app
 

@@ -102,27 +102,27 @@ export function SetupView({
                   className={cn(
                     "w-full premium-card p-4 text-left flex items-center justify-between transition-all group relative overflow-hidden",
                     isActive 
-                      ? "bg-blue-600 text-white border-none shadow-2xl ring-2 ring-blue-500/50" 
+                      ? "!bg-slate-950 !text-white !border-slate-900 shadow-2xl ring-2 ring-blue-500/35" 
                       : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-white/5"
                   )}
                 >
                   <div className="flex items-center gap-4 relative z-10">
                     <div className={cn(
                       "h-12 w-12 rounded-2xl flex items-center justify-center font-black text-lg shadow-inner",
-                      isActive ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500 group-hover:bg-blue-500 group-hover:text-white transition-all duration-300"
+                      isActive ? "bg-white/12 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500 group-hover:bg-blue-500 group-hover:text-white transition-all duration-300"
                     )}>
                       {auditor.name.charAt(0)}
                     </div>
                     <div>
-                      <p className="font-black tracking-tight">{auditor.name}</p>
-                      <p className={cn("text-[10px] font-bold uppercase tracking-widest", isActive ? "text-blue-400" : "text-slate-400")}>
+                      <p className={cn("font-black tracking-tight", isActive ? "text-white" : "text-slate-900 dark:text-white")}>{auditor.name}</p>
+                      <p className={cn("text-[10px] font-bold uppercase tracking-widest", isActive ? "text-slate-300" : "text-slate-400")}>
                         {isActive ? "Seleccionado" : "Auditor Certificado"}
                       </p>
                     </div>
                   </div>
                   {isActive && (
                     <motion.div layoutId="auditor-check" className="relative z-10">
-                      <Check className="h-6 w-6 text-blue-500" />
+                      <Check className="h-6 w-6 text-blue-300" />
                     </motion.div>
                   )}
                 </motion.button>
@@ -150,7 +150,7 @@ export function SetupView({
                   className={cn(
                     "w-full premium-card p-4 text-left flex items-center justify-between transition-all group relative overflow-hidden",
                     isActive 
-                      ? "bg-blue-600 text-white border-none shadow-2xl ring-2 ring-blue-500/50" 
+                      ? "!bg-slate-950 !text-white !border-slate-900 shadow-2xl ring-2 ring-blue-500/35" 
                       : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-white/5"
                   )}
                 >
@@ -162,8 +162,8 @@ export function SetupView({
                       <MapPin className="h-6 w-6" />
                     </div>
                     <div>
-                      <p className="font-black tracking-tight">{location}</p>
-                      <p className={cn("text-[10px] font-bold uppercase tracking-widest", isActive ? "text-blue-200" : "text-slate-400")}>
+                      <p className={cn("font-black tracking-tight", isActive ? "text-white" : "text-slate-900 dark:text-white")}>{location}</p>
+                      <p className={cn("text-[10px] font-bold uppercase tracking-widest", isActive ? "text-slate-300" : "text-slate-400")}>
                         {isActive ? "Sucursal Activa" : "Ubicación de Red"}
                       </p>
                     </div>

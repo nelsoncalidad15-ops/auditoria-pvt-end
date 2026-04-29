@@ -32,7 +32,7 @@ import {
   STAFF,
   OR_PARTICIPANTS,
 } from "./constants";
-import { AppView, AuditSession, AuditTemplateItem, AuditUserProfile, CompletedAuditReport, HistoryPanel, IncompleteAuditListItem, Location, Role } from "./types";
+import { AppView, AuditSession, AuditSource, AuditTemplateItem, AuditUserProfile, CompletedAuditReport, HistoryPanel, IncompleteAuditListItem, Location, Role } from "./types";
 import { buildOrderAuditItems, calculateAuditCompliance, calculateRoleScores } from "./services/or-audit";
 import { PRE_DELIVERY_DOCUMENTARY_BLOCK, buildPreDeliveryAuditItems, buildPreDeliveryTemplateItems } from "./services/pre-delivery-audit";
 import { auth, googleProvider, isFirebaseConfigured } from "./firebase";
@@ -142,6 +142,78 @@ function getStoredMeta(storageKey: string) {
   }
 }
 
+function buildHistoryGroupKey(audit: AuditSession) {
+  const batchName = audit.auditBatchName?.trim();
+  if (batchName) {
+    return `batch:${batchName.toLowerCase()}`;
+  }
+
+  return [
+    "audit",
+    audit.date || "",
+    audit.location || "",
+    audit.orderNumber || "",
+    audit.clientIdentifier || "",
+    audit.staffName || "",
+  ].map((value) => String(value).trim().toLowerCase()).join("|");
+}
+
+function summarizeRoles(audits: AuditSession[]) {
+  const roles = Array.from(new Set(
+    audits
+      .map((audit) => audit.role || audit.items[0]?.category)
+      .filter((role): role is string => Boolean(role?.trim()))
+  ));
+
+  if (roles.length === 0) {
+    return "Auditoría general";
+  }
+
+  if (roles.length === 1) {
+    return roles[0];
+  }
+
+  return `${roles.length} áreas`;
+}
+
+function buildGroupedHistory(history: AuditSession[]) {
+  const groups = history.reduce((acc, audit) => {
+    const groupKey = buildHistoryGroupKey(audit);
+    const current = acc.get(groupKey) ?? [];
+    current.push(audit);
+    acc.set(groupKey, current);
+    return acc;
+  }, new Map<string, AuditSession[]>());
+
+  return Array.from(groups.values()).map((audits) => {
+    const sortedAudits = [...audits].sort((left, right) => `${right.date}-${right.id}`.localeCompare(`${left.date}-${left.id}`));
+    const primaryAudit = sortedAudits[0];
+    const allItems = sortedAudits.flatMap((audit) => audit.items);
+    const childAuditIds = Array.from(new Set(sortedAudits.map((audit) => audit.id)));
+    const weightedScore = sortedAudits.reduce((acc, audit) => {
+      const itemCount = Math.max(audit.items.length, 1);
+      return acc + (audit.totalScore || 0) * itemCount;
+    }, 0);
+    const totalWeight = sortedAudits.reduce((acc, audit) => acc + Math.max(audit.items.length, 1), 0);
+    const staffNames = Array.from(new Set(sortedAudits.map((audit) => audit.staffName?.trim()).filter(Boolean)));
+    const orderNumbers = Array.from(new Set(sortedAudits.map((audit) => audit.orderNumber?.trim()).filter(Boolean)));
+
+    return {
+      ...primaryAudit,
+      id: childAuditIds.join("__"),
+      childAuditIds,
+      auditBatchName: primaryAudit.auditBatchName || `Auditoría ${primaryAudit.date}`,
+      staffName: staffNames.length > 1 ? `${staffNames.length} responsables` : primaryAudit.staffName,
+      orderNumber: orderNumbers.length > 1 ? `${orderNumbers.length} OR` : primaryAudit.orderNumber,
+      role: summarizeRoles(sortedAudits),
+      totalScore: Math.round(weightedScore / Math.max(totalWeight, 1)),
+      items: allItems,
+      notes: sortedAudits.map((audit) => audit.notes?.trim()).filter(Boolean).join("\n"),
+      source: sortedAudits.some((audit) => audit.source === "sheet") ? "sheet" : primaryAudit.source,
+    } satisfies AuditSession;
+  }).sort((left, right) => `${right.date}-${right.id}`.localeCompare(`${left.date}-${left.id}`));
+}
+
 function persistMeta(storageKey: string, payload: { timestamp: string; message?: string }) {
   if (typeof window === "undefined") {
     return;
@@ -210,7 +282,7 @@ function AuditApp() {
   const [completedAuditReports, setCompletedAuditReports] = useState<CompletedAuditReport[]>([]);
   const [auditEntryTab, setAuditEntryTab] = useState<"areas" | "scores">("areas");
   const [showBatchReportModal, setShowBatchReportModal] = useState(false);
-  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{ show: boolean; auditId: string; auditName: string }>({ show: false, auditId: "", auditName: "" });
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{ show: boolean; auditId: string; auditIds?: string[]; auditName: string; auditSource?: AuditSource }>({ show: false, auditId: "", auditName: "" });
   const [activeAuditBlock, setActiveAuditBlock] = useState<string | null>(null);
   const [preDeliverySection, setPreDeliverySection] = useState<"general" | "legajos">("general");
   const [preDeliveryActiveLegajoIndex, setPreDeliveryActiveLegajoIndex] = useState(0);
@@ -221,6 +293,7 @@ function AuditApp() {
   void setSubmissionState;
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [pendingOrdersSubmitMode, setPendingOrdersSubmitMode] = useState<OrdersSubmitMode>("finish");
+  const lastAutomaticHistorySyncRef = React.useRef("");
   const [userProfile, setUserProfile] = useState<AuditUserProfile>(() => {
     if (typeof window === "undefined") {
       return "auditor";
@@ -274,7 +347,9 @@ function AuditApp() {
     isUsingExternalHistory,
     historySyncModeLabel,
     upsertLocalAuditHistory,
+    dismissAuditHistoryItem,
     removeLocalAuditHistoryItem,
+    deleteRemoteAudit,
     refreshExternalHistory,
     prependExternalAudit,
     saveToFirestore,
@@ -365,13 +440,24 @@ function AuditApp() {
   const dashboardMetrics = useDashboardMetrics(history);
 
   // Derive variables expected by the UI from the hook's actual output
-  const locationFilter = session.location;
-  const filteredHistory = locationFilter
-    ? history.filter((s) => s.location === locationFilter)
-    : history;
-  const historyAverageScore = dashboardMetrics.kpis.average;
-  const nonCompliantAudits = dashboardMetrics.kpis.critical;
-  const latestHistoryItem = [...history].sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+  const groupedHistory = React.useMemo(() => buildGroupedHistory(history), [history]);
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+  const filteredHistory = normalizedSearchTerm
+    ? groupedHistory.filter((audit) =>
+        [
+          audit.staffName,
+          audit.location,
+          audit.orderNumber,
+          audit.auditBatchName,
+          audit.role,
+        ]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(normalizedSearchTerm))
+      )
+    : groupedHistory;
+  const historyAverageScore = Math.round(filteredHistory.reduce((acc, item) => acc + item.totalScore, 0) / (filteredHistory.length || 1));
+  const nonCompliantAudits = filteredHistory.filter((item) => item.totalScore < 90).length;
+  const latestHistoryItem = [...groupedHistory].sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
   const blendedProcessCompliance = dashboardMetrics.kpis.approvedRate;
   const blendedServiceAdvisorScoreRows = dashboardMetrics.roleData.filter(
     (r) => String(r.role).toLowerCase().includes("asesor")
@@ -1042,6 +1128,33 @@ function AuditApp() {
     }
   }, [filteredHistory, selectedAudit, view]);
 
+  useEffect(() => {
+    if (!hasWebhookUrl || (view !== "history" && view !== "continuar")) {
+      return;
+    }
+
+    const syncKey = `${view}:${webhookUrl.trim()}`;
+    if (lastAutomaticHistorySyncRef.current === syncKey && history.length > 0) {
+      return;
+    }
+
+    lastAutomaticHistorySyncRef.current = syncKey;
+    void refreshExternalHistory()
+      .then((externalAudits) => {
+        const timestamp = new Date().toISOString();
+        const syncMessage = externalAudits.length > 0
+          ? `Historial actualizado automaticamente desde Sheets (${externalAudits.length} registros).`
+          : "Sheets respondio correctamente, pero no devolvio registros.";
+
+        persistMeta(SYNC_META_STORAGE_KEY, { timestamp, message: syncMessage });
+        setLastSyncAt(timestamp);
+        setLastSyncMessage(syncMessage);
+      })
+      .catch((error) => {
+        console.error("Automatic history sync failed:", error);
+      });
+  }, [hasWebhookUrl, history.length, refreshExternalHistory, view, webhookUrl]);
+
   const saveIntegrationSettings = () => {
     localStorage.setItem("webhookUrl", webhookUrl.trim());
     localStorage.setItem("sheetCsvUrl", sheetCsvUrl.trim());
@@ -1163,21 +1276,24 @@ function AuditApp() {
     setView("dashboard");
   };
 
-  const handleDeleteAudit = React.useCallback((auditId: string) => {
-    // 1. Borrar de los borradores activos
-    removeDraftAudit(auditId);
-    
-    // 2. Borrar del historial local (respaldos)
-    removeLocalAuditHistoryItem(auditId);
-    
-    // 3. Borrar de los reportes completados en memoria
+  const handleDeleteAudit = React.useCallback(async (auditId: string, auditSource?: AuditSource, auditIds?: string[]) => {
+    const targetAuditIds = auditIds?.length ? auditIds : [auditId];
+
+    if (auditSource === "sheet") {
+      await Promise.all(targetAuditIds.map((targetAuditId) => deleteRemoteAudit(targetAuditId)));
+    } else {
+      targetAuditIds.forEach((targetAuditId) => dismissAuditHistoryItem(targetAuditId));
+    }
+
+    targetAuditIds.forEach((targetAuditId) => {
+      removeDraftAudit(targetAuditId);
+      removeLocalAuditHistoryItem(targetAuditId);
+    });
     setCompletedAuditReports((current) =>
-      current.filter((report) => report.session.id !== auditId)
+      current.filter((report) => !targetAuditIds.includes(report.session.id))
     );
-    
-    // 4. Cerrar el modal
     setDeleteConfirmModal({ show: false, auditId: "", auditName: "" });
-  }, [removeDraftAudit, removeLocalAuditHistoryItem]);
+  }, [deleteRemoteAudit, dismissAuditHistoryItem, removeDraftAudit, removeLocalAuditHistoryItem]);
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -2148,13 +2264,13 @@ function AuditApp() {
                   onSelectAudit={setSelectedAudit}
                   onExportCsv={exportToCSV}
                   onSyncData={syncData}
-                  onDeleteAudit={(audit) => setDeleteConfirmModal({ show: true, auditId: audit.id, auditName: audit.auditBatchName || audit.staffName || "Auditoria sin nombre" })}
+                  onDeleteAudit={(audit) => setDeleteConfirmModal({ show: true, auditId: audit.id, auditIds: audit.childAuditIds, auditName: audit.auditBatchName || audit.staffName || "Auditoria sin nombre", auditSource: audit.source })}
                   isSyncing={isSyncing}
                   isHistorySyncConfigured={isHistorySyncConfigured}
                   isUsingExternalHistory={isUsingExternalHistory}
                   hasWebhookUrl={hasWebhookUrl}
                   hasSheetCsvUrl={hasSheetCsvUrl}
-                  totalHistoryCount={history.length}
+                  totalHistoryCount={groupedHistory.length}
                   historySyncModeLabel={historySyncModeLabel}
                   localAuditHistoryCount={localAuditHistory.length}
                   lastSyncAt={lastSyncAt}
@@ -2474,7 +2590,7 @@ function AuditApp() {
                   Cancelar
                 </button>
                 <button
-                  onClick={() => handleDeleteAudit(deleteConfirmModal.auditId)}
+                  onClick={() => void handleDeleteAudit(deleteConfirmModal.auditId, deleteConfirmModal.auditSource, deleteConfirmModal.auditIds)}
                   className="flex-1 px-6 py-4 rounded-2xl bg-red-600 hover:bg-red-500 font-black text-xs uppercase tracking-widest text-white transition-all shadow-lg shadow-red-600/20"
                 >
                   Eliminar

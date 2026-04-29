@@ -1,12 +1,13 @@
 import React from "react";
 
 import { createClientId } from "../lib/utils";
-import { AuditSession, IncompleteAuditListItem, Location } from "../types";
+import { AuditSession, AuditSource, IncompleteAuditListItem, Location } from "../types";
 
 interface DeleteConfirmModalState {
   show: boolean;
   auditId: string;
   auditName: string;
+  auditSource?: AuditSource;
 }
 
 interface UseAuditSessionActionsParams {

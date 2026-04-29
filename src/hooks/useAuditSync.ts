@@ -3,10 +3,11 @@ import { User as FirebaseUser } from "firebase/auth";
 import { addDoc, collection, onSnapshot, orderBy, query, Timestamp } from "firebase/firestore";
 import { AUDITORS } from "../constants";
 import { db, handleFirestoreError, OperationType } from "../firebase";
-import { buildAuditSyncPayload, fetchAuditHistoryFromWebhook, sendAuditToWebhook } from "../services/audit-sync";
+import { buildAuditSyncPayload, deleteAuditFromWebhook, fetchAuditHistoryFromWebhook, sendAuditToWebhook } from "../services/audit-sync";
 import { AuditSession } from "../types";
 
 const LOCAL_AUDIT_HISTORY_STORAGE_KEY = "localAuditHistory";
+const DISMISSED_AUDIT_IDS_STORAGE_KEY = "dismissedAuditIds";
 
 interface UseAuditSyncParams {
   isAuthReady: boolean;
@@ -33,6 +34,23 @@ function mergeAuditHistory(audits: AuditSession[]) {
 export function useAuditSync({ isAuthReady, user, hasWebhookUrl, webhookUrl, hasSheetCsvUrl }: UseAuditSyncParams) {
   const [firestoreHistory, setFirestoreHistory] = useState<AuditSession[]>([]);
   const [externalHistory, setExternalHistory] = useState<AuditSession[]>([]);
+  const [dismissedAuditIds, setDismissedAuditIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") {
+      return [];
+    }
+
+    try {
+      const rawDismissedIds = window.localStorage.getItem(DISMISSED_AUDIT_IDS_STORAGE_KEY);
+      if (!rawDismissedIds) {
+        return [];
+      }
+
+      const parsed = JSON.parse(rawDismissedIds);
+      return Array.isArray(parsed) ? parsed.map((id) => String(id)) : [];
+    } catch {
+      return [];
+    }
+  });
   const [localAuditHistory, setLocalAuditHistory] = useState<AuditSession[]>(() => {
     if (typeof window === "undefined") {
       return [];
@@ -45,7 +63,7 @@ export function useAuditSync({ isAuthReady, user, hasWebhookUrl, webhookUrl, has
       }
 
       const parsed = JSON.parse(rawHistory);
-      return Array.isArray(parsed) ? parsed : [];
+      return Array.isArray(parsed) ? parsed.map((audit) => ({ ...audit, source: "local" as const })) : [];
     } catch {
       return [];
     }
@@ -54,8 +72,26 @@ export function useAuditSync({ isAuthReady, user, hasWebhookUrl, webhookUrl, has
   const syncingLocalAuditIdsRef = useRef<Set<string>>(new Set());
   const isUsingExternalHistory = externalHistory.length > 0;
   const sourceHistory = isUsingExternalHistory ? externalHistory : firestoreHistory;
-  const history = useMemo(() => mergeAuditHistory([...localAuditHistory, ...sourceHistory]), [localAuditHistory, sourceHistory]);
+  const dismissedAuditIdSet = useMemo(() => new Set(dismissedAuditIds), [dismissedAuditIds]);
+  const history = useMemo(
+    () => mergeAuditHistory([...localAuditHistory, ...sourceHistory]).filter((audit) => !dismissedAuditIdSet.has(audit.id)),
+    [dismissedAuditIdSet, localAuditHistory, sourceHistory]
+  );
   const historySyncModeLabel = hasWebhookUrl ? "Apps Script" : hasSheetCsvUrl ? "CSV" : "Pendiente";
+
+  const persistDismissedAuditIds = useCallback((nextIdsOrUpdater: string[] | ((current: string[]) => string[])) => {
+    setDismissedAuditIds((current) => {
+      const nextIds = typeof nextIdsOrUpdater === "function"
+        ? nextIdsOrUpdater(current)
+        : nextIdsOrUpdater;
+
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(DISMISSED_AUDIT_IDS_STORAGE_KEY, JSON.stringify(nextIds));
+      }
+
+      return nextIds;
+    });
+  }, []);
 
   const persistLocalAuditHistory = useCallback((nextHistoryOrUpdater: AuditSession[] | ((current: AuditSession[]) => AuditSession[])) => {
     setLocalAuditHistory((current) => {
@@ -72,15 +108,21 @@ export function useAuditSync({ isAuthReady, user, hasWebhookUrl, webhookUrl, has
   }, []);
 
   const upsertLocalAuditHistory = useCallback((auditSession: AuditSession) => {
+    persistDismissedAuditIds((current) => current.filter((id) => id !== auditSession.id));
     persistLocalAuditHistory((current) => [
-      auditSession,
+      { ...auditSession, source: "local" as const },
       ...current.filter((item) => item.id !== auditSession.id),
     ]);
-  }, [persistLocalAuditHistory]);
+  }, [persistDismissedAuditIds, persistLocalAuditHistory]);
 
   const removeLocalAuditHistoryItem = useCallback((auditId: string) => {
     persistLocalAuditHistory((current) => current.filter((item) => item.id !== auditId));
   }, [persistLocalAuditHistory]);
+
+  const dismissAuditHistoryItem = useCallback((auditId: string) => {
+    persistDismissedAuditIds((current) => current.includes(auditId) ? current : [auditId, ...current]);
+    persistLocalAuditHistory((current) => current.filter((item) => item.id !== auditId));
+  }, [persistDismissedAuditIds, persistLocalAuditHistory]);
 
   const refreshExternalHistory = useCallback(async () => {
     if (!hasWebhookUrl) {
@@ -89,13 +131,27 @@ export function useAuditSync({ isAuthReady, user, hasWebhookUrl, webhookUrl, has
     }
 
     const externalAudits = await fetchAuditHistoryFromWebhook(webhookUrl);
+    const externalAuditIds = new Set(externalAudits.map((audit) => audit.id));
+    persistDismissedAuditIds((current) => current.filter((id) => !externalAuditIds.has(id)));
     setExternalHistory((current) => mergeAuditHistory([...externalAudits, ...current]));
     return externalAudits;
-  }, [hasWebhookUrl, webhookUrl]);
+  }, [hasWebhookUrl, persistDismissedAuditIds, webhookUrl]);
 
   const prependExternalAudit = useCallback((session: AuditSession) => {
+    persistDismissedAuditIds((current) => current.filter((id) => id !== session.id));
     setExternalHistory((current) => mergeAuditHistory([session, ...current]));
-  }, []);
+  }, [persistDismissedAuditIds]);
+
+  const deleteRemoteAudit = useCallback(async (auditId: string) => {
+    if (!hasWebhookUrl) {
+      throw new Error("No hay un Apps Script configurado para borrar en Sheets.");
+    }
+
+    await deleteAuditFromWebhook(webhookUrl, auditId);
+    persistDismissedAuditIds((current) => current.filter((id) => id !== auditId));
+    setExternalHistory((current) => current.filter((audit) => audit.id !== auditId));
+    setFirestoreHistory((current) => current.filter((audit) => audit.id !== auditId));
+  }, [hasWebhookUrl, persistDismissedAuditIds, webhookUrl]);
 
   const saveToFirestore = useCallback(async (newSession: AuditSession) => {
     if (!db) {
@@ -133,6 +189,7 @@ export function useAuditSync({ isAuthReady, user, hasWebhookUrl, webhookUrl, has
       const audits = snapshot.docs.map((doc) => ({
         ...(doc.data() as AuditSession),
         id: (doc.data().id as string) || doc.id,
+        source: "firestore" as const,
       })) as AuditSession[];
       setFirestoreHistory(audits);
     }, (error) => {
@@ -154,6 +211,8 @@ export function useAuditSync({ isAuthReady, user, hasWebhookUrl, webhookUrl, has
       try {
         const externalAudits = await fetchAuditHistoryFromWebhook(webhookUrl);
         if (!cancelled) {
+          const externalAuditIds = new Set(externalAudits.map((audit) => audit.id));
+          persistDismissedAuditIds((current) => current.filter((id) => !externalAuditIds.has(id)));
           setExternalHistory(externalAudits);
         }
       } catch (error) {
@@ -166,7 +225,39 @@ export function useAuditSync({ isAuthReady, user, hasWebhookUrl, webhookUrl, has
     return () => {
       cancelled = true;
     };
-  }, [hasWebhookUrl, webhookUrl]);
+  }, [hasWebhookUrl, persistDismissedAuditIds, webhookUrl]);
+
+  useEffect(() => {
+    if (!hasWebhookUrl || typeof window === "undefined") {
+      return;
+    }
+
+    const refreshSilently = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+      }
+
+      void refreshExternalHistory().catch((error) => {
+        console.error("Automatic external history refresh failed:", error);
+      });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshSilently();
+      }
+    };
+
+    window.addEventListener("focus", refreshSilently);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    const intervalId = window.setInterval(refreshSilently, 60000);
+
+    return () => {
+      window.removeEventListener("focus", refreshSilently);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.clearInterval(intervalId);
+    };
+  }, [hasWebhookUrl, refreshExternalHistory]);
 
   useEffect(() => {
     if (localAuditHistory.length === 0) {
@@ -223,7 +314,9 @@ export function useAuditSync({ isAuthReady, user, hasWebhookUrl, webhookUrl, has
     isUsingExternalHistory,
     historySyncModeLabel,
     upsertLocalAuditHistory,
+    dismissAuditHistoryItem,
     removeLocalAuditHistoryItem,
+    deleteRemoteAudit,
     refreshExternalHistory,
     prependExternalAudit,
     saveToFirestore,
