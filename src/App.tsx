@@ -3,14 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { Suspense, useState, useEffect } from "react";
 import { 
-  XCircle, 
   FileCheck,
   History,
   Plus,
@@ -20,6 +14,7 @@ import {
   Activity,
   Trash2,
   FileText,
+  ChevronRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppShell } from "./app/AppShell";
@@ -30,12 +25,13 @@ import {
   LOCATIONS, 
   AUDITORS,
   STAFF,
-  OR_PARTICIPANTS,
 } from "./constants";
-import { AppView, AuditSession, AuditSource, AuditTemplateItem, AuditUserProfile, CompletedAuditReport, HistoryPanel, IncompleteAuditListItem, Location, Role } from "./types";
+import { AppView, AuditSession, AuditSource, AuditTemplateItem, AuditUserProfile, CompletedAuditReport, HistoryPanel, IncompleteAuditListItem, Role } from "./types";
 import { buildOrderAuditItems, calculateAuditCompliance, calculateRoleScores } from "./services/or-audit";
+import { generateAuditPdfReport, generateOrdersCampaignPdf } from "./services/audit-report-pdf";
+import { buildCalculatedItemResults, buildProcessResults } from "./services/calculated-audits";
 import { PRE_DELIVERY_DOCUMENTARY_BLOCK, buildPreDeliveryAuditItems, buildPreDeliveryTemplateItems } from "./services/pre-delivery-audit";
-import { auth, googleProvider, isFirebaseConfigured } from "./firebase";
+import { auth, googleProvider } from "./firebase";
 import { 
   signInWithPopup, 
   signOut, 
@@ -59,181 +55,29 @@ const StructurePanel = React.lazy(() => import("./components/reports/StructurePa
 const IntegrationsView = React.lazy(() => import("./components/views/IntegrationsView").then((module) => ({ default: module.IntegrationsView })));
 const ContinueAuditsView = React.lazy(() => import("./components/views/ContinueAuditsView").then((module) => ({ default: module.ContinueAuditsView })));
 const SetupView = React.lazy(() => import("./components/views/SetupView").then((module) => ({ default: module.SetupView })));
-const AuditSessionView = React.lazy(() => import("./components/views/AuditSessionView").then((module) => ({ default: module.AuditSessionView })));
-const AuditStaffSelectionView = React.lazy(() => import("./components/views/AuditStaffSelectionView").then((module) => ({ default: module.AuditStaffSelectionView })));
+const FullReportView = React.lazy(() => import("./components/reports/FullReportView").then((module) => ({ default: module.FullReportView })));
+const StockControlView = React.lazy(() => import("./components/views/StockControlView").then((module) => ({ default: module.StockControlView })));
+import { AuditSessionView } from "./components/views/AuditSessionView";
+import { AuditStaffSelectionView } from "./components/views/AuditStaffSelectionView";
+import { 
+  QUICK_AUDIT_MODE_STORAGE_KEY, 
+  USER_PROFILE_STORAGE_KEY, 
+  INTEGRATION_META_STORAGE_KEY, 
+  SYNC_META_STORAGE_KEY, 
+  EXPORT_META_STORAGE_KEY
+} from "./config/storage-keys";
+import { 
+  buildAuditBatchName, 
+  createEmptyAuditedFileNames, 
+  getStoredMeta, 
+  buildGroupedHistory, 
+  persistMeta, 
+  getDefaultQuickAuditMode,
+  formatAuditMonthLabel
+} from "./utils/audit-helpers";
 
 
-function ErrorBoundary({ children }: { children: React.ReactNode }) {
-  const [error, setError] = React.useState<any>(null);
-
-  React.useEffect(() => {
-    const handleError = (e: ErrorEvent) => setError(e.error);
-    window.addEventListener("error", handleError);
-    return () => window.removeEventListener("error", handleError);
-  }, []);
-
-  if (error) {
-    let errorMessage = "Ocurrió un error inesperado.";
-    try {
-      const parsed = JSON.parse(error.message);
-      if (parsed.error && parsed.error.includes("insufficient permissions")) {
-        errorMessage = "Error de permisos: No tienes autorización para realizar esta operación.";
-      }
-    } catch (e) {
-      errorMessage = error.message || errorMessage;
-    }
-
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-red-50 text-center">
-        <div className="space-y-4 max-w-sm">
-          <XCircle className="w-16 h-16 text-red-500 mx-auto" />
-          <h1 className="text-xl font-bold text-red-900">Algo salió mal</h1>
-          <p className="text-red-700 text-sm">{errorMessage}</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="bg-red-600 text-white px-6 py-2 rounded-xl font-bold"
-          >
-            Reintentar
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return <>{children}</>;
-}
-
-
-function buildAuditBatchName(
-  location: Location,
-  dateValue: string | undefined,
-  existingBatchNames: Iterable<string>,
-  formatMonthLabel: (dateValue?: string) => string,
-) {
-  const resolvedDate = dateValue || new Date().toISOString().split("T")[0];
-  const nextIndex = new Set(Array.from(existingBatchNames).filter(Boolean)).size + 1;
-  return `Auditoria de procesos - ${location} - ${formatMonthLabel(resolvedDate)} (${nextIndex})`;
-}
-
-function createEmptyAuditedFileNames() {
-  return Array.from({ length: 6 }, () => "");
-}
-
-const QUICK_AUDIT_MODE_STORAGE_KEY = "quick-audit-mode";
-const USER_PROFILE_STORAGE_KEY = "audit-user-profile";
-const INTEGRATION_META_STORAGE_KEY = "audit-integration-meta";
-const SYNC_META_STORAGE_KEY = "audit-sync-meta";
-const EXPORT_META_STORAGE_KEY = "audit-export-meta";
-
-function getStoredMeta(storageKey: string) {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const rawValue = window.localStorage.getItem(storageKey);
-  if (!rawValue) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(rawValue) as { timestamp?: string; message?: string } | null;
-  } catch {
-    return null;
-  }
-}
-
-function buildHistoryGroupKey(audit: AuditSession) {
-  const batchName = audit.auditBatchName?.trim();
-  if (batchName) {
-    return `batch:${batchName.toLowerCase()}`;
-  }
-
-  return [
-    "audit",
-    audit.date || "",
-    audit.location || "",
-    audit.orderNumber || "",
-    audit.clientIdentifier || "",
-    audit.staffName || "",
-  ].map((value) => String(value).trim().toLowerCase()).join("|");
-}
-
-function summarizeRoles(audits: AuditSession[]) {
-  const roles = Array.from(new Set(
-    audits
-      .map((audit) => audit.role || audit.items[0]?.category)
-      .filter((role): role is string => Boolean(role?.trim()))
-  ));
-
-  if (roles.length === 0) {
-    return "Auditoría general";
-  }
-
-  if (roles.length === 1) {
-    return roles[0];
-  }
-
-  return `${roles.length} áreas`;
-}
-
-function buildGroupedHistory(history: AuditSession[]) {
-  const groups = history.reduce((acc, audit) => {
-    const groupKey = buildHistoryGroupKey(audit);
-    const current = acc.get(groupKey) ?? [];
-    current.push(audit);
-    acc.set(groupKey, current);
-    return acc;
-  }, new Map<string, AuditSession[]>());
-
-  return Array.from(groups.values()).map((audits) => {
-    const sortedAudits = [...audits].sort((left, right) => `${right.date}-${right.id}`.localeCompare(`${left.date}-${left.id}`));
-    const primaryAudit = sortedAudits[0];
-    const allItems = sortedAudits.flatMap((audit) => audit.items);
-    const childAuditIds = Array.from(new Set(sortedAudits.map((audit) => audit.id)));
-    const weightedScore = sortedAudits.reduce((acc, audit) => {
-      const itemCount = Math.max(audit.items.length, 1);
-      return acc + (audit.totalScore || 0) * itemCount;
-    }, 0);
-    const totalWeight = sortedAudits.reduce((acc, audit) => acc + Math.max(audit.items.length, 1), 0);
-    const staffNames = Array.from(new Set(sortedAudits.map((audit) => audit.staffName?.trim()).filter(Boolean)));
-    const orderNumbers = Array.from(new Set(sortedAudits.map((audit) => audit.orderNumber?.trim()).filter(Boolean)));
-
-    return {
-      ...primaryAudit,
-      id: childAuditIds.join("__"),
-      childAuditIds,
-      auditBatchName: primaryAudit.auditBatchName || `Auditoría ${primaryAudit.date}`,
-      staffName: staffNames.length > 1 ? `${staffNames.length} responsables` : primaryAudit.staffName,
-      orderNumber: orderNumbers.length > 1 ? `${orderNumbers.length} OR` : primaryAudit.orderNumber,
-      role: summarizeRoles(sortedAudits),
-      totalScore: Math.round(weightedScore / Math.max(totalWeight, 1)),
-      items: allItems,
-      notes: sortedAudits.map((audit) => audit.notes?.trim()).filter(Boolean).join("\n"),
-      source: sortedAudits.some((audit) => audit.source === "sheet") ? "sheet" : primaryAudit.source,
-    } satisfies AuditSession;
-  }).sort((left, right) => `${right.date}-${right.id}`.localeCompare(`${left.date}-${left.id}`));
-}
-
-function persistMeta(storageKey: string, payload: { timestamp: string; message?: string }) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(storageKey, JSON.stringify(payload));
-}
-
-function getDefaultQuickAuditMode() {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  const isDesktopViewport = window.matchMedia("(min-width: 1024px)").matches;
-  if (!isDesktopViewport) {
-    return false;
-  }
-
-  return window.localStorage.getItem(QUICK_AUDIT_MODE_STORAGE_KEY) !== "0";
-}
+import { ErrorBoundary } from "./components/ui/ErrorBoundary";
 
 const DEFAULT_OBSERVATION_SUGGESTIONS = [
   "Falta firma",
@@ -265,8 +109,6 @@ function AuditApp() {
   const [selectedStaff, setSelectedStaff] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedAudit, setSelectedAudit] = useState<AuditSession | null>(null);
-  const [selectedHistoryAudit, setSelectedHistoryAudit] = useState<AuditSession | null>(null);
-  void setSelectedHistoryAudit;
   const [historyPanel, setHistoryPanel] = useState<HistoryPanel>("records");
   const [webhookUrl, setWebhookUrl] = useState<string>(localStorage.getItem("webhookUrl") || envWebhookUrl);
   const [sheetCsvUrl, setSheetCsvUrl] = useState<string>(localStorage.getItem("sheetCsvUrl") || envSheetCsvUrl);
@@ -280,9 +122,12 @@ function AuditApp() {
   const [focusedAuditItemId, setFocusedAuditItemId] = useState<string | null>(null);
   const [activeAuditItemId, setActiveAuditItemId] = useState<string | null>(null);
   const [completedAuditReports, setCompletedAuditReports] = useState<CompletedAuditReport[]>([]);
+  const [lastCompletedAuditReport, setLastCompletedAuditReport] = useState<CompletedAuditReport | null>(null);
   const [auditEntryTab, setAuditEntryTab] = useState<"areas" | "scores">("areas");
-  const [showBatchReportModal, setShowBatchReportModal] = useState(false);
-  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{ show: boolean; auditId: string; auditIds?: string[]; auditName: string; auditSource?: AuditSource }>({ show: false, auditId: "", auditName: "" });
+  const [auditScope, setAuditScope] = useState<"general" | "individual" | null>(null);
+  const [, setShowBatchReportModal] = useState(false);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{ show: boolean; auditId: string; auditIds?: string[]; auditName: string; auditSource?: AuditSource; isDeleting?: boolean; error?: string | null }>({ show: false, auditId: "", auditName: "", isDeleting: false, error: null });
+  const [deleteReason, setDeleteReason] = useState("");
   const [activeAuditBlock, setActiveAuditBlock] = useState<string | null>(null);
   const [preDeliverySection, setPreDeliverySection] = useState<"general" | "legajos">("general");
   const [preDeliveryActiveLegajoIndex, setPreDeliveryActiveLegajoIndex] = useState(0);
@@ -293,6 +138,7 @@ function AuditApp() {
   void setSubmissionState;
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [pendingOrdersSubmitMode, setPendingOrdersSubmitMode] = useState<OrdersSubmitMode>("finish");
+  const [isAuditConfigured, setIsAuditConfigured] = useState(false);
   const lastAutomaticHistorySyncRef = React.useRef("");
   const [userProfile, setUserProfile] = useState<AuditUserProfile>(() => {
     if (typeof window === "undefined") {
@@ -303,25 +149,8 @@ function AuditApp() {
     return storedProfile === "supervisor" || storedProfile === "consulta" ? storedProfile : "auditor";
   });
   const [isSessionStarted, setIsSessionStarted] = useState(false);
-  const isFirebaseEnabled = isFirebaseConfigured && Boolean(auth) && Boolean(googleProvider);
-
-  const formatAuditMonthLabel = React.useCallback((dateValue?: string) => {
-    try {
-      const dateToParse = dateValue && dateValue.includes("-") ? `${dateValue}T00:00:00` : dateValue;
-      const parsedDate = dateToParse ? new Date(dateToParse) : new Date();
-      
-      // Verificar si la fecha es válida
-      if (isNaN(parsedDate.getTime())) {
-        return "Mes";
-      }
-
-      const monthLabel = new Intl.DateTimeFormat("es-AR", { month: "long" }).format(parsedDate).trim();
-      return monthLabel ? monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1) : "Mes";
-    } catch (e) {
-      console.error("Error formatting month label:", e);
-      return "Mes";
-    }
-  }, []);
+  // Sheets es la fuente de datos de auditoría. Firebase queda desacoplado de este flujo.
+  const isFirebaseEnabled = false;
 
   const ensureSessionIdentity = React.useCallback((currentSession: Partial<AuditSession>) => {
     if (currentSession.id) {
@@ -341,6 +170,36 @@ function AuditApp() {
   const isSheetSyncConfigured = hasWebhookUrl;
   void isSheetSyncConfigured;
   const isHistorySyncConfigured = hasWebhookUrl || hasSheetCsvUrl;
+  const hasSyncError = lastSyncMessage.toLowerCase().includes("error");
+  const syncStatusTone: "success" | "warning" | "neutral" = isSyncing
+    ? "warning"
+    : hasSyncError
+      ? "warning"
+      : hasWebhookUrl
+        ? "success"
+        : hasSheetCsvUrl
+          ? "warning"
+          : "neutral";
+  const syncStatusLabel = isSyncing
+    ? "Leyendo Sheets"
+    : hasSyncError
+      ? "Cache local"
+      : hasWebhookUrl
+        ? "Sheets conectado"
+        : hasSheetCsvUrl
+          ? "CSV verificado"
+          : "Sin configurar";
+  const syncStatusDetail = isSyncing
+    ? "Actualizando datos en vivo"
+    : hasSyncError
+      ? "Ultimo intento con error"
+      : lastSyncAt
+        ? `Ultimo sync ${new Date(lastSyncAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}`
+        : hasWebhookUrl
+          ? "Esperando primera lectura"
+          : hasSheetCsvUrl
+            ? "Fuente externa lista"
+            : "Sin enlace a Sheets";
   const {
     history,
     localAuditHistory,
@@ -351,14 +210,17 @@ function AuditApp() {
     removeLocalAuditHistoryItem,
     deleteRemoteAudit,
     refreshExternalHistory,
-    prependExternalAudit,
-    saveToFirestore,
   } = useAuditSync({
     isAuthReady,
     user,
     hasWebhookUrl,
     webhookUrl,
     hasSheetCsvUrl,
+    getTemplateItems: (role: string, location: string) => {
+      const scope = (location === "Salta" || location === "Jujuy") ? location : "global";
+      const categories = auditCategoryScopes[scope] || auditCategoryScopes.global;
+      return categories.find(c => c.name === role)?.items || [];
+    },
   });
 
 
@@ -367,6 +229,10 @@ function AuditApp() {
   const {
     selectedStructureScope,
     setSelectedStructureScope,
+    auditCategoryScopes,
+    calculationRules,
+    handleToggleCalculationLink,
+    processDefinitions,
     auditCategories,
     selectedAuditCategory,
     selectedStructureCategory,
@@ -409,7 +275,6 @@ function AuditApp() {
     setNewItemActive,
     newItemRequiresCommentOnFail,
     setNewItemRequiresCommentOnFail,
-    updateCategory,
     handleAddCategory,
     handleDuplicateCategory,
     handleDeleteCategory,
@@ -418,10 +283,13 @@ function AuditApp() {
     handleDeleteItem,
     handleAddItem,
     handleMoveItem,
+    handleToggleItemResponsibleRole,
     handleResetStructure,
     handleLoadStructureFromCloud,
     handleSaveStructureToCloud,
     handleSaveStructureToSheet,
+    handleLoadStructureFromSheet,
+    isLoadingStructureFromSheet,
     isSavingStructureToSheet,
     hasPendingStructureChanges,
   } = useAuditStructure({
@@ -477,16 +345,19 @@ function AuditApp() {
     const match = text.trim().match(/^(\d+)/);
     return match ? Number.parseInt(match[1], 10) : Number.POSITIVE_INFINITY;
   };
-  const selectedAuditItems = [...(selectedAuditCategory?.items ?? [])].sort((left, right) => {
-    const leftOrder = left.order ?? getQuestionOrder(left.text);
-    const rightOrder = right.order ?? getQuestionOrder(right.text);
-    if (leftOrder !== rightOrder) {
-      return leftOrder - rightOrder;
-    }
+  const isGlobalAudit = selectedRole === "General";
+  const selectedAuditItems = (isGlobalAudit
+    ? auditCategories.flatMap((category) => category.items.map((item) => ({ ...item, block: category.name })))
+    : [...(selectedAuditCategory?.items ?? [])].sort((left, right) => {
+        const leftOrder = left.order ?? getQuestionOrder(left.text);
+        const rightOrder = right.order ?? getQuestionOrder(right.text);
+        if (leftOrder !== rightOrder) {
+          return leftOrder - rightOrder;
+        }
 
-    return left.text.localeCompare(right.text);
-  });
-  // Helper for case-insensitive role matching
+        return left.text.localeCompare(right.text);
+      }))
+    .filter((item) => item.active !== false);  // Helper for case-insensitive role matching
   // Helper for case-insensitive role matching and keyword detection
   const matchesRole = (role: string | null, target: string, keywords: string[] = []) => {
     if (!role) return false;
@@ -494,9 +365,14 @@ function AuditApp() {
     const normalizedTarget = target.trim().toLowerCase();
     return normalizedRole === normalizedTarget || keywords.some(k => normalizedRole.includes(k.toLowerCase()));
   };
+  const usesFlatAuditFlow = matchesRole(selectedRole, "Subgerente de servicio");
+  const shouldAutoConfigureRole = (roleName: string, staffOptions: string[] = []) => {
+    const isSpecialFlow = ["Ordenes", "Asesores de servicio", "Técnicos", "Pre Entrega", "General"].includes(roleName);
+    return !isSpecialFlow && staffOptions.length <= 1;
+  };
 
   const isOrdersAudit = matchesRole(selectedRole, "Ordenes", ["ordenes", "or postventa"]);
-  const isServiceAdvisorAudit = matchesRole(selectedRole, "Asesores de servicio", ["asesor"]);
+  const isServiceAdvisorAudit = matchesRole(selectedRole, "Asesores de servicio");
   const isWorkshopManagerAudit = matchesRole(selectedRole, "Jefe de Taller", ["jefe"]);
   const isTechnicianAudit = matchesRole(selectedRole, "Técnicos", ["técnico", "taller"]) && !isWorkshopManagerAudit;
   const isPreDeliveryAudit = matchesRole(selectedRole, "Pre Entrega", ["pdi", "pre entrega"]);
@@ -506,6 +382,53 @@ function AuditApp() {
     ? buildPreDeliveryTemplateItems(selectedAuditItems, auditedFileNames)
     : [];
   const displayedAuditItems = isPreDeliveryAudit ? preDeliveryAuditItems : selectedAuditItems;
+  const activeCalculationRules = calculationRules.filter((rule) => (
+    rule.scope === 'global' || rule.scope === session.location
+  ));
+  const calculationResultsByItemId = React.useMemo(() => {
+    if (!selectedRole) {
+      return {};
+    }
+
+    return buildCalculatedItemResults({
+      session: { ...session, role: selectedRole } as AuditSession,
+      history,
+      categories: auditCategories,
+      rules: activeCalculationRules,
+    });
+  }, [activeCalculationRules, auditCategories, history, selectedRole, session]);
+  const activeProcessDefinitions = processDefinitions.filter((definition) => (
+    definition.scope === 'global' || definition.scope === session.location
+  ));
+  const processResults = React.useMemo(() => buildProcessResults({
+    session: session as AuditSession,
+    history,
+    categories: auditCategories,
+    definitions: activeProcessDefinitions,
+    rules: activeCalculationRules,
+  }), [activeProcessDefinitions, auditCategories, history, session]);
+
+  const calculatedSessionItems = displayedAuditItems
+    .filter((item) => item.calculationMode === 'calculated')
+    .map((item) => {
+      const result = calculationResultsByItemId[item.id];
+      return {
+        id: item.id,
+        question: item.text,
+        category: selectedRole || 'General',
+        status: 'calculated' as const,
+        description: item.description,
+        responsibleRoles: item.responsibleRoles,
+        sector: item.sector,
+        weight: item.weight,
+        allowsNa: item.allowsNa,
+        calculatedScore: result?.score ?? undefined,
+        calculationState: result?.state ?? 'pending',
+        calculationDetail: result?.detail ?? 'Pendiente de reglas de cálculo',
+        scoreLinks: item.scoreLinks,
+        scoreAreas: item.scoreAreas,
+      };
+    });
   const sessionOrderItems = isOrdersAudit
     ? buildOrderAuditItems(selectedAuditItems, sessionItems, selectedRole || "Ordenes")
     : sessionItems;
@@ -579,13 +502,20 @@ function AuditApp() {
   const _canGoToNextLegajo = preDeliveryActiveLegajoIndex < preDeliveryLegajoCards.length - 1;
   void _canGoToPreviousLegajo;
   void _canGoToNextLegajo;
+  const availableAuditBlocks = Array.from(new Set(displayedAuditItems.map((item) => item.block).filter(Boolean))) as string[];
   const visibleAuditItems = isPreDeliveryAudit
     ? preDeliverySection === "general"
       ? preDeliveryGeneralItems
       : activePreDeliveryLegajoItems
+    : isOrdersAudit
+      ? displayedAuditItems
+    : usesFlatAuditFlow
+      ? displayedAuditItems
     : activeAuditBlock 
       ? displayedAuditItems.filter(item => item.block === activeAuditBlock)
-      : displayedAuditItems;
+      : isGlobalAudit
+        ? displayedAuditItems.filter(item => item.block === (activeAuditBlock || auditCategories[0]?.name))
+        : displayedAuditItems;
   const isAuditItemAnswered = React.useCallback((auditItem: AuditTemplateItem, items: AuditSession["items"] = sessionItems) => (
     items.some((item) => (item.id === auditItem.id || item.question === auditItem.text) && item.status)
   ), [sessionItems]);
@@ -637,16 +567,39 @@ function AuditApp() {
     : {
         compliance: (() => {
           const sourceItems = isPreDeliveryAudit ? sessionPreDeliveryItems : sessionItems;
-          const validItems = sourceItems.filter((item) => item.status !== "na");
+          const templateItems = isPreDeliveryAudit ? preDeliveryAuditItems : selectedAuditItems;
+          
+          const validItems = sourceItems.filter((item) => item.status && item.status !== "na");
           if (validItems.length === 0) {
             return 0;
           }
 
-          const passItems = validItems.filter((item) => item.status === "pass");
-          return Math.round((passItems.length / validItems.length) * 100);
+          const totalWeight = validItems.reduce((acc, item) => {
+            const template = templateItems.find(t => t.id === item.id || t.text === item.question);
+            return acc + (template?.weight ?? item.weight ?? 1);
+          }, 0);
+
+          const obtainedWeight = validItems
+            .filter((item) => item.status === "pass")
+            .reduce((acc, item) => {
+              const template = templateItems.find(t => t.id === item.id || t.text === item.question);
+              return acc + (template?.weight ?? item.weight ?? 1);
+            }, 0);
+            
+          return totalWeight > 0 ? Math.round((obtainedWeight / totalWeight) * 100) : 0;
         })(),
-        obtainedWeight: 0,
-        totalApplicableWeight: 0,
+        obtainedWeight: (isPreDeliveryAudit ? sessionPreDeliveryItems : sessionItems)
+          .filter(i => i.status === "pass")
+          .reduce((acc, item) => {
+            const template = (isPreDeliveryAudit ? preDeliveryAuditItems : selectedAuditItems).find(t => t.id === item.id || t.text === item.question);
+            return acc + (template?.weight ?? item.weight ?? 1);
+          }, 0),
+        totalApplicableWeight: (isPreDeliveryAudit ? sessionPreDeliveryItems : sessionItems)
+          .filter(i => i.status && i.status !== "na")
+          .reduce((acc, item) => {
+            const template = (isPreDeliveryAudit ? preDeliveryAuditItems : selectedAuditItems).find(t => t.id === item.id || t.text === item.question);
+            return acc + (template?.weight ?? item.weight ?? 1);
+          }, 0),
         itemsCount: isPreDeliveryAudit ? sessionPreDeliveryItems.length : sessionItems.length,
       };
   void currentOrCompliance;
@@ -738,18 +691,29 @@ function AuditApp() {
         formatAuditMonthLabel,
       )
     : "");
-  const optionalPendingCount = displayedAuditItems.filter(
+  const isCalculatedTemplateItem = (item: AuditTemplateItem) => item.calculationMode === 'calculated';
+  const manualAuditItems = displayedAuditItems.filter((item) => !isCalculatedTemplateItem(item));
+  const pendingAuditItems = manualAuditItems.filter(
     (auditItem) => !sessionItems.some((item) => (item.id === auditItem.id || item.question === auditItem.text) && item.status)
-  ).length;
-  const failItemsWithoutCommentCount = displayedAuditItems.filter((auditItem) => {
+  );
+  const requiredPendingItems = pendingAuditItems.filter((auditItem) => auditItem.required);
+  const requiredPendingCount = requiredPendingItems.length;
+  const optionalPendingCount = pendingAuditItems.length - requiredPendingCount;
+  const resolvedCalculatedCount = calculatedSessionItems.filter((item) => typeof item.calculatedScore === 'number').length;
+  const answeredAuditItemCount = manualAuditItems.length - pendingAuditItems.length + resolvedCalculatedCount;
+  const applicableAnsweredCount = manualAuditItems.filter((auditItem) => {
+    const answer = sessionItems.find((item) => item.id === auditItem.id || item.question === auditItem.text);
+    return answer?.status === 'pass' || answer?.status === 'fail';
+  }).length + resolvedCalculatedCount;
+  const failItemsWithoutCommentCount = manualAuditItems.filter((auditItem) => {
     if (!auditItem.requiresCommentOnFail) {
       return false;
     }
 
     const answeredItem = sessionItems.find((item) => item.id === auditItem.id || item.question === auditItem.text);
-    return answeredItem?.status === "fail" && !answeredItem.comment?.trim();
+    return answeredItem?.status === 'fail' && !answeredItem.comment?.trim();
   }).length;
-  const isSubmitDisabled = sessionItems.length === 0 || isSendingToSheet || failItemsWithoutCommentCount > 0;
+  const isSubmitDisabled = answeredAuditItemCount === 0 || requiredPendingCount > 0 || isSendingToSheet || failItemsWithoutCommentCount > 0;
   const canRunAudits = userProfile !== "consulta";
   const canAccessStructure = userProfile === "supervisor";
   const canAccessIntegrations = userProfile === "supervisor";
@@ -758,6 +722,8 @@ function AuditApp() {
       id: draft.id,
       date: draft.date,
       auditBatchName: draft.auditBatchName,
+      sampleTarget: draft.sampleTarget,
+      selectedStaffNames: draft.selectedStaffNames,
       auditorId: draft.auditorId,
       location: draft.location,
       orderNumber: draft.orderNumber,
@@ -771,15 +737,77 @@ function AuditApp() {
     setFocusedAuditItemId(null);
     setSelectedRole(draft.role ?? null);
     setSelectedStaff(draft.staffName ?? "");
+    setIsAuditConfigured(Boolean(draft.role));
     setView(draft.role ? "audit" : "setup");
   }, []);
 
-  const advisorGoal = (OR_PARTICIPANTS.asesorServicio.length || 1) * 10;
+  const handleEditAudit = React.useCallback((audit: AuditSession) => {
+    if (!canRunAudits) {
+      alert("El perfil Consulta no puede editar auditorías.");
+      return;
+    }
+    const sourceAudit = audit.childAudits?.[0] ?? audit;
+    const editableRole = sourceAudit.role || sourceAudit.items[0]?.category || null;
+
+    setSession({
+      id: sourceAudit.id,
+      date: sourceAudit.date,
+      auditBatchName: sourceAudit.auditBatchName,
+      sampleTarget: sourceAudit.sampleTarget,
+      selectedStaffNames: sourceAudit.selectedStaffNames,
+      auditorId: sourceAudit.auditorId,
+      location: sourceAudit.location,
+      staffName: sourceAudit.staffName,
+      orderNumber: sourceAudit.orderNumber,
+      clientIdentifier: sourceAudit.clientIdentifier,
+      auditedFileNames: sourceAudit.auditedFileNames,
+      notes: sourceAudit.notes,
+      participants: sourceAudit.participants,
+      items: sourceAudit.items ?? [],
+    });
+    setSelectedRole(editableRole);
+    setSelectedStaff(sourceAudit.staffName ?? sourceAudit.participants?.asesorServicio ?? "");
+    setActiveAuditItemId(null);
+    setFocusedAuditItemId(null);
+    setSelectedAudit(null);
+    setView(editableRole ? "audit" : "setup");
+    setIsAuditConfigured(Boolean(editableRole && sourceAudit.staffName));
+    }, [canRunAudits]);
+
+  const advisorGoal = session.sampleTarget || 30;
   
+  const currentBatchOrderAudits = React.useMemo(() => {
+    const recordsById = new Map<string, AuditSession>();
+    const currentBatchName = session.auditBatchName?.trim();
+
+    [...history, ...completedAuditReports.map((report) => report.session)].forEach((audit) => {
+      const isOrder = audit.entityType === "or" || String(audit.role || "").toLowerCase().includes("orden");
+      const belongsToCurrentBatch = currentBatchName
+        ? audit.auditBatchName?.trim() === currentBatchName
+        : audit.date === session.date && audit.location === session.location;
+
+      if (isOrder && belongsToCurrentBatch) {
+        recordsById.set(audit.id, audit);
+      }
+    });
+
+    return Array.from(recordsById.values())
+      .sort((left, right) => `${right.date}-${right.id}`.localeCompare(`${left.date}-${left.id}`));
+  }, [completedAuditReports, history, session.auditBatchName, session.date, session.location]);
+
+  const orderStaffProgress = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    currentBatchOrderAudits.forEach((audit) => {
+      const name = audit.staffName?.trim() || audit.participants?.asesorServicio?.trim();
+      if (name) counts.set(name, (counts.get(name) || 0) + 1);
+    });
+    return Array.from(counts, ([advisorName, sampledCount]) => ({ advisorName, sampledCount }));
+  }, [currentBatchOrderAudits]);
+
   const sampledOrdersProgress = React.useMemo(() => {
-    const count = completedAuditReports.filter(r => r.role === "Ordenes").length;
+    const count = currentBatchOrderAudits.length;
     return Math.min(100, Math.round((count / advisorGoal) * 100));
-  }, [completedAuditReports, advisorGoal]);
+  }, [advisorGoal, currentBatchOrderAudits.length]);
 
   const sampledServiceAdvisorClientsProgress = React.useMemo(() => {
     const count = completedAuditReports.filter(r => r.role === "Asesores de servicio").length;
@@ -807,32 +835,64 @@ function AuditApp() {
   const realDraftAudits = sortedDraftAudits.filter((draft) => !completedSessionIds.has(draft.id));
 
   // Obtener auditorías incompletas del historial (< 100%)
-  const incompletedHistoryAudits: IncompleteAuditListItem[] = history
-    .filter((auditSession) => (auditSession.totalScore ?? 0) < 100)
-    .map((auditSession) => ({
-      id: auditSession.id || "",
-      date: auditSession.date,
-      auditBatchName: auditSession.auditBatchName,
-      auditorId: auditSession.auditorId,
-      location: auditSession.location,
-      role: auditSession.role,
-      items: auditSession.items,
-      updatedAt: auditSession.date,
-      _source: "history" as const,
-      totalScore: auditSession.totalScore,
-    }))
-    .sort((left, right) => right.date.localeCompare(left.date));
+  const groupedHistoryAudits = buildGroupedHistory(history);
+  const incompletedHistoryAudits: IncompleteAuditListItem[] = groupedHistoryAudits
+    .filter((auditSession) => {
+      const scopeKey = (auditSession.location === "Salta" || auditSession.location === "Jujuy")
+        ? auditSession.location
+        : "global";
+      const expectedCategories = (auditCategoryScopes[scopeKey] || auditCategoryScopes.global)
+        .filter((category) => category.name.trim() && category.items.length > 0)
+        .map((category) => category.name);
+      const completedRoles = new Set(
+        (auditSession.childAudits || [auditSession])
+          .map((childAudit) => childAudit.role?.trim())
+          .filter(Boolean)
+      );
+
+      return completedRoles.size > 0 && completedRoles.size < expectedCategories.length;
+    })
+    .map((auditSession) => {
+      const scopeKey = (auditSession.location === "Salta" || auditSession.location === "Jujuy")
+        ? auditSession.location
+        : "global";
+      const expectedCategories = (auditCategoryScopes[scopeKey] || auditCategoryScopes.global)
+        .filter((category) => category.name.trim() && category.items.length > 0);
+      const childAudits = auditSession.childAudits || [auditSession];
+      const sourceAudit = childAudits.find((childAudit) =>
+        Boolean(childAudit.location || childAudit.auditorId || childAudit.staffName || childAudit.auditBatchName)
+      ) || childAudits[0];
+
+      return {
+        id: auditSession.id,
+        childAuditIds: auditSession.childAuditIds,
+        childAudits,
+        expectedChildCount: expectedCategories.length,
+        date: sourceAudit?.date || auditSession.date,
+        auditBatchName: sourceAudit?.auditBatchName || auditSession.auditBatchName || "Auditoria de proceso",
+        auditorId: sourceAudit?.auditorId || auditSession.auditorId,
+        location: sourceAudit?.location || auditSession.location,
+        role: "Auditoria de proceso",
+        staffName: sourceAudit?.staffName || auditSession.staffName,
+        items: auditSession.items,
+        updatedAt: sourceAudit?.date || auditSession.date,
+        _source: "history" as const,
+        totalScore: auditSession.totalScore,
+        notes: sourceAudit?.notes || auditSession.notes,
+        participants: sourceAudit?.participants || auditSession.participants,
+      };
+    });
 
   // Combinar borradores reales + auditorías incompletas del historial
   const allIncompleteAudits: IncompleteAuditListItem[] = [...realDraftAudits, ...incompletedHistoryAudits]
     .sort((left, right) => (right.updatedAt || "").localeCompare(left.updatedAt || ""));
 
-  // Actualizar sidebarItems para incluir "Continuar Auditoría" solo si hay borradores reales
+  // Mostrar pendientes solamente cuando hay auditorías que se pueden retomar
   const updatedSidebarItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     ...(canRunAudits ? [{ id: "setup", label: "Nueva Auditoría", icon: Plus }] : []),
-    ...(allIncompleteAudits.length > 0 ? [{ id: "continuar", label: "Continuar Auditoría", icon: Activity }] : []),
-    { id: "history", label: "Historial", icon: History },
+    ...(allIncompleteAudits.length > 0 ? [{ id: "continuar", label: "Auditorías pendientes", icon: Activity }] : []),
+    { id: "history", label: "Registro y seguimiento", icon: History },
     ...(canAccessStructure ? [{ id: "structure", label: "Estructura", icon: Settings }] : []),
     ...(canAccessIntegrations ? [{ id: "integrations", label: "Integraciones", icon: ShieldCheck }] : []),
   ];
@@ -916,7 +976,6 @@ function AuditApp() {
     ensureSessionIdentity,
     formatAuditMonthLabel,
     buildAuditBatchName,
-    createEmptyAuditedFileNames,
     resumeDraftSession,
     setSession,
     setSelectedRole,
@@ -928,14 +987,17 @@ function AuditApp() {
     setShowBatchReportModal,
     setSelectedAudit,
     setDeleteConfirmModal,
+    setIsAuditConfigured,
   });
 
   const { handleTopbarBack } = useHashNavigation({
     view,
     selectedRole,
+    availableRoles: ["General", ...allAuditAreaNames],
     setView,
     setSelectedRole,
     clearSelectedRole,
+    startNewAudit,
   });
 
   const getAuditItemStatusLabel = (status?: string | null) => {
@@ -1006,6 +1068,30 @@ function AuditApp() {
       setPreDeliveryActiveLegajoIndex(0);
     }
   }, [isPreDeliveryAudit]);
+
+  useEffect(() => {
+    if (view !== "audit" || isOrdersAudit || isPreDeliveryAudit || usesFlatAuditFlow) {
+      return;
+    }
+
+    if (isGlobalAudit) {
+      if (!activeAuditBlock || !availableAuditBlocks.includes(activeAuditBlock)) {
+        setActiveAuditBlock(availableAuditBlocks[0] ?? null);
+      }
+      return;
+    }
+
+    if (availableAuditBlocks.length <= 1) {
+      if (activeAuditBlock !== null) {
+        setActiveAuditBlock(null);
+      }
+      return;
+    }
+
+    if (!activeAuditBlock || !availableAuditBlocks.includes(activeAuditBlock)) {
+      setActiveAuditBlock(availableAuditBlocks[0]);
+    }
+  }, [activeAuditBlock, availableAuditBlocks, isGlobalAudit, isOrdersAudit, isPreDeliveryAudit, usesFlatAuditFlow, view]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -1093,7 +1179,7 @@ function AuditApp() {
       return;
     }
 
-    if (view === "setup" || view === "audit" || view === "home" || view === "structure" || view === "integrations") {
+    if (view === "setup" || view === "audit" || view === "home" || view === "structure" || view === "integrations" || view === "stock-control") {
       setView("dashboard");
       return;
     }
@@ -1116,15 +1202,8 @@ function AuditApp() {
       return;
     }
 
-    if (filteredHistory.length === 0) {
-      if (selectedAudit) {
-        setSelectedAudit(null);
-      }
-      return;
-    }
-
-    if (!selectedAudit || !filteredHistory.some((item: any) => item.id === selectedAudit.id)) {
-      setSelectedAudit(filteredHistory[0]);
+    if (selectedAudit && !filteredHistory.some((item: any) => item.id === selectedAudit.id)) {
+      setSelectedAudit(null);
     }
   }, [filteredHistory, selectedAudit, view]);
 
@@ -1223,12 +1302,39 @@ function AuditApp() {
   const handleSelectProfile = (profile: AuditUserProfile) => {
     setUserProfile(profile);
     window.localStorage.setItem(USER_PROFILE_STORAGE_KEY, profile);
-    if (profile === "consulta") {
-      setView("dashboard");
-    }
+    setView("dashboard");
     setIsSessionStarted(true);
   };
 
+  const handleStartNewAudit = React.useCallback(() => {
+    // El acceso debe abrir siempre el primer paso, aunque el usuario venga de una ruta anterior.
+    setView("setup");
+    setAuditScope(null);
+    startNewAudit();
+    if (typeof window !== "undefined" && window.location.hash !== "#/nueva") {
+      window.history.replaceState(null, "", "#/nueva");
+    }
+    contentContainerRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  }, [startNewAudit]);
+  const handleNavigate = React.useCallback((nextView: AppView | "home") => {
+    setIsMobileNavOpen(false);
+
+    if (nextView === "setup") {
+      handleStartNewAudit();
+      return;
+    }
+
+    if (nextView === "home") {
+      setView("dashboard");
+      return;
+    }
+
+    if (nextView === "history") {
+      setSelectedAudit(null);
+    }
+
+    setView(nextView);
+  }, [handleStartNewAudit]);
   const handleLogin = async () => {
     if (!auth || !googleProvider || !isFirebaseEnabled) {
       return;
@@ -1276,31 +1382,58 @@ function AuditApp() {
     setView("dashboard");
   };
 
-  const handleDeleteAudit = React.useCallback(async (auditId: string, auditSource?: AuditSource, auditIds?: string[]) => {
+  const handleDeleteAudit = React.useCallback(async (auditId: string, _auditSource?: AuditSource, auditIds?: string[], reason?: string) => {
+    if (!canRunAudits) {
+      alert("El perfil Consulta no puede eliminar auditorías.");
+      return;
+    }
     const targetAuditIds = auditIds?.length ? auditIds : [auditId];
 
-    if (auditSource === "sheet") {
-      await Promise.all(targetAuditIds.map((targetAuditId) => deleteRemoteAudit(targetAuditId)));
-    } else {
-      targetAuditIds.forEach((targetAuditId) => dismissAuditHistoryItem(targetAuditId));
-    }
+    setDeleteConfirmModal((prev) => ({ ...prev, isDeleting: true, error: null }));
 
-    targetAuditIds.forEach((targetAuditId) => {
-      removeDraftAudit(targetAuditId);
-      removeLocalAuditHistoryItem(targetAuditId);
-    });
-    setCompletedAuditReports((current) =>
-      current.filter((report) => !targetAuditIds.includes(report.session.id))
-    );
-    setDeleteConfirmModal({ show: false, auditId: "", auditName: "" });
-  }, [deleteRemoteAudit, dismissAuditHistoryItem, removeDraftAudit, removeLocalAuditHistoryItem]);
+    try {
+      if (hasWebhookUrl) {
+        // Si hay webhook configurado, siempre intentamos eliminar/archivar en Google Sheets
+        await Promise.all(
+          targetAuditIds.map((targetAuditId) =>
+            deleteRemoteAudit(targetAuditId, {
+              userEmail: user?.email || "Usuario Local",
+              reason: reason || "Eliminación manual desde Historial",
+            })
+          )
+        );
+      }
+
+      // Descartar del estado local y de drafts
+      targetAuditIds.forEach((targetAuditId) => {
+        dismissAuditHistoryItem(targetAuditId);
+        removeDraftAudit(targetAuditId);
+        removeLocalAuditHistoryItem(targetAuditId);
+      });
+
+      setCompletedAuditReports((current) =>
+        current.filter((report) => !targetAuditIds.includes(report.session.id))
+      );
+
+      setDeleteConfirmModal({ show: false, auditId: "", auditName: "", isDeleting: false, error: null });
+      setDeleteReason("");
+    } catch (err: any) {
+      console.error("Error al eliminar auditoría:", err);
+      setDeleteConfirmModal((prev) => ({
+        ...prev,
+        isDeleting: false,
+        error: err?.message || "No se pudo eliminar en Google Sheets. Revisa la conexión.",
+      }));
+    }
+  }, [canRunAudits, deleteRemoteAudit, dismissAuditHistoryItem, hasWebhookUrl, removeDraftAudit, removeLocalAuditHistoryItem, user?.email]);
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const handleAuditSubmit = (submitMode: OrdersSubmitMode = "finish") => {
-    if (!selectedRole || !selectedAuditCategory) return;
+    if (isSendingToSheet) return;
+    if (!selectedRole || (!selectedAuditCategory && !isGlobalAudit)) return;
 
-    if (isOrdersAudit && !/^\d{1,10}$/.test(session.orderNumber?.trim() || "")) {
+    if (isOrdersAudit && !/^\d{2,10}$/.test(session.orderNumber?.trim() || "")) {
       alert("Ingresá un número de OR válido (solo números).");
       return;
     }
@@ -1331,6 +1464,19 @@ function AuditApp() {
       return;
     }
 
+    if (requiredPendingCount > 0) {
+      const firstPending = requiredPendingItems[0];
+      if (firstPending) {
+        setActiveAuditItemId(firstPending.id);
+        setFocusedAuditItemId(firstPending.id);
+      }
+      alert(`Faltan ${requiredPendingCount} requisito(s) obligatorio(s) por responder antes del cierre.`);
+      return;
+    }
+    if (applicableAnsweredCount === 0) {
+      alert("No hay requisitos aplicables evaluados. No se puede calcular un puntaje confiable si todo quedó como N/A.");
+      return;
+    }
     if (optionalPendingCount > 0) {
       setPendingOrdersSubmitMode(submitMode);
       setShowConfirmModal(true);
@@ -1340,6 +1486,7 @@ function AuditApp() {
   };
 
   const confirmAuditSubmit = () => {
+    if (isSendingToSheet) return;
     submitAudit(pendingOrdersSubmitMode);
   };
 
@@ -1351,18 +1498,22 @@ function AuditApp() {
 
 
   const submitAudit = async (submitMode: OrdersSubmitMode = "finish") => {
-    if (sessionItems.length === 0) return;
+    if (isSendingToSheet) return;
+    if (sessionItems.length === 0 && calculatedSessionItems.length === 0) return;
 
     setIsSendingToSheet(true);
 
     const normalizedSession = ensureSessionMetadata(session);
 
+    const genericFinalItems = [
+      ...sessionItems.filter((item) => item.status !== "calculated"),
+      ...calculatedSessionItems,
+    ];
     const finalItems = isOrdersAudit
       ? sessionOrderItems
       : isPreDeliveryAudit
         ? sessionPreDeliveryItems
-        : sessionItems;
-    const complianceMetrics = calculateAuditCompliance(finalItems);
+        : genericFinalItems;    const complianceMetrics = calculateAuditCompliance(finalItems);
     const roleScores = isOrdersAudit ? calculateRoleScores(finalItems) : [];
 
     const completeSession: AuditSession = {
@@ -1405,30 +1556,15 @@ function AuditApp() {
       if (hasWebhookUrl) {
         const payload = buildAuditSyncPayload({
           session: completeSession,
+          templateItems: visibleAuditItems,
           auditorName,
           submittedByEmail: user?.email,
         });
 
         await sendAuditToWebhook(webhookUrl, payload);
-        prependExternalAudit(completeSession);
-        void refreshExternalHistory().catch((refreshError) => {
-          console.error("External history refresh after submit failed:", refreshError);
-        });
+        await refreshExternalHistory();
         savedRemotely = true;
       }
-
-      if (user && isFirebaseEnabled) {
-        try {
-          await saveToFirestore(completeSession);
-          savedRemotely = true;
-        } catch (error) {
-          console.error("Firestore secondary save failed:", error);
-          if (!hasWebhookUrl) {
-            throw error;
-          }
-        }
-      }
-
       if (!savedRemotely) {
         upsertLocalAuditHistory(completeSession);
       }
@@ -1454,6 +1590,13 @@ function AuditApp() {
         });
       });
 
+      setLastCompletedAuditReport({
+        role: completeSession.role || selectedRole!,
+        session: completeSession,
+        auditorName,
+        templateItems: displayedAuditItems,
+      });
+
       if (session.id) {
         removeDraftAudit(session.id);
       }
@@ -1467,10 +1610,15 @@ function AuditApp() {
       setSelectedStaff(shouldKeepStaff ? (completeSession.staffName?.trim() || "") : "");
       
       setView("audit");
+      if (submitMode === "continue") {
+        setIsAuditConfigured(false);
+      }
       setSession({
         id: createClientId(),
         date: completeSession.date,
         auditBatchName: completeSession.auditBatchName,
+        sampleTarget: completeSession.sampleTarget,
+        selectedStaffNames: completeSession.selectedStaffNames,
         auditorId: completeSession.auditorId,
         location: completeSession.location,
         orderNumber: undefined, // Reset for next order
@@ -1511,6 +1659,10 @@ function AuditApp() {
     const existingIndex = session.items?.findIndex(i => i.question === question) ?? -1;
     let newItems = [...(session.items ?? [])];
     const templateItem = displayedAuditItems.find((auditItem) => auditItem.text === question);
+
+    if (status === "na" && templateItem?.allowsNa === false) {
+      return;
+    }
     
     if (status === null) {
       if (existingIndex >= 0) {
@@ -1529,15 +1681,13 @@ function AuditApp() {
           description: templateItem?.description,
           responsibleRoles: templateItem?.responsibleRoles,
           sector: templateItem?.sector,
-          weight: templateItem?.weight,
+          weight: templateItem?.weight ?? 1,
           allowsNa: templateItem?.allowsNa,
           scoreLinks: templateItem?.scoreLinks,
           scoreAreas: templateItem?.scoreLinks?.map((link) => link.area) ?? templateItem?.scoreAreas,
         });
       }
     }
-
-    setSession({ ...session, items: newItems });
 
     const requiresCommentBeforeAdvance = status === "fail"
       && Boolean(templateItem?.requiresCommentOnFail)
@@ -1572,7 +1722,7 @@ function AuditApp() {
         id: templateItem?.id || createClientId(),
         question,
         category: selectedRole!,
-        status: "na",
+        status: undefined,
         comment,
         description: templateItem?.description,
         responsibleRoles: templateItem?.responsibleRoles,
@@ -1599,7 +1749,7 @@ function AuditApp() {
         id: templateItem?.id || createClientId(),
         question,
         category: selectedRole!,
-        status: "na",
+        status: undefined,
         comment: "",
         description: templateItem?.description,
         responsibleRoles: templateItem?.responsibleRoles,
@@ -1704,25 +1854,25 @@ function AuditApp() {
         view={view}
         user={user}
         userProfile={userProfile}
+        syncStatusLabel={syncStatusLabel}
+        syncStatusDetail={syncStatusDetail}
+        syncStatusTone={syncStatusTone}
+        isSyncing={isSyncing}
         authenticationEnabled={isFirebaseEnabled}
-        showSidebar={view === "dashboard" || view === "history" || view === "integrations" || view === "continuar" || view === "setup"}
+        showSidebar={view === "dashboard" || view === "history" || view === "structure" || view === "integrations" || view === "continuar" || view === "setup" || view === "stock-control"}
         sidebarItems={updatedSidebarItems}
         isMobileNavOpen={isMobileNavOpen}
         canRunAudits={canRunAudits}
         contentContainerRef={contentContainerRef}
-        onNavigate={(nextView) => {
-          if ((nextView as string) === "new-audit") {
-            startNewAudit();
-            return;
-          }
-
-          setView(nextView as AppView);
-        }}
+        onNavigate={handleNavigate}
         onLogout={handleLogout}
         onOpenMobileNav={() => setIsMobileNavOpen(true)}
         onCloseMobileNav={() => setIsMobileNavOpen(false)}
-        onBack={handleTopbarBack}
-        onStartAudit={startNewAudit}
+        onBack={() => {
+          if (selectedRole === "General") setAuditScope(null);
+          handleTopbarBack();
+        }}
+        onStartAudit={handleStartNewAudit}
         backLabel={view === "audit" ? "Volver a Áreas" : undefined}
       >
         <AnimatePresence mode="wait">
@@ -1744,11 +1894,25 @@ function AuditApp() {
                 </div>
                 <h3 className="text-3xl font-black mb-3">¡Completado!</h3>
                 <p className="text-slate-500 font-medium mb-10 leading-relaxed">La auditoría ha sido procesada y guardada correctamente en el sistema.</p>
-                <Button 
+                {lastCompletedAuditReport && (
+                  <Button
+                    variant="secondary"
+                    className="mb-3 w-full h-14 rounded-2xl text-xs font-black uppercase tracking-widest"
+                    onClick={() => generateAuditPdfReport({
+                      appTitle,
+                      session: lastCompletedAuditReport.session,
+                      auditorName: lastCompletedAuditReport.auditorName || "Auditor",
+                      templateItems: lastCompletedAuditReport.templateItems || [],
+                    })}
+                  >
+                    Descargar PDF gerencial
+                  </Button>
+                )}
+                <Button
                   className="w-full h-14 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-blue-500/20"
                   onClick={() => setShowSuccessModal(false)}
                 >
-                  Continuar
+                  Listo
                 </Button>
               </motion.div>
             </motion.div>
@@ -1763,12 +1927,37 @@ function AuditApp() {
               className="space-y-8 pt-4"
             >
               <Suspense fallback={<div className="rounded-[1.8rem] border border-slate-200 bg-white p-6 text-sm font-bold text-slate-500">Cargando dashboard...</div>}>
-                <DashboardView history={history} />
+                <DashboardView history={history} onOpenHistory={() => setView("history")} />
               </Suspense>
             </motion.div>
           )}
 
 
+
+          {view === "stock-control" && (
+            <motion.div
+              key="stock-control"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <Suspense fallback={<div className="rounded-[1.8rem] border border-slate-200 bg-white p-6 text-sm font-bold text-slate-500">Cargando control físico...</div>}>
+                <StockControlView
+                  auditors={AUDITORS}
+                  defaultAuditorId={session.auditorId}
+                  defaultLocation={session.location ?? "Jujuy"}
+                  defaultBatchName={session.auditBatchName || auditBatchDisplayName}
+                  defaultDate={session.date}
+                  webhookUrl={webhookUrl}
+                  onBack={() => setView("audit")}
+                  onSaved={(audit) => {
+                    upsertLocalAuditHistory(audit);
+                    void refreshExternalHistory();
+                  }}
+                />
+              </Suspense>
+            </motion.div>
+          )}
 
           {view === "setup" && (
             <motion.div
@@ -1788,6 +1977,7 @@ function AuditApp() {
                   auditBatchDisplayName={auditBatchDisplayName}
                   onSelectAuditor={(auditorId) => setSession({ ...session, auditorId })}
                   onSelectLocation={(location) => setSession({ ...session, location })}
+                  onAuditNameChange={(auditBatchName) => setSession((current) => ({ ...current, auditBatchName }))}
                   onCancel={() => setView("dashboard")}
                   onContinue={handleSetupSubmit}
                 />
@@ -1805,64 +1995,90 @@ function AuditApp() {
               className="space-y-6"
             >
               {!selectedRole ? (
-                <div className="space-y-6">
-                  <div className="hero-shell rounded-[2.2rem] p-6 shadow-sm lg:p-7">
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
-                      <div className="space-y-4">
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="space-y-2">
                         <span className="inline-flex items-center gap-2 rounded-full bg-white/85 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 shadow-sm">
                           <div className="h-2 w-2 rounded-full bg-blue-600" />
-                          Categorías
+                          Nueva auditoría
                         </span>
                         <div className="space-y-2">
-                          <h2 className="text-2xl font-black tracking-tight text-slate-950 lg:text-3xl">Elegí el área.</h2>
+                          <h2 className="text-xl font-black tracking-tight text-slate-950 lg:text-2xl">¿Qué tipo de auditoría vas a realizar?</h2>
                           {auditBatchDisplayName && (
                             <p className="text-sm font-bold text-slate-600">{auditBatchDisplayName}</p>
                           )}
                         </div>
-                        <div className="hidden lg:grid lg:grid-cols-3 lg:gap-3">
-                          <div className="rounded-[1.4rem] border border-white/80 bg-white/80 px-4 py-4 shadow-sm">
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Auditor</p>
-                            <p className="mt-2 text-sm font-black text-slate-900">{selectedAuditorOption?.name ?? "Sin definir"}</p>
-                          </div>
-                          <div className="rounded-[1.4rem] border border-white/80 bg-white/80 px-4 py-4 shadow-sm">
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Sucursal</p>
-                            <p className="mt-2 text-sm font-black text-slate-900">{session.location ?? "Sin definir"}</p>
-                          </div>
-                          <div className="rounded-[1.4rem] border border-white/80 bg-white/80 px-4 py-4 shadow-sm">
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Fecha</p>
-                            <p className="mt-2 text-sm font-black text-slate-900">{session.date || "Sin definir"}</p>
-                          </div>
-                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-[10px] font-bold text-slate-600">
+                        <span className="rounded-lg bg-slate-100 px-3 py-2">{selectedAuditorOption?.name ?? "Sin auditor"}</span>
+                        <span className="rounded-lg bg-slate-100 px-3 py-2">{session.location ?? "Sin sucursal"}</span>
+                        <span className="rounded-lg bg-blue-50 px-3 py-2 text-blue-700">{auditBatchDisplayName}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="rounded-[1.4rem] border border-slate-200 bg-white p-2">
-                    <div className="grid grid-cols-2 gap-2">
+                  <div className="mx-auto w-full max-w-sm rounded-xl border border-slate-200 bg-white p-1">
+                    <div className="grid grid-cols-2 gap-1.5">
                       <button
                         type="button"
                         onClick={() => setAuditEntryTab("areas")}
                         className={cn(
-                          "rounded-[1rem] px-3 py-2.5 text-xs font-black uppercase tracking-[0.14em] transition",
+                          "rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] transition",
                           auditEntryTab === "areas" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"
                         )}
                       >
-                        Elegí el área
+                        Seleccionar
                       </button>
                       <button
                         type="button"
                         onClick={() => setAuditEntryTab("scores")}
                         className={cn(
-                          "rounded-[1rem] px-3 py-2.5 text-xs font-black uppercase tracking-[0.14em] transition",
+                          "rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] transition",
                           auditEntryTab === "scores" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"
                         )}
                       >
-                        Puntajes
+                        Resumen
                       </button>
                     </div>
                   </div>
 
                   {auditEntryTab === "areas" ? (
+                    auditScope === null ? (
+                      <div className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-3 md:grid-cols-2">
+                        <button type="button" onClick={() => {
+                          setAuditScope("general");
+                          setSession((previous) => ({
+                            id: createClientId(),
+                            date: previous.date || new Date().toISOString().split("T")[0],
+                            auditBatchName: previous.auditBatchName,
+                            auditorId: previous.auditorId,
+                            location: previous.location,
+                            auditedFileNames: createEmptyAuditedFileNames(),
+                            participants: { asesorServicio: "", tecnico: "", controller: "", lavador: "", repuestos: "" },
+                            items: [],
+                          }));
+                          setSelectedRole("General");
+                          setSelectedStaff("Auditoría Integral");
+                          setIsAuditConfigured(true);
+                          setActiveAuditBlock(auditCategories[0]?.name || null);
+                        }} className="group flex min-h-[82px] items-center gap-4 rounded-2xl border border-[#cddce8] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#34769a] hover:shadow-md">
+                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#001e50] text-white"><LayoutDashboard className="h-5 w-5" /></span>
+                          <span className="min-w-0 flex-1"><strong className="block text-sm text-[#001e50]">Auditoría integral</strong><small className="mt-1 block text-[11px] leading-5 text-slate-500">Todas las áreas dentro de una sola auditoría.</small></span>
+                          <ChevronRight className="h-4 w-4 text-slate-400 transition group-hover:translate-x-1" />
+                        </button>
+                        <button type="button" onClick={() => setAuditScope("individual")} className="group flex min-h-[82px] items-center gap-4 rounded-2xl border border-[#cddce8] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#34769a] hover:shadow-md">
+                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#eaf4fb] text-[#21678f]"><FileCheck className="h-5 w-5" /></span>
+                          <span className="min-w-0 flex-1"><strong className="block text-sm text-[#001e50]">Auditoría por área</strong><small className="mt-1 block text-[11px] leading-5 text-slate-500">Elegí un área; después podés volver y auditar otra.</small></span>
+                          <ChevronRight className="h-4 w-4 text-slate-400 transition group-hover:translate-x-1" />
+                        </button>
+                      </div>
+                    ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-end justify-between gap-4">
+                        <div><p className="text-[9px] font-black uppercase tracking-[0.18em] text-blue-600">Auditoría por área</p><h3 className="mt-1 text-lg font-black text-[#001e50]">Elegí qué vas a auditar</h3><p className="mt-1 text-xs text-slate-500">Sólo se abrirá el área seleccionada.</p></div>
+                        <button type="button" onClick={() => setAuditScope(null)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-600 hover:border-blue-300">Cambiar tipo</button>
+                      </div>
                     <CategoryGrid
                       categories={auditCategories}
                       completedReports={completedAuditReports}
@@ -1875,17 +2091,62 @@ function AuditApp() {
                         return acc;
                       }, {} as Record<string, number>)}
                       onSelectCategory={(category) => {
+                        // Cada área inicia su propia evaluación. Así, si el auditor vuelve
+                        // a Áreas, las respuestas, el colaborador y la OR anteriores no se
+                        // mezclan con la nueva auditoría; el avance previo queda como borrador.
+                        setSession((previous) => ({
+                          id: createClientId(),
+                          date: previous.date || new Date().toISOString().split("T")[0],
+                          auditBatchName: category.name === "Ordenes"
+                            ? previous.auditBatchName?.replace("Auditoria de procesos", "Auditoría OR")
+                            : previous.auditBatchName,
+                          sampleTarget: category.name === "Ordenes" ? (previous.sampleTarget || 30) : previous.sampleTarget,
+                          selectedStaffNames: previous.selectedStaffNames,
+                          auditorId: previous.auditorId,
+                          location: previous.location,
+                          auditedFileNames: createEmptyAuditedFileNames(),
+                          participants: {
+                            asesorServicio: "",
+                            tecnico: "",
+                            controller: "",
+                            lavador: "",
+                            repuestos: "",
+                          },
+                          items: [],
+                        }));
+                        setSelectedStaff("");
+                        setIsAuditConfigured(false);
                         setSelectedRole(category.name);
                         setAuditEntryTab("areas");
                         
+                        if (category.name === "General") {
+                          setIsAuditConfigured(true);
+                          setSelectedStaff("Auditoría Integral");
+                          setActiveAuditBlock(auditCategories[0]?.name || null);
+                          return;
+                        }
+
                         const blocks = Array.from(new Set(category.items.map(i => i.block).filter(Boolean))) as string[];
                         setActiveAuditBlock(blocks.length > 0 ? blocks[0] : null);
+
+                        if (shouldAutoConfigureRole(category.name, category.staffOptions)) {
+                          const autoStaff = category.staffOptions[0]?.trim() || category.name;
+                          setSelectedStaff(autoStaff);
+                          setSession((prev) => ({
+                            ...prev,
+                            staffName: autoStaff,
+                          }));
+                          setIsAuditConfigured(true);
+                          return;
+                        }
 
                         if (category.name === "Pre Entrega") {
                           setSelectedStaff("");
                         }
                       }}
                     />
+                    </div>
+                    )
                   ) : (
                     <div className="space-y-6">
                       <div className="premium-card p-6 bg-white dark:bg-white/5 border-white/5 shadow-xl">
@@ -2034,7 +2295,7 @@ function AuditApp() {
 
                   {completedAuditReports.length > 0 && (
                     <div className="flex justify-end">
-                      <Button variant="secondary" size="lg" onClick={() => setShowBatchReportModal(true)} className="border-slate-200 bg-white text-slate-900 hover:bg-slate-50">
+                      <Button variant="secondary" size="lg" onClick={() => setView("report")} className="border-slate-200 bg-white text-slate-900 hover:bg-slate-50">
                         <FileText className="h-4 w-4" />
                         Generar reporte
                       </Button>
@@ -2042,21 +2303,27 @@ function AuditApp() {
                   )}
                 </div>
               ) : selectedRole && (
-                !selectedStaff || 
-                (isOrdersAudit && !session.orderNumber) || 
-                (isServiceAdvisorAudit && !session.clientIdentifier)
+                !isAuditConfigured || 
+                (!selectedStaff && selectedRole !== "General") || 
+                (isOrdersAudit && !/^\d{2,10}$/.test(session.orderNumber?.trim() || "")) || 
+                (isServiceAdvisorAudit && (!session.clientIdentifier || !session.orderNumber))
               ) && !isPreDeliveryAudit ? (
                 <AuditStaffSelectionView
                   role={selectedRole}
                   staffList={
-                    Object.entries(STAFF).find(([key]) => key.toLowerCase() === selectedRole.toLowerCase())?.[1] || []
+                    selectedAuditCategory?.staffOptions?.length
+                      ? selectedAuditCategory.staffOptions
+                      : STAFF[selectedRole as keyof typeof STAFF] || []
                   }
                   selectedStaff={selectedStaff}
                   onSelectStaff={setSelectedStaff}
                   orderNumber={session.orderNumber}
-                  onOrderNumberChange={(value) => setSession({ ...session, orderNumber: value })}
+                  onOrderNumberChange={(value) => {
+                    setIsAuditConfigured(false);
+                    setSession((prev) => ({ ...prev, orderNumber: value }));
+                  }}
                   clientIdentifier={session.clientIdentifier}
-                  onClientIdentifierChange={(value) => setSession({ ...session, clientIdentifier: value })}
+                  onClientIdentifierChange={(value) => setSession((prev) => ({ ...prev, clientIdentifier: value }))}
                   onContinue={() => {
                     setSession(prev => ({
                       ...prev,
@@ -2066,12 +2333,35 @@ function AuditApp() {
                         asesorServicio: selectedStaff,
                       } : prev.participants
                     }));
+                    setIsAuditConfigured(true);
                   }}
-                  onBack={() => setSelectedRole(null)}
+                  onBack={clearSelectedRole}
                   isOrdersAudit={isOrdersAudit}
                   isServiceAdvisorAudit={isServiceAdvisorAudit}
                   isTechnicianAudit={isTechnicianAudit}
-                  staffProgress={undefined}
+                  staffProgress={orderStaffProgress}
+                  sampleTarget={session.sampleTarget || 30}
+                  selectedStaffNames={session.selectedStaffNames || []}
+                  onSampleTargetChange={(sampleTarget) => setSession((prev) => ({ ...prev, sampleTarget }))}
+                  onSelectedStaffNamesChange={(selectedStaffNames) => setSession((prev) => ({ ...prev, selectedStaffNames }))}
+                  orderAudits={currentBatchOrderAudits}
+                  onViewOrderAudit={setSelectedAudit}
+                  onEditOrderAudit={handleEditAudit}
+                  onPrintOrderAudit={(audit) => generateAuditPdfReport({
+                    appTitle,
+                    session: audit,
+                    auditorName: AUDITORS.find((auditor) => auditor.id === audit.auditorId)?.name || "Auditor",
+                    templateItems: selectedAuditItems,
+                  })}
+                  onSaveOrdersCampaign={clearSelectedRole}
+                  onFinishOrdersCampaign={clearSelectedRole}
+                  onPrintOrdersCampaign={() => generateOrdersCampaignPdf({
+                    appTitle,
+                    audits: currentBatchOrderAudits,
+                    auditorName: AUDITORS.find((auditor) => auditor.id === session.auditorId)?.name || "Auditor",
+                    sampleTarget: session.sampleTarget || 30,
+                  })}
+                  onOpenPhysicalStockControl={selectedRole === "Repuestos" ? () => setView("stock-control") : undefined}
                 />
               ) : (
                 <Suspense fallback={<div className="rounded-[1.8rem] border border-slate-200 bg-white p-6 text-sm font-bold text-slate-500">Cargando sesión de auditoría...</div>}>
@@ -2082,10 +2372,13 @@ function AuditApp() {
                     isServiceAdvisorAudit={isServiceAdvisorAudit}
                     isTechnicianAudit={isTechnicianAudit}
                     isPreDeliveryAudit={isPreDeliveryAudit}
+                    isGlobalAudit={isGlobalAudit}
                     visibleAuditItems={visibleAuditItems}
+                    calculationResultsByItemId={calculationResultsByItemId}
+                    processResults={processResults}
                     activeAuditBlock={activeAuditBlock}
                     setActiveAuditBlock={setActiveAuditBlock}
-                    availableBlocks={Array.from(new Set(displayedAuditItems.map(i => i.block).filter(Boolean))) as string[]}
+                    availableBlocks={usesFlatAuditFlow ? [] : availableAuditBlocks}
                     isQuickAuditMode={isQuickAuditMode}
                     setIsQuickAuditMode={setIsQuickAuditMode}
                     draftSaveState={draftSaveState}
@@ -2104,6 +2397,7 @@ function AuditApp() {
                     observationSuggestions={observationSuggestions}
                     isAuditChecklistCompleted={isAuditChecklistCompleted}
                     failItemsWithoutCommentCount={failItemsWithoutCommentCount}
+                    requiredPendingCount={requiredPendingCount}
                     optionalPendingCount={optionalPendingCount}
                     isSubmitDisabled={isSubmitDisabled}
                     isSendingToSheet={isSendingToSheet}
@@ -2116,7 +2410,9 @@ function AuditApp() {
                     getAuditItemStatusLabel={getAuditItemStatusLabel}
                     formatPreDeliveryLegajoQuestion={formatPreDeliveryLegajoQuestion}
                     currentStaffAuditCount={currentStaffAuditCount}
+                    completedOrderCount={currentBatchOrderAudits.length}
                     recentStaffAudits={completedAuditReports.filter(r => r.session.staffName?.trim() === selectedStaff?.trim() && r.role === selectedRole)}
+                    onOpenPhysicalStockControl={selectedRole === "Repuestos" ? () => setView("stock-control") : undefined}
                   />
                 </Suspense>
               )}
@@ -2138,17 +2434,20 @@ function AuditApp() {
                   structureStorageLabel={structureStorageLabel}
                   isLoadingStructureFromCloud={isLoadingStructureFromCloud}
                   isSavingStructureToCloud={isSavingStructureToCloud}
+                  isLoadingStructureFromSheet={isLoadingStructureFromSheet}
                   isSavingStructureToSheet={isSavingStructureToSheet}
                   hasPendingStructureChanges={hasPendingStructureChanges}
                   handleLoadStructureFromCloud={handleLoadStructureFromCloud}
                   handleSaveStructureToCloud={handleSaveStructureToCloud}
                   handleSaveStructureToSheet={handleSaveStructureToSheet}
+                  handleLoadStructureFromSheet={handleLoadStructureFromSheet}
                   handleResetStructure={handleResetStructure}
                   auditCategories={auditCategories}
+                  calculationRules={calculationRules}
+                  handleToggleCalculationLink={handleToggleCalculationLink}
                   selectedStructureCategory={selectedStructureCategory}
                   selectedStructureCategoryId={selectedStructureCategoryId}
                   setSelectedStructureCategoryId={setSelectedStructureCategoryId}
-                  updateCategory={updateCategory}
                   handleDuplicateCategory={handleDuplicateCategory}
                   handleDeleteCategory={handleDeleteCategory}
                   handleDeleteItem={handleDeleteItem}
@@ -2184,6 +2483,7 @@ function AuditApp() {
                   setNewItemRequiresCommentOnFail={setNewItemRequiresCommentOnFail}
                   handleAddItem={handleAddItem}
                   handleMoveItem={handleMoveItem}
+                  handleToggleItemResponsibleRole={handleToggleItemResponsibleRole}
                   lastStructureSavedAt={lastStructureSavedAt}
                 />
               </Suspense>
@@ -2205,9 +2505,6 @@ function AuditApp() {
                   onWebhookUrlChange={setWebhookUrl}
                   onSheetCsvUrlChange={setSheetCsvUrl}
                   onSave={saveIntegrationSettings}
-                  isFirebaseEnabled={isFirebaseEnabled}
-                  isAuthenticated={Boolean(user)}
-                  isUsingExternalHistory={isUsingExternalHistory}
                   hasWebhookUrl={hasWebhookUrl}
                   hasSheetCsvUrl={hasSheetCsvUrl}
                   localAuditHistoryCount={localAuditHistory.length}
@@ -2254,7 +2551,7 @@ function AuditApp() {
                   historyPanel={historyPanel}
                   setHistoryPanel={setHistoryPanel}
                   filteredHistory={filteredHistory}
-                  selectedHistoryAudit={selectedHistoryAudit}
+                  selectedHistoryAudit={selectedAudit}
                   historyAverageScore={historyAverageScore}
                   nonCompliantAudits={nonCompliantAudits}
                   latestHistoryItem={latestHistoryItem}
@@ -2262,11 +2559,13 @@ function AuditApp() {
                   setSearchTerm={setSearchTerm}
                   onBack={() => setView("dashboard")}
                   onSelectAudit={setSelectedAudit}
+                  onEditAudit={handleEditAudit}
                   onExportCsv={exportToCSV}
                   onSyncData={syncData}
                   onDeleteAudit={(audit) => setDeleteConfirmModal({ show: true, auditId: audit.id, auditIds: audit.childAuditIds, auditName: audit.auditBatchName || audit.staffName || "Auditoria sin nombre", auditSource: audit.source })}
                   isSyncing={isSyncing}
                   isHistorySyncConfigured={isHistorySyncConfigured}
+                  canManageRecords={canRunAudits}
                   isUsingExternalHistory={isUsingExternalHistory}
                   hasWebhookUrl={hasWebhookUrl}
                   hasSheetCsvUrl={hasSheetCsvUrl}
@@ -2276,6 +2575,9 @@ function AuditApp() {
                   lastSyncAt={lastSyncAt}
                   lastExportedAt={lastExportedAt}
                   lastSyncMessage={lastSyncMessage}
+                  pendingAudits={allIncompleteAudits}
+                  onResumePending={handleResumeIncompleteAudit}
+                  onDeletePending={handleRequestDeleteIncompleteAudit}
                 />
               </Suspense>
             </motion.div>
@@ -2299,162 +2601,24 @@ function AuditApp() {
           : `Quedan ${optionalPendingCount} ítems opcionales sin responder. ¿Deseas finalizar igualmente?`}
       />
 
-      <AnimatePresence>
-        {showBatchReportModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowBatchReportModal(false)}
-              className="absolute inset-0 bg-slate-950/40 backdrop-blur-md"
+      {/* Full Report View */}
+      {view === "report" && (
+        <div className="fixed inset-0 z-[100] bg-white overflow-y-auto print:static print:z-auto">
+          <Suspense fallback={<div className="p-10 text-center text-sm font-bold text-slate-500">Cargando reporte...</div>}>
+            <FullReportView
+              appTitle={appTitle}
+              completedReports={completedAuditReports}
+              auditCategories={auditCategories}
+              overallScore={blendedProcessCompliance}
+              getSectionScores={getSectionScores}
+              onClose={() => setView("dashboard")}
             />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="premium-glass-alt relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[2.5rem] border border-white/20 shadow-2xl"
-            >
-              <div className="flex items-center justify-between gap-4 border-b border-white/5 bg-white/5 px-8 py-6">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">Panel de Resultados</p>
-                  </div>
-                  <h3 className="mt-1 text-2xl font-black tracking-tight text-white">Análisis Consolidado</h3>
-                </div>
-                <button
-                  onClick={() => setShowBatchReportModal(false)}
-                  className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-white/60 transition-all hover:bg-white/10 hover:text-white"
-                >
-                  <XCircle className="h-6 w-6" />
-                </button>
-              </div>
-
-              <div className="flex-1 space-y-8 overflow-y-auto px-6 py-8 md:px-10">
-                {/* Celebratory Summary Header */}
-                <div className="premium-card p-10 bg-slate-950 text-white relative overflow-hidden border border-white/10 shadow-2xl">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.15),transparent_70%)]" />
-                  <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-10">
-                    <div className="space-y-4 text-center md:text-left">
-                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-[10px] font-black uppercase tracking-[0.25em] text-blue-400">
-                         Métricas Consolidadas
-                      </div>
-                      <h2 className="text-4xl md:text-5xl font-black tracking-tighter leading-[0.9] italic uppercase">Resultados <br /> del Proceso</h2>
-                      <p className="text-slate-400 font-medium text-lg max-w-sm">
-                        {blendedProcessCompliance >= 90 
-                          ? "¡Excelente desempeño! El estándar de calidad se mantiene en niveles de excelencia."
-                          : blendedProcessCompliance >= 70
-                            ? "Buen desempeño general. Se identificaron áreas específicas para ajuste y optimización."
-                            : "Atención requerida: El nivel de cumplimiento actual demanda una revisión de procesos."}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <div className={cn(
-                        "h-44 w-44 rounded-[2.5rem] flex flex-col items-center justify-center border-4 shadow-2xl relative transition-transform hover:scale-105",
-                        blendedProcessCompliance >= 90 ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500 shadow-emerald-500/20" :
-                        blendedProcessCompliance >= 70 ? "bg-amber-500/10 border-amber-500/30 text-amber-500 shadow-amber-500/20" : "bg-red-500/10 border-red-500/30 text-red-500 shadow-red-500/20"
-                      )}>
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">Score</span>
-                        <span className="text-7xl font-black tracking-tighter leading-none">{blendedProcessCompliance}%</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                {completedAuditReports.map((report) => {
-                  const sectionScores = getSectionScores(report.templateItems ?? [], report.session);
-
-                  return (
-                    <div key={`${report.role}-${report.session.id}`} className="premium-card p-6 bg-white/5 border-white/5 overflow-hidden">
-                      <div className="flex flex-col gap-6 border-b border-white/5 pb-6 md:flex-row md:items-center md:justify-between">
-                        <div className="space-y-1">
-                          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-400">{report.session.location}</p>
-                          <h4 className="text-xl font-black text-white">{report.role}</h4>
-                          <p className="text-sm font-bold text-slate-400">
-                            {report.session.staffName || report.auditorName} • {report.session.date}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-[1.25rem] bg-emerald-500/10 border border-emerald-500/20 px-6 py-3 text-center text-emerald-500">
-                            <p className="text-[9px] font-black uppercase tracking-[0.2em]">Resultado</p>
-                            <p className="mt-0.5 text-2xl font-black">{report.session.totalScore}%</p>
-                          </div>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={async () => {
-                              const { generateAuditPdfReport } = await import("./services/audit-report-pdf");
-                              await generateAuditPdfReport({
-                                appTitle,
-                                session: report.session,
-                                auditorName: report.auditorName ?? "",
-                                templateItems: report.templateItems ?? [],
-                              });
-                            }}
-                          >
-                            <FileText className="h-4 w-4" />
-                            PDF
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-4">
-                        {sectionScores.map((section) => (
-                          <div key={section.sectionName} className="rounded-[1.4rem] border border-slate-200 bg-slate-50 px-4 py-4">
-                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{section.sectionName}</p>
-                            <p className="mt-2 text-lg font-black text-slate-950">{section.score}%</p>
-                            <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
-                              <span>{section.passCount} ok</span>
-                              <span>{section.failCount} fail</span>
-                              <span>{section.naCount} n/a</span>
-                              <span>{section.pendingCount} pend.</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="mt-4 space-y-2">
-                        {report.session.items.map((item) => (
-                          <div key={item.id} className="rounded-[1.2rem] border border-slate-200 bg-white px-4 py-3">
-                            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                              <p className="text-sm font-bold text-slate-800">{item.question}</p>
-                              <span className={cn(
-                                "inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em]",
-                                item.status === "pass"
-                                  ? "bg-emerald-100 text-emerald-700"
-                                  : item.status === "fail"
-                                    ? "bg-red-100 text-red-700"
-                                    : "bg-slate-100 text-slate-500"
-                              )}>
-                                {getAuditItemStatusLabel(item.status)}
-                              </span>
-                            </div>
-                            {item.comment && (
-                              <p className="mt-2 text-xs font-medium text-slate-500">{item.comment}</p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="border-t border-slate-200 px-6 py-4 md:px-8">
-                <Button className="w-full" onClick={() => setShowBatchReportModal(false)}>
-                  Cerrar
-                </Button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+          </Suspense>
+        </div>
+      )}
 
       <AnimatePresence>
-        {selectedAudit && view !== "history" && (
+        {selectedAudit && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
@@ -2476,7 +2640,7 @@ function AuditApp() {
                     <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em]">Inspección Detallada</p>
                   </div>
                   <h3 className="text-2xl font-black text-white tracking-tight leading-tight">
-                    {selectedAudit.role || selectedAudit.items[0]?.category}
+                    {selectedAudit.role || selectedAudit.items?.[0]?.category || "Auditoría"}
                   </h3>
                   <p className="text-slate-400 text-sm font-bold mt-1">
                     {selectedAudit.date} • {selectedAudit.location}
@@ -2582,18 +2746,50 @@ function AuditApp() {
                 <p className="text-base font-bold text-white break-words">{deleteConfirmModal.auditName}</p>
               </div>
 
+              {deleteConfirmModal.error && (
+                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-xs font-semibold text-red-400 text-center">
+                  {deleteConfirmModal.error}
+                </div>
+              )}
+
+              <div className="space-y-2 text-left">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  Motivo de eliminación (opcional)
+                </label>
+                <input
+                  type="text"
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  placeholder="Ej: Prueba, error de carga, duplicado..."
+                  disabled={deleteConfirmModal.isDeleting}
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white placeholder-slate-500 outline-none focus:border-red-500/50"
+                />
+              </div>
+
               <div className="flex gap-3">
                 <button
-                  onClick={() => setDeleteConfirmModal({ show: false, auditId: "", auditName: "" })}
-                  className="flex-1 px-6 py-4 rounded-2xl bg-white/5 border border-white/10 font-black text-xs uppercase tracking-widest text-slate-300 hover:bg-white/10 transition-all"
+                  disabled={deleteConfirmModal.isDeleting}
+                  onClick={() => {
+                    setDeleteConfirmModal({ show: false, auditId: "", auditName: "", isDeleting: false, error: null });
+                    setDeleteReason("");
+                  }}
+                  className="flex-1 px-6 py-4 rounded-2xl bg-white/5 border border-white/10 font-black text-xs uppercase tracking-widest text-slate-300 hover:bg-white/10 transition-all disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
-                  onClick={() => void handleDeleteAudit(deleteConfirmModal.auditId, deleteConfirmModal.auditSource, deleteConfirmModal.auditIds)}
-                  className="flex-1 px-6 py-4 rounded-2xl bg-red-600 hover:bg-red-500 font-black text-xs uppercase tracking-widest text-white transition-all shadow-lg shadow-red-600/20"
+                  disabled={deleteConfirmModal.isDeleting}
+                  onClick={() => void handleDeleteAudit(deleteConfirmModal.auditId, deleteConfirmModal.auditSource, deleteConfirmModal.auditIds, deleteReason)}
+                  className="flex-1 px-6 py-4 rounded-2xl bg-red-600 hover:bg-red-500 font-black text-xs uppercase tracking-widest text-white transition-all shadow-lg shadow-red-600/20 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  Eliminar
+                  {deleteConfirmModal.isDeleting ? (
+                    <>
+                      <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Borrando en Sheets...</span>
+                    </>
+                  ) : (
+                    "Eliminar"
+                  )}
                 </button>
               </div>
             </motion.div>
@@ -2613,10 +2809,3 @@ export default function App() {
     </ErrorBoundary>
   );
 }
-
-
-
-
-
-
-

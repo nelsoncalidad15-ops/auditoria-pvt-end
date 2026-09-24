@@ -5,11 +5,12 @@ import {
   Layout,
   CheckCircle2,
   XCircle,
-  MinusCircle
+  MinusCircle,
+  PackageCheck
 } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "../../lib/utils";
-import { AuditSession, AuditTemplateItem, Role } from "../../types";
+import { AuditSession, AuditTemplateItem, CalculatedItemResult, ProcessResult, Role } from "../../types";
 import { AuditItemRow } from "../audit/AuditItemRow";
 
 interface AuditSessionViewProps {
@@ -19,7 +20,10 @@ interface AuditSessionViewProps {
   isServiceAdvisorAudit: boolean;
   isTechnicianAudit: boolean;
   isPreDeliveryAudit: boolean;
+  isGlobalAudit: boolean;
   visibleAuditItems: AuditTemplateItem[];
+  calculationResultsByItemId: Record<string, CalculatedItemResult>;
+  processResults: ProcessResult[];
   activeAuditBlock: string | null;
   setActiveAuditBlock: React.Dispatch<React.SetStateAction<string | null>>;
   availableBlocks: string[];
@@ -41,6 +45,7 @@ interface AuditSessionViewProps {
   observationSuggestions: string[];
   isAuditChecklistCompleted: boolean;
   failItemsWithoutCommentCount: number;
+  requiredPendingCount: number;
   optionalPendingCount: number;
   isSubmitDisabled: boolean;
   isSendingToSheet: boolean;
@@ -53,7 +58,9 @@ interface AuditSessionViewProps {
   getAuditItemStatusLabel: (status?: string | null) => string;
   formatPreDeliveryLegajoQuestion: (question: string) => string;
   currentStaffAuditCount?: number;
+  completedOrderCount?: number;
   recentStaffAudits?: any[];
+  onOpenPhysicalStockControl?: () => void;
 }
 
 export function AuditSessionView({
@@ -63,7 +70,10 @@ export function AuditSessionView({
   isServiceAdvisorAudit,
   isTechnicianAudit,
   isPreDeliveryAudit,
+  isGlobalAudit,
   visibleAuditItems,
+  calculationResultsByItemId,
+  processResults,
   activeAuditBlock,
   setActiveAuditBlock,
   availableBlocks,
@@ -85,6 +95,7 @@ export function AuditSessionView({
   observationSuggestions,
   isSubmitDisabled,
   isSendingToSheet,
+  requiredPendingCount,
   setSession,
   focusAuditItem,
   toggleItemStatus,
@@ -94,25 +105,51 @@ export function AuditSessionView({
   getAuditItemStatusLabel,
   formatPreDeliveryLegajoQuestion,
   currentStaffAuditCount = 0,
+  completedOrderCount = 0,
   recentStaffAudits = [],
+  onOpenPhysicalStockControl,
 }: AuditSessionViewProps) {
   const sessionItems = session.items || [];
   const staffName = session.participants?.asesorServicio || session.staffName;
   
-  // Logic: Calculate Progress
+  // Logic: calculated items are resolved by their sources and never require a manual answer.
+  const calculatedItems = visibleAuditItems.filter((item) => item.calculationMode === "calculated");
+  const manualItems = visibleAuditItems.filter((item) => item.calculationMode !== "calculated");
   const totalItemsCount = visibleAuditItems.length;
-  const answeredItemsCount = visibleAuditItems.filter(v => 
-    sessionItems.find(s => (s.id === v.id || s.question === v.text) && s.status)
+  const answeredManualItemsCount = manualItems.filter((templateItem) =>
+    sessionItems.some((sessionItem) => (sessionItem.id === templateItem.id || sessionItem.question === templateItem.text) && sessionItem.status),
   ).length;
-  
+  const resolvedCalculatedItemsCount = calculatedItems.filter((templateItem) =>
+    typeof calculationResultsByItemId[templateItem.id]?.score === "number",
+  ).length;
+  const answeredItemsCount = answeredManualItemsCount + resolvedCalculatedItemsCount;
   const progressPercentage = totalItemsCount > 0 ? Math.round((answeredItemsCount / totalItemsCount) * 100) : 0;
-  
-  // Logic: Calculate Current Compliance
-  const applicableSessionItems = sessionItems.filter(s => s.status && s.status !== "na");
-  const obtainedWeight = applicableSessionItems.reduce((acc, item) => acc + (item.status === "pass" ? (item.weight || 1) : 0), 0);
-  const totalApplicableWeight = applicableSessionItems.reduce((acc, item) => acc + (item.weight || 1), 0);
-  const currentCompliance = totalApplicableWeight > 0 ? Math.round((obtainedWeight / totalApplicableWeight) * 100) : 0;
 
+  const obtainedWeight = visibleAuditItems.reduce((acc, template) => {
+    const calculated = calculationResultsByItemId[template.id];
+    if (template.calculationMode === "calculated") {
+      return acc + (typeof calculated?.score === "number" ? ((template.weight ?? 1) * calculated.score) / 100 : 0);
+    }
+    const item = sessionItems.find((sessionItem) => sessionItem.id === template.id || sessionItem.question === template.text);
+    return acc + (item?.status === "pass" ? (template.weight ?? 1) : 0);
+  }, 0);
+
+  const totalApplicableWeight = visibleAuditItems.reduce((acc, template) => {
+    if (template.calculationMode === "calculated") {
+      return acc + (typeof calculationResultsByItemId[template.id]?.score === "number" ? (template.weight ?? 1) : 0);
+    }
+    const item = sessionItems.find((sessionItem) => sessionItem.id === template.id || sessionItem.question === template.text);
+    return acc + (item?.status && item.status !== "na" ? (template.weight ?? 1) : 0);
+  }, 0);
+
+  const currentCompliance = totalApplicableWeight > 0 ? Math.round((obtainedWeight / totalApplicableWeight) * 100) : 0;
+  const applicableSessionItems = (sessionItems || []).filter((item) => item && item.status && item.status !== "na" && item.status !== "calculated");
+  const globalObtainedWeight = applicableSessionItems.reduce((acc, item) => acc + (item.status === "pass" ? (item.weight ?? 1) : 0), 0) + calculatedItems.reduce((acc, item) => {
+    const result = calculationResultsByItemId[item.id];
+    return acc + (typeof result?.score === "number" ? ((item.weight ?? 1) * result.score) / 100 : 0);
+  }, 0);
+  const globalTotalWeight = applicableSessionItems.reduce((acc, item) => acc + (item.weight ?? 1), 0) + calculatedItems.reduce((acc, item) => acc + (typeof calculationResultsByItemId[item.id]?.score === "number" ? (item.weight ?? 1) : 0), 0);
+  const globalCompliance = globalTotalWeight > 0 ? Math.round((globalObtainedWeight / globalTotalWeight) * 100) : 0;
   // Logic: Identify items requiring mandatory comments
   const itemsRequiringComment = visibleAuditItems.filter(templateItem => {
     const sessionItem = sessionItems.find(s => s.id === templateItem.id || s.question === templateItem.text);
@@ -135,12 +172,72 @@ export function AuditSessionView({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]">
+      <div className="grid grid-cols-1 gap-6">
         
         {/* Contenido Principal (Ahora a la izquierda) */}
         <div className="space-y-6 order-1">
+          {selectedRole === "Repuestos" && onOpenPhysicalStockControl && (
+            <section className="flex flex-col gap-4 rounded-[1.6rem] border border-emerald-200 bg-emerald-50 p-5 md:flex-row md:items-center md:justify-between dark:border-emerald-900/50 dark:bg-emerald-950/20">
+              <div className="flex items-start gap-3">
+                <div className="rounded-2xl bg-emerald-500/15 p-3 text-emerald-700 dark:text-emerald-300"><PackageCheck className="h-5 w-5" /></div>
+                <div><p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300">Subauditoría de Repuestos</p><h3 className="mt-1 text-base font-black text-slate-950 dark:text-white">Control físico de ubicación y cantidad</h3><p className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">Se registra dentro del área Repuestos y alimenta sus dos requisitos de control físico.</p></div>
+              </div>
+              <button type="button" onClick={onOpenPhysicalStockControl} className="shrink-0 rounded-2xl bg-emerald-600 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition hover:bg-emerald-500">Realizar control</button>
+            </section>
+          )}
+          {processResults.length > 0 && (
+            <section className="premium-card bg-slate-950 p-5 text-white shadow-2xl dark:bg-slate-900">
+              <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">Resultado integrado</p>
+                  <h3 className="mt-1 text-lg font-black tracking-tight">Procesos del ciclo</h3>
+                </div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  {session.auditBatchName || session.date?.slice(0, 7) || "Ciclo actual"}
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {processResults.map((process) => {
+                  const stateLabel = process.state === "complete"
+                    ? "Completo"
+                    : process.state === "provisional"
+                      ? "Provisorio"
+                      : "Pendiente";
+                  const stateClass = process.state === "complete"
+                    ? "text-emerald-300"
+                    : process.state === "provisional"
+                      ? "text-amber-300"
+                      : "text-slate-400";
+                  return (
+                    <div key={process.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-xs font-black uppercase tracking-wide text-slate-200">{process.name}</p>
+                        <p className="shrink-0 text-xl font-black text-white">
+                          {process.score === null ? "—" : `${process.score.toFixed(1)}%`}
+                        </p>
+                      </div>
+                      <p className={cn("mt-2 text-[10px] font-black uppercase tracking-widest", stateClass)}>
+                        {stateLabel} · {process.coveredAreas}/{process.totalAreas} áreas
+                      </p>
+                      <details className="mt-3 text-xs text-slate-400">
+                        <summary className="cursor-pointer font-bold text-slate-300">Ver áreas</summary>
+                        <div className="mt-2 space-y-1">
+                          {process.areaScores.map((area) => (
+                            <p key={area.area} className="flex justify-between gap-3">
+                              <span>{area.area}</span>
+                              <span className="font-black text-slate-200">{area.score === null ? "Pendiente" : `${area.score.toFixed(1)}%`}</span>
+                            </p>
+                          ))}
+                        </div>
+                      </details>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
           {/* Mobile Section Switcher */}
-          {availableBlocks.length > 1 && !isPreDeliveryAudit && (
+          {availableBlocks.length > 1 && !isPreDeliveryAudit && !isOrdersAudit && (
             <div className="lg:hidden flex overflow-x-auto gap-2 pb-2 custom-scrollbar">
               {availableBlocks.map(block => (
                 <button
@@ -217,12 +314,12 @@ export function AuditSessionView({
             </div>
           )}
 
-          <div className={cn("space-y-4", isQuickAuditMode ? "pb-40" : "pb-24 lg:pb-0")}>
-            <div className="premium-card bg-white dark:bg-slate-900 p-4 lg:p-8 overflow-hidden border-white/5 shadow-2xl">
-              <div className="flex items-center justify-between mb-8">
+          <div className={cn(isOrdersAudit ? "space-y-2.5" : "space-y-4", isQuickAuditMode ? "pb-32 lg:pb-0" : "pb-6 lg:pb-0")}>
+            <div className="premium-card bg-white dark:bg-slate-900 p-4 lg:p-5 overflow-hidden border-white/5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[--accent-neon] neon-text">Checklist Engine</p>
-                  <h3 className="mt-1 text-2xl font-black text-slate-950 dark:text-white tracking-tight uppercase">
+                  <h3 className="mt-1 text-lg font-black text-slate-950 dark:text-white tracking-tight uppercase">
                     {isOrdersAudit ? "OR Postventa" : isPreDeliveryAudit ? `Controles - ${preDeliverySection === "general" ? "General" : "Legajos"}` : "Controles de Calidad"}
                   </h3>
                 </div>
@@ -230,7 +327,7 @@ export function AuditSessionView({
                   type="button"
                   onClick={() => setIsQuickAuditMode((current) => !current)}
                   className={cn(
-                    "rounded-full border px-6 py-2.5 text-[10px] font-black uppercase tracking-[0.14em] transition-all",
+                    "rounded-lg border px-3 py-2 text-[9px] font-black uppercase tracking-[0.12em] transition-all",
                     isQuickAuditMode
                       ? "border-[--accent-neon] bg-[--accent-neon] text-[#050a14] shadow-lg shadow-[--accent-neon-glow]"
                       : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400"
@@ -241,7 +338,7 @@ export function AuditSessionView({
               </div>
 
               {(isOrdersAudit || isServiceAdvisorAudit || isTechnicianAudit) && (
-                <div className="mb-8 flex flex-wrap gap-3">
+                <div className="mb-4 flex flex-wrap gap-2">
                   {staffName && (
                     <div className="rounded-2xl bg-blue-500/5 border border-blue-500/10 px-4 py-2.5 flex items-center gap-3">
                       <div className="h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
@@ -265,7 +362,7 @@ export function AuditSessionView({
                       <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
                       <div>
                         <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 leading-none mb-1">Lote de ORs</p>
-                        <p className="text-sm font-black text-emerald-600 uppercase tracking-tight">OR {currentStaffAuditCount + 1} de 10</p>
+                        <p className="text-sm font-black text-emerald-600 uppercase tracking-tight">OR {currentStaffAuditCount + 1} de {session.sampleTarget || 30}</p>
                       </div>
                     </div>
                   )}
@@ -282,7 +379,7 @@ export function AuditSessionView({
               )}
 
 
-              <div className="space-y-4">
+              <div className={isOrdersAudit ? "space-y-2.5" : "space-y-4"}>
                 {isPreDeliveryAudit ? (
                   <>
                     {preDeliverySection === "general" ? (
@@ -299,6 +396,7 @@ export function AuditSessionView({
                           responsibleRoles={auditItem.responsibleRoles}
                           scoreAreas={auditItem.scoreAreas}
                           allowsNa={auditItem.allowsNa}
+
                           priority={auditItem.priority}
                           guidance={auditItem.guidance}
                           requiresCommentOnFail={auditItem.requiresCommentOnFail}
@@ -329,6 +427,8 @@ export function AuditSessionView({
                             responsibleRoles={auditItem.responsibleRoles}
                             scoreAreas={auditItem.scoreAreas}
                             allowsNa={auditItem.allowsNa}
+
+
                             priority={auditItem.priority}
                             guidance={auditItem.guidance}
                             requiresCommentOnFail={auditItem.requiresCommentOnFail}
@@ -366,11 +466,14 @@ export function AuditSessionView({
                       responsibleRoles={auditItem.responsibleRoles}
                       scoreAreas={auditItem.scoreAreas}
                       allowsNa={auditItem.allowsNa}
+                      isCalculated={auditItem.calculationMode === "calculated"}
+                      calculatedResult={calculationResultsByItemId[auditItem.id]}
                       priority={auditItem.priority}
                       guidance={auditItem.guidance}
                       requiresCommentOnFail={auditItem.requiresCommentOnFail}
                       emphasized={focusedAuditItemId === auditItem.id || activeAuditItemId === auditItem.id}
                       showStructuredQuestion={isOrdersAudit}
+                      compact={isOrdersAudit}
                       quickMode={isQuickAuditMode}
                       isActive={activeAuditItemId === auditItem.id}
                       observationSuggestions={observationSuggestions}
@@ -393,13 +496,13 @@ export function AuditSessionView({
                   placeholder="Escribe aquí cualquier observación adicional sobre la auditoría..."
                   value={session.notes || ""}
                   onChange={(e) => setSession({ ...session, notes: e.target.value })}
-                  className="w-full p-8 bg-white dark:bg-slate-900 border border-white/5 rounded-[2rem] font-medium text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[--accent-neon]/20 shadow-2xl min-h-[160px] resize-none"
+                  className="w-full px-5 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-2xl font-medium text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[--accent-neon]/20 shadow-lg min-h-[96px] resize-y"
                 />
               </div>
             </div>
 
             {/* Submit Actions for Mobile - Only visible when not in LG screen */}
-            <div className="mt-8 space-y-4 lg:hidden">
+            <div className="hidden">
               <button
                 onClick={() => handleAuditSubmit("finish")}
                 disabled={isSubmitDisabled}
@@ -438,14 +541,38 @@ export function AuditSessionView({
         </div>
 
         {/* Sidebar de Auditoría (Ahora a la derecha) */}
-        <aside className="hidden lg:block space-y-4 order-2">
-          <div className="premium-card p-6 bg-white dark:bg-slate-900 sticky top-28 border-white/5 shadow-2xl">
-            <div className="flex items-center justify-between mb-6">
+        <aside className="block space-y-4 order-2">
+          {isGlobalAudit && (
+            <div className="premium-card p-6 bg-slate-950 text-white border-white/10 shadow-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">Score Global</p>
+                  <p className="text-3xl font-black">{globalCompliance}%</p>
+                </div>
+                <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <CheckCircle2 className="h-5 w-5 text-blue-400" />
+                </div>
+              </div>
+              <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                <motion.div 
+                  className="h-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${globalCompliance}%` }}
+                />
+              </div>
+              <p className="mt-3 text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
+                Puntaje consolidado de todas las áreas
+              </p>
+            </div>
+          )}
+
+          <div className="premium-card p-4 bg-white dark:bg-slate-900 border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
               <div className="space-y-1">
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[--accent-neon] neon-text">Avance</p>
-                <h2 className="text-xl font-black text-slate-950 dark:text-white leading-tight uppercase italic">{selectedRole}</h2>
+                <h2 className="text-xl font-black text-slate-950 dark:text-white leading-tight uppercase italic">{isGlobalAudit ? activeAuditBlock : selectedRole}</h2>
               </div>
-              <div className="relative h-16 w-16 flex items-center justify-center">
+              <div className="relative h-12 w-12 flex items-center justify-center">
                 <svg className="h-full w-full transform -rotate-90">
                   <circle
                     cx="32"
@@ -473,9 +600,9 @@ export function AuditSessionView({
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Draft Status</span>
+            <div className="grid grid-cols-2 gap-x-4">
+              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Estado del borrador</span>
                 <span className={cn(
                   "text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg",
                   draftSaveState === "saved" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
@@ -483,19 +610,19 @@ export function AuditSessionView({
               </div>
               
               {session.location && (
-                <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-slate-800">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Location</span>
-                  <span className="text-[11px] font-black text-white uppercase tracking-tight">{session.location}</span>
+                <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Sucursal</span>
+                  <span className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-tight">{session.location}</span>
                 </div>
               )}
 
-              <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Completados</span>
-                <span className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-tight">{answeredItemsCount} / {totalItemsCount}</span>
+              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{isOrdersAudit ? "OR auditadas" : "Completados"}</span>
+                <span className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-tight">{isOrdersAudit ? `${completedOrderCount} / ${session.sampleTarget || 30}` : `${answeredItemsCount} / ${totalItemsCount}`}</span>
               </div>
 
-              <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Resultado Actual</span>
+              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{isGlobalAudit ? `Resultado ${activeAuditBlock}` : "Resultado Actual"}</span>
                 <span className={cn(
                   "text-[11px] font-black uppercase tracking-tight px-2 py-0.5 rounded-md",
                   currentCompliance >= 90 ? "text-emerald-500 bg-emerald-500/5" : currentCompliance >= 70 ? "text-amber-500 bg-amber-500/5" : "text-red-500 bg-red-500/5"
@@ -503,12 +630,12 @@ export function AuditSessionView({
               </div>
             </div>
 
-            <div className="mt-8 space-y-3">
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <button
                   onClick={() => handleAuditSubmit("finish")}
                   disabled={isSubmitDisabled}
                   className={cn(
-                    "w-full h-14 rounded-2xl font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg relative overflow-hidden group",
+                    "w-full h-11 rounded-xl font-black text-[10px] uppercase tracking-[0.14em] flex items-center justify-center gap-2 transition-all active:scale-95 relative overflow-hidden group",
                     !isSubmitDisabled
                       ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950 shadow-xl"
                       : "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed opacity-50"
@@ -519,7 +646,7 @@ export function AuditSessionView({
                   ) : (
                     <Save className="h-4 w-4" />
                   )}
-                  <span className="relative z-10">{isSendingToSheet ? "PROCESANDO..." : "FINALIZAR CARGA"}</span>
+                  <span className="relative z-10">{isSendingToSheet ? "PROCESANDO..." : "GUARDAR Y CERRAR"}</span>
                   {!isSubmitDisabled && (
                     <motion.div 
                       className="absolute inset-0 bg-blue-600/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500"
@@ -527,12 +654,14 @@ export function AuditSessionView({
                   )}
                 </button>
 
-                {(isOrdersAudit || isServiceAdvisorAudit || isTechnicianAudit) && (
+                {requiredPendingCount > 0 && (
+                  <p className="px-2 text-center text-[10px] font-black uppercase tracking-widest text-amber-600">Faltan {requiredPendingCount} requisito(s) obligatorio(s)</p>
+                )}                {(isOrdersAudit || isServiceAdvisorAudit || isTechnicianAudit) && (
                   <button
                     onClick={() => handleAuditSubmit("continue")}
                     disabled={isSubmitDisabled}
                     className={cn(
-                      "w-full h-12 rounded-xl font-black text-[10px] uppercase tracking-[0.15em] flex items-center justify-center gap-2 transition-all active:scale-95",
+                      "w-full h-11 rounded-xl font-black text-[10px] uppercase tracking-[0.12em] flex items-center justify-center gap-2 transition-all active:scale-95",
                       !isSubmitDisabled
                         ? "bg-blue-600/10 text-blue-600 border border-blue-600/20 hover:bg-blue-600/20 dark:bg-white/5 dark:text-white dark:border-white/10"
                         : "bg-transparent text-slate-400 border border-slate-100 dark:border-white/5 cursor-not-allowed"
@@ -601,6 +730,16 @@ export function AuditSessionView({
                       Legajos
                     </button>
                   </>
+                ) : isOrdersAudit ? (
+                  availableBlocks.map(block => (
+                    <div
+                      key={block}
+                      className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black text-[11px] uppercase tracking-widest text-left"
+                    >
+                      <Layout className="h-4 w-4" />
+                      {block}
+                    </div>
+                  ))
                 ) : (
                   availableBlocks.map(block => (
                     <button

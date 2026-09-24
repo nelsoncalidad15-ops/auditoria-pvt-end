@@ -8,9 +8,6 @@ interface IntegrationsViewProps {
   onWebhookUrlChange: (value: string) => void;
   onSheetCsvUrlChange: (value: string) => void;
   onSave: () => void;
-  isFirebaseEnabled: boolean;
-  isAuthenticated: boolean;
-  isUsingExternalHistory: boolean;
   hasWebhookUrl: boolean;
   hasSheetCsvUrl: boolean;
   localAuditHistoryCount: number;
@@ -52,9 +49,6 @@ export function IntegrationsView({
   onWebhookUrlChange,
   onSheetCsvUrlChange,
   onSave,
-  isFirebaseEnabled,
-  isAuthenticated,
-  isUsingExternalHistory,
   hasWebhookUrl,
   hasSheetCsvUrl,
   localAuditHistoryCount,
@@ -65,10 +59,8 @@ export function IntegrationsView({
   lastIntegrationSavedAt,
 }: IntegrationsViewProps) {
   const operationalAlerts = [
-    !hasWebhookUrl ? "Falta Apps Script." : null,
-    !hasSheetCsvUrl ? "Falta CSV." : null,
-    localAuditHistoryCount > 0 ? `${localAuditHistoryCount} pendientes locales.` : null,
-    isFirebaseEnabled && !isAuthenticated ? "Firebase sin sesion." : null,
+    !hasWebhookUrl ? "Falta conectar Apps Script con Google Sheets." : null,
+    localAuditHistoryCount > 0 ? `${localAuditHistoryCount} auditoría(s) quedan en cola local hasta recuperar conexión.` : null,
   ].filter((value): value is string => Boolean(value));
 
   return (
@@ -77,7 +69,7 @@ export function IntegrationsView({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-100/70">Integraciones</p>
-            <h3 className="mt-2 text-2xl font-black tracking-tight">Conectividad y respaldo</h3>
+            <h3 className="mt-2 text-2xl font-black tracking-tight">Google Sheets · conexión y respaldo</h3>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:w-[340px]">
             <div className="rounded-[1.5rem] border border-white/10 bg-white/10 px-4 py-4 backdrop-blur">
@@ -98,9 +90,9 @@ export function IntegrationsView({
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Configuracion</p>
-                <h4 className="mt-2 text-lg font-black text-slate-900">Fuentes</h4>
+                <h4 className="mt-2 text-lg font-black text-slate-900">Fuente oficial de auditorías</h4>
               </div>
-              <StatusPill active={hasWebhookUrl || hasSheetCsvUrl} activeLabel="Lista" inactiveLabel="Incompleta" />
+              <StatusPill active={hasWebhookUrl} activeLabel="Conectada" inactiveLabel="Pendiente" />
             </div>
 
             <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -115,7 +107,7 @@ export function IntegrationsView({
                 />
               </div>
               <div className="space-y-2">
-                <label className="px-1 text-[10px] font-black uppercase tracking-widest text-gray-400">CSV publicado de Sheets</label>
+                <label className="px-1 text-[10px] font-black uppercase tracking-widest text-gray-400">CSV publicado de Sheets (opcional)</label>
                 <input
                   type="url"
                   value={sheetCsvUrl}
@@ -147,11 +139,11 @@ export function IntegrationsView({
                   <UploadCloud className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Apps Script</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Registro en Sheets</p>
                   <p className="text-sm font-black text-slate-900">{hasWebhookUrl ? "Activo" : "Pendiente"}</p>
                 </div>
               </div>
-              <p className="text-sm font-medium text-slate-500">{hasWebhookUrl ? "Activo." : "Pendiente."}</p>
+              <p className="text-sm font-medium text-slate-500">{hasWebhookUrl ? "Las auditorías se guardan y se leen desde Google Sheets." : "Conectá Apps Script para guardar las auditorías."}</p>
             </div>
 
             <div className="rounded-[1.8rem] border border-slate-200 bg-white p-5 shadow-sm">
@@ -160,24 +152,24 @@ export function IntegrationsView({
                   <Link2 className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Historial externo</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Consulta CSV</p>
                   <p className="text-sm font-black text-slate-900">{historySyncModeLabel}</p>
                 </div>
               </div>
-              <p className="text-sm font-medium text-slate-500">{isUsingExternalHistory ? "Activo." : hasSheetCsvUrl ? "Disponible." : "Pendiente."}</p>
+              <p className="text-sm font-medium text-slate-500">{hasSheetCsvUrl ? "Consulta opcional para controles externos." : "No es necesario para operar la auditoría."}</p>
             </div>
 
             <div className="rounded-[1.8rem] border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-4 flex items-center gap-3">
-                <div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl", isAuthenticated ? "bg-emerald-50 text-emerald-600" : isFirebaseEnabled ? "bg-amber-50 text-amber-600" : "bg-slate-100 text-slate-500")}>
+                <div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl", localAuditHistoryCount > 0 ? "bg-amber-50 text-amber-600" : "bg-emerald-50 text-emerald-600")}>
                   <ShieldCheck className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Persistencia</p>
-                  <p className="text-sm font-black text-slate-900">{isFirebaseEnabled ? (isAuthenticated ? "Firestore listo" : "Esperando acceso") : "Modo local / Sheets"}</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Respaldo temporal</p>
+                  <p className="text-sm font-black text-slate-900">{localAuditHistoryCount > 0 ? `${localAuditHistoryCount} en cola` : "Sin pendientes"}</p>
                 </div>
               </div>
-              <p className="text-sm font-medium text-slate-500">{isFirebaseEnabled ? (isAuthenticated ? "Listo." : "Sin acceso.") : "Modo local."}</p>
+              <p className="text-sm font-medium text-slate-500">Sheets es la fuente oficial; el equipo conserva una copia local temporal si se corta la conexión.</p>
             </div>
           </div>
         </div>

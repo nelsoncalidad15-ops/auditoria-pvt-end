@@ -1,10 +1,12 @@
-import { AuditSession, Location, OrAuditSector, OrResponsibleRole } from "../types";
+import { AuditCategory, AuditItem, AuditItemStatus, AuditSession, AuditStructureScope, AuditTemplateItem, CalculationRule, Location, OrAuditSector, OrResponsibleRole, ProcessDefinition } from "../types";
 
 export interface AuditSheetSummaryRow {
   auditId: string;
   submittedAt: string;
   auditDate: string;
   auditBatchName: string;
+  sampleTarget: number;
+  selectedStaffNames: string;
   location: string;
   auditorId: string;
   auditorName: string;
@@ -37,6 +39,7 @@ export interface AuditSheetItemRow {
   role: string;
   staffName: string;
   questionIndex: number;
+  itemId: string;
   question: string;
   description: string;
   sector: string;
@@ -45,8 +48,11 @@ export interface AuditSheetItemRow {
   scoreLinks: string;
   weight: number;
   allowsNa: string;
-  status: "pass" | "fail" | "na";
+  status: AuditItemStatus;
   statusLabel: string;
+  calculatedScore?: number;
+  calculationState?: string;
+  calculationDetail?: string;
   comment: string;
   photoUrl?: string;
 }
@@ -72,6 +78,24 @@ export interface AuditSyncPayload {
   };
 }
 
+export interface StockControlSheetRow {
+  source: string;
+  systemLocation: string;
+  line: string;
+  article: string;
+  description: string;
+  systemStock: number;
+  locationResult: "si" | "no";
+  quantityResult: "si" | "no";
+  observedLocation: string;
+  physicalQuantity: string;
+  comment: string;
+}
+
+export interface StockControlSyncPayload extends Omit<AuditSyncPayload, "event"> {
+  event: "stock_control_submit";
+  stockRows: StockControlSheetRow[];
+}
 interface AuditHistoryResponse {
   ok: boolean;
   summaryRows?: AuditSheetSummaryRow[];
@@ -93,20 +117,42 @@ const statusLabelMap: Record<AuditSheetItemRow["status"], string> = {
   pass: "Cumple",
   fail: "No Cumple",
   na: "N/A",
+  calculated: "Calculado",
 };
 
-export function buildAuditSyncPayload(params: {
+export function buildAuditSyncPayload(params: { templateItems: AuditTemplateItem[];
   session: AuditSession;
   auditorName: string;
   submittedByEmail?: string | null;
 }): AuditSyncPayload {
-  const { session, auditorName, submittedByEmail } = params;
+  const { session, templateItems, auditorName, submittedByEmail } = params;
   const submittedAt = new Date().toISOString();
-  const passCount = session.items.filter((item) => item.status === "pass").length;
-  const failCount = session.items.filter((item) => item.status === "fail").length;
-  const naCount = session.items.filter((item) => item.status === "na").length;
-  const answeredCount = passCount + failCount;
-  const itemsCount = session.items.length;
+  
+  // Se conserva solamente lo que el auditor respondió. Una pregunta pendiente
+  // no es "No aplica" y no debe alterar el puntaje ni el historial.
+  const finalItems = session.items
+    .filter((item): item is AuditItem & { status: AuditSheetItemRow["status"] } => isAuditStatus(item.status))
+    .map((sessionItem) => {
+      const template = templateItems.find((item) => item.id === sessionItem.id || item.text === sessionItem.question);
+
+      return {
+        ...sessionItem,
+        category: sessionItem.category || session.role || "General",
+        comment: sessionItem.comment ?? "",
+        photoUrl: sessionItem.photoUrl ?? "",
+        // La plantilla mantiene sus metadatos como fuente de verdad.
+        weight: template?.weight ?? sessionItem.weight ?? 1,
+        sector: template?.sector ?? sessionItem.sector,
+        responsibleRoles: template?.responsibleRoles ?? sessionItem.responsibleRoles ?? [],
+        scoreAreas: template?.scoreAreas ?? sessionItem.scoreAreas ?? [],
+        scoreLinks: template?.scoreLinks ?? sessionItem.scoreLinks ?? [],
+      };
+    });
+  const passCount = finalItems.filter((item) => item.status === "pass").length;
+  const failCount = finalItems.filter((item) => item.status === "fail").length;
+  const naCount = finalItems.filter((item) => item.status === "na").length;
+  const answeredCount = finalItems.length;
+  const itemsCount = finalItems.length;
 
   return {
     event: "audit_submitted",
@@ -114,6 +160,7 @@ export function buildAuditSyncPayload(params: {
     submittedAt,
     audit: {
       ...session,
+      items: finalItems,
       auditorName,
       submittedByEmail: submittedByEmail ?? "",
     },
@@ -130,6 +177,8 @@ export function buildAuditSyncPayload(params: {
         submittedAt,
         auditDate: session.date,
         auditBatchName: session.auditBatchName ?? "",
+        sampleTarget: session.sampleTarget ?? 0,
+        selectedStaffNames: (session.selectedStaffNames ?? []).join("|") ,
         location: session.location,
         auditorId: session.auditorId,
         auditorName,
@@ -151,7 +200,7 @@ export function buildAuditSyncPayload(params: {
         repuestos: session.participants?.repuestos ?? "",
         entityType: session.entityType ?? "general",
       },
-      itemRows: session.items.map((item, index) => ({
+      itemRows: finalItems.map((item, index) => ({
         auditId: session.id,
         submittedAt,
         auditDate: session.date,
@@ -161,13 +210,14 @@ export function buildAuditSyncPayload(params: {
         role: session.role ?? item.category,
         staffName: session.staffName ?? "",
         questionIndex: index + 1,
+        itemId: item.id,
         question: item.question,
         description: item.description ?? "",
         sector: item.sector ?? "",
         responsibleRoles: Array.isArray(item.responsibleRoles) ? item.responsibleRoles.join(",") : "",
         scoreAreas: Array.isArray(item.scoreAreas) ? item.scoreAreas.join(",") : "",
         scoreLinks: Array.isArray(item.scoreLinks)
-          ? item.scoreLinks.map((link) => [
+          ? item.scoreLinks.map((link: any) => [
               encodeURIComponent(link.area),
               link.weight,
               encodeURIComponent(link.destinationItemId || ""),
@@ -178,6 +228,9 @@ export function buildAuditSyncPayload(params: {
         allowsNa: item.allowsNa === false ? "false" : "true",
         status: item.status,
         statusLabel: statusLabelMap[item.status],
+        calculatedScore: item.calculatedScore,
+        calculationState: item.calculationState,
+        calculationDetail: item.calculationDetail,
         comment: item.comment ?? "",
         photoUrl: item.photoUrl ?? "",
       })),
@@ -212,13 +265,42 @@ export async function sendAuditToWebhook(webhookUrl: string, payload: AuditSyncP
   return parsedResponse;
 }
 
-export async function deleteAuditFromWebhook(webhookUrl: string, auditId: string) {
+export async function sendStockControlToWebhook(webhookUrl: string, payload: StockControlSyncPayload) {
+  const response = await fetch(webhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`No se pudo guardar el control físico (${response.status}).`);
+  }
+
+  const responseText = await response.text();
+  let parsedResponse: AuditWebhookResponse;
+  try {
+    parsedResponse = JSON.parse(responseText) as AuditWebhookResponse;
+  } catch {
+    throw new Error("Apps Script respondió con un formato inválido al guardar el control físico.");
+  }
+
+  if (!parsedResponse.ok) {
+    throw new Error(parsedResponse.error || "Apps Script rechazó el control físico.");
+  }
+
+  return parsedResponse;
+}
+
+export async function deleteAuditFromWebhook(webhookUrl: string, auditId: string, options?: { userEmail?: string; reason?: string }) {
   const response = await fetch(webhookUrl, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify({
       event: "audit_delete",
       auditId,
+      userEmail: options?.userEmail || "",
+      reason: options?.reason || "",
+      deletedAt: new Date().toISOString(),
     }),
   });
 
@@ -242,29 +324,124 @@ export async function deleteAuditFromWebhook(webhookUrl: string, auditId: string
   return parsedResponse;
 }
 
-export async function sendStructureToWebhook(
-  webhookUrl: string, 
-  payload: { event: "structure_update"; scope: string; data: string; updatedByEmail: string }
+export async function saveAuditStructureToWebhook(
+  webhookUrl: string,
+  scope: AuditStructureScope,
+  categories: AuditCategory[],
 ) {
-  console.log("Enviando actualización de estructura a Google Sheets...", payload.scope);
-  
   const response = await fetch(webhookUrl, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      event: "structure_replace",
+      scope,
+      categories,
+    }),
   });
-  
+
   if (!response.ok) {
-    throw new Error(`Error al sincronizar estructura (${response.status}).`);
+    throw new Error(`No se pudo guardar la configuración en Sheets (${response.status}).`);
   }
-  
-  const text = await response.text();
-  console.log("Respuesta de Google Sheets (Estructura):", text);
-  
-  return true;
+
+  const payload = await response.json() as { ok?: boolean; error?: string; categoryCount?: number; itemCount?: number };
+  if (!payload.ok) {
+    throw new Error(payload.error || "Apps Script rechazó la configuración.");
+  }
+
+  return payload;
+}
+export async function saveCalculationRulesToWebhook(
+  webhookUrl: string,
+  scope: AuditStructureScope,
+  rules: CalculationRule[],
+) {
+  const response = await fetch(webhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({
+      event: "calculation_rules_replace",
+      scope,
+      rules,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`No se pudieron guardar las reglas de cálculo en Sheets (${response.status}).`);
+  }
+
+  const payload = await response.json() as { ok?: boolean; error?: string; ruleCount?: number };
+  if (!payload.ok) {
+    throw new Error(payload.error || "Apps Script rechazó las reglas de cálculo.");
+  }
+
+  return payload;
+}
+export async function saveProcessDefinitionsToWebhook(
+  webhookUrl: string,
+  scope: AuditStructureScope,
+  definitions: ProcessDefinition[],
+) {
+  const response = await fetch(webhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({
+      event: "process_definitions_replace",
+      scope,
+      definitions,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`No se pudieron guardar los procesos en Sheets (${response.status}).`);
+  }
+
+  const payload = await response.json() as { ok?: boolean; error?: string; processCount?: number };
+  if (!payload.ok) {
+    throw new Error(payload.error || "Apps Script rechazó los procesos.");
+  }
+
+  return payload;
 }
 
-function parseNumber(value: unknown) {
+export interface SheetAuditStructure {
+  scopes: Partial<Record<AuditStructureScope, AuditCategory[]>>;
+  calculationRules: CalculationRule[];
+  processDefinitions: ProcessDefinition[];
+}
+
+export async function fetchAuditStructureFromWebhook(
+  webhookUrl: string,
+): Promise<SheetAuditStructure> {
+  const url = new URL(webhookUrl);
+  url.searchParams.set("mode", "structure");
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    throw new Error(`No se pudo leer la configuración de auditoría (${response.status}).`);
+  }
+
+  const payload = await response.json() as {
+    ok?: boolean;
+    error?: string;
+    scopes?: Partial<Record<AuditStructureScope, AuditCategory[]>>;
+    calculationRules?: CalculationRule[];
+    processDefinitions?: ProcessDefinition[];
+  };
+
+  if (!payload.ok) {
+    throw new Error(payload.error || "Sheets no devolvió una estructura válida.");
+  }
+
+  return {
+    scopes: payload.scopes ?? {},
+    calculationRules: Array.isArray(payload.calculationRules) ? payload.calculationRules : [],
+    processDefinitions: Array.isArray(payload.processDefinitions) ? payload.processDefinitions : [],
+  };
+}function parseNumber(value: unknown) {
   if (typeof value === "number") {
     return value;
   }
@@ -277,9 +454,6 @@ function parseNumber(value: unknown) {
   return 0;
 }
 
-function isLocation(value: string): value is Location {
-  return value === "Salta" || value === "Jujuy" || value === "Sin ubicación";
-}
 
 function normalizeLocation(value: string): Location {
   if (value === "Salta" || value === "Jujuy") {
@@ -289,10 +463,46 @@ function normalizeLocation(value: string): Location {
   return "Sin ubicación";
 }
 
-function normalizeStatus(value: string): AuditSheetItemRow["status"] {
-  return value === "pass" || value === "fail" || value === "na" ? value : "na";
+function isAuditStatus(value: unknown): value is AuditSheetItemRow["status"] {
+  return value === "pass" || value === "fail" || value === "na" || value === "calculated";
 }
 
+function normalizeStatus(value: string): AuditSheetItemRow["status"] {
+  return isAuditStatus(value) ? value : "na";
+}
+
+function normalizeSheetItemRow(row: AuditSheetItemRow) {
+  const rawStatus = String(row.status || "");
+  const shiftedStatus = String(row.responsibleRoles || "");
+
+  if (!isAuditStatus(rawStatus) && isAuditStatus(shiftedStatus)) {
+    return {
+      ...row,
+      description: String(row.status || row.description || ""),
+      sector: String(row.statusLabel || row.sector || ""),
+      responsibleRoles: String(row.comment || ""),
+      scoreAreas: row.scoreAreas || "",
+      scoreLinks: row.scoreLinks || "",
+      weight: parseNumber(row.description) || parseNumber(row.weight) || 1,
+      allowsNa: String(row.sector || row.allowsNa || "true"),
+      status: shiftedStatus,
+      statusLabel: String(row.weight || statusLabelMap[shiftedStatus]),
+      comment: String(row.allowsNa || ""),
+      photoUrl: row.photoUrl || undefined,
+    };
+  }
+
+  return {
+    ...row,
+    status: normalizeStatus(rawStatus),
+  };
+}
+
+function normalizeCalculationState(value: unknown): AuditItem["calculationState"] {
+  return value === "pending" || value === "provisional" || value === "complete" || value === "not_applicable"
+    ? value
+    : undefined;
+}
 function isResponsibleRole(value: string): value is OrResponsibleRole {
   return value === "asesor" || value === "tecnico" || value === "controller" || value === "lavador" || value === "repuestos";
 }
@@ -328,10 +538,10 @@ export async function fetchAuditHistoryFromWebhook(webhookUrl: string): Promise<
     }
 
     const current = acc.get(auditId) ?? [];
+    const normalizedRow = normalizeSheetItemRow(row);
     current.push({
-      ...row,
-      questionIndex: parseNumber(row.questionIndex),
-      status: normalizeStatus(row.status),
+      ...normalizedRow,
+      questionIndex: parseNumber(normalizedRow.questionIndex),
     });
     acc.set(auditId, current);
     return acc;
@@ -346,6 +556,8 @@ export async function fetchAuditHistoryFromWebhook(webhookUrl: string): Promise<
         id: row.auditId,
         date: row.auditDate,
         auditBatchName: row.auditBatchName || "",
+        sampleTarget: parseNumber(row.sampleTarget) || undefined,
+        selectedStaffNames: row.selectedStaffNames ? String(row.selectedStaffNames).split("|").map((name) => name.trim()).filter(Boolean) : undefined,
         auditorId: row.auditorId || "",
         location,
         staffName: row.staffName || "",
@@ -365,10 +577,13 @@ export async function fetchAuditHistoryFromWebhook(webhookUrl: string): Promise<
         items: (itemsByAuditId.get(row.auditId) ?? [])
           .sort((left, right) => left.questionIndex - right.questionIndex)
           .map((itemRow, index) => ({
-            id: `${row.auditId}-${index + 1}`,
+            id: itemRow.itemId || `${row.auditId}-${index + 1}`,
             question: itemRow.question,
             category: itemRow.role || row.role || "General",
             status: itemRow.status,
+            calculatedScore: itemRow.status === "calculated" && String(itemRow.calculatedScore || "").trim() !== "" ? parseNumber(itemRow.calculatedScore) : undefined,
+            calculationState: normalizeCalculationState(itemRow.calculationState),
+            calculationDetail: itemRow.calculationDetail || undefined,
             comment: itemRow.comment || "",
             description: itemRow.description || "",
             sector: itemRow.sector && isOrAuditSector(itemRow.sector) ? itemRow.sector : undefined,

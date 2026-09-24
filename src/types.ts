@@ -2,9 +2,13 @@ export type Location = "Salta" | "Jujuy" | "Sin ubicación";
 
 export type AuditStructureScope = "global" | Location;
 export type AuditItemPriority = "high" | "medium" | "low";
-export type AuditItemStatus = "pass" | "fail" | "na";
+export type AuditItemStatus = "pass" | "fail" | "na" | "calculated";
+export type AuditItemCalculationMode = "manual" | "calculated";
+export type CalculationSourceType = "question" | "or_role" | "or_question" | "or_total";
+export type CalculationMethod = "promedio_por_colaborador" | "promedio_por_auditoria";
+export type CalculationState = "pending" | "provisional" | "complete" | "not_applicable";
 export type AuditUserProfile = "auditor" | "supervisor" | "consulta";
-export type AppView = "dashboard" | "home" | "setup" | "audit" | "history" | "structure" | "integrations" | "continuar" | "command-center";
+export type AppView = "dashboard" | "home" | "setup" | "audit" | "history" | "structure" | "integrations" | "continuar" | "command-center" | "report" | "stock-control";
 export type HistoryPanel = "records" | "exports";
 export type AuditSource = "local" | "sheet" | "firestore";
 
@@ -54,6 +58,7 @@ export interface AuditTemplateItem {
   weight?: number;
   order?: number;
   active?: boolean;
+  calculationMode?: AuditItemCalculationMode;
   scoreAreas?: string[];
   scoreLinks?: ScoreLink[];
 }
@@ -70,7 +75,11 @@ export interface AuditItem {
   id: string;
   question: string;
   category: Role;
-  status: AuditItemStatus;
+  /**
+   * A note or a photo may be started before choosing an outcome. In that
+   * case the item remains pending and must never be interpreted as N/A.
+   */
+  status?: AuditItemStatus;
   comment?: string;
   photoUrl?: string;
   description?: string;
@@ -78,6 +87,9 @@ export interface AuditItem {
   sector?: OrAuditSector;
   weight?: number;
   allowsNa?: boolean;
+  calculatedScore?: number;
+  calculationState?: CalculationState;
+  calculationDetail?: string;
   evidenceComment?: string;
   scoreAreas?: string[];
   scoreLinks?: ScoreLink[];
@@ -91,6 +103,61 @@ export interface OrAuditParticipants {
   repuestos?: string;
 }
 
+export interface CalculationRule {
+  id: string;
+  scope: AuditStructureScope;
+  active: boolean;
+  targetArea: string;
+  targetItemId: string;
+  sourceType: CalculationSourceType;
+  sourceArea?: string;
+  sourceItemId?: string;
+  sourceRole?: OrResponsibleRole;
+  method: CalculationMethod;
+  sourceWeight: number;
+  minimumCoverage: number;
+  detail?: string;
+}
+
+export interface CalculatedItemSource {
+  name: string;
+  score: number | null;
+  status: "answered" | "na" | "pending";
+}
+
+export interface CalculatedItemResult {
+  itemId: string;
+  score: number | null;
+  state: CalculationState;
+  coverage: number;
+  coveredCount: number;
+  expectedCount: number;
+  applicableCount: number;
+  minimumCoverage: number;
+  detail: string;
+  sources: CalculatedItemSource[];
+}
+export interface ProcessDefinition {
+  id: string;
+  scope: AuditStructureScope;
+  active: boolean;
+  name: string;
+  areas: string[];
+  weights: number[];
+  minimumCoverage: number;
+  order: number;
+}
+
+export interface ProcessResult {
+  id: string;
+  name: string;
+  score: number | null;
+  state: CalculationState;
+  coveredAreas: number;
+  totalAreas: number;
+  minimumCoverage: number;
+  areaScores: Array<{ area: string; score: number | null }>;
+}
 export interface AuditRoleScore {
   role: OrResponsibleRole;
   totalApplicableWeight: number;
@@ -109,8 +176,13 @@ export interface AuditPersonScore {
 export interface AuditSession {
   id: string;
   childAuditIds?: string[];
+  childAudits?: AuditSession[];
   date: string;
   auditBatchName?: string;
+  /** Objetivo total de unidades que componen la campaña (por ejemplo, 100 OR). */
+  sampleTarget?: number;
+  /** Nómina preseleccionada para agilizar la carga repetitiva de la campaña. */
+  selectedStaffNames?: string[];
   auditorId: string;
   location: Location;
   staffName?: string;
@@ -130,8 +202,13 @@ export interface AuditSession {
 
 export interface IncompleteAuditListItem {
   id: string;
+  childAuditIds?: string[];
+  childAudits?: AuditSession[];
+  expectedChildCount?: number;
   date: string;
   auditBatchName?: string;
+  sampleTarget?: number;
+  selectedStaffNames?: string[];
   auditorId?: string;
   location?: Location;
   staffName?: string;

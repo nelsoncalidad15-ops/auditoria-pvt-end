@@ -26,17 +26,19 @@ function sanitizeFileName(value: string) {
     .toLowerCase();
 }
 
-function getStatusLabel(status?: "pass" | "fail" | "na") {
+function getStatusLabel(status?: "pass" | "fail" | "na" | "calculated") {
   if (status === "pass") return "Cumple";
   if (status === "fail") return "No cumple";
   if (status === "na") return "N/A";
+  if (status === "calculated") return "Calculado";
   return "Pendiente";
 }
 
-function getStatusColor(status?: "pass" | "fail" | "na"): [number, number, number] {
+function getStatusColor(status?: "pass" | "fail" | "na" | "calculated"): [number, number, number] {
   if (status === "pass") return COLOR_PASS;
   if (status === "fail") return COLOR_FAIL;
   if (status === "na") return COLOR_NA;
+  if (status === "calculated") return COLOR_MID_BLUE;
   return COLOR_PENDING;
 }
 
@@ -165,6 +167,10 @@ function drawCoverPage(
       ["Sucursal", session.location],
       ["Auditor", auditorName],
       ["Puesto / ?rea", session.role || "General"],
+      ...(session.sampleTarget ? [["Objetivo de la campana", `${session.sampleTarget} OR`]] : []),
+      ...(session.selectedStaffNames?.length
+        ? [["Nomina seleccionada", session.selectedStaffNames.join(", ")]]
+        : []),
       ...(session.role === "Pre Entrega"
         ? []
         : [["Personal auditado", session.staffName || "Sin asignar"]]),
@@ -391,5 +397,154 @@ export function generateAuditPdfReport(params: {
     sanitizeFileName(
       `reporte-${session.location}-${session.role || "auditoria"}-${session.date}`
     ) || "reporte-auditoria";
+  pdf.save(`${fileName}.pdf`);
+}
+
+export function generateOrdersCampaignPdf(params: {
+  appTitle: string;
+  audits: AuditSession[];
+  auditorName: string;
+  sampleTarget: number;
+}) {
+  const { appTitle, audits, auditorName, sampleTarget } = params;
+  if (audits.length === 0) return;
+
+  const pdf = new jsPDF({ unit: "mm", format: "a4" });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const averageScore = Math.round(audits.reduce((sum, audit) => sum + (audit.totalScore || 0), 0) / audits.length);
+  const totalDeviations = audits.reduce((sum, audit) => sum + audit.items.filter((item) => item.status === "fail").length, 0);
+  const first = audits[0];
+  const advisorMetrics = Array.from(audits.reduce((groups, audit) => {
+    const advisor = audit.staffName || audit.participants?.asesorServicio || "Sin asignar";
+    const current = groups.get(advisor) || { total: 0, count: 0 };
+    current.total += audit.totalScore || 0;
+    current.count += 1;
+    groups.set(advisor, current);
+    return groups;
+  }, new Map<string, { total: number; count: number }>())).map(([name, metric]) => ({
+    name,
+    score: Math.round(metric.total / metric.count),
+    count: metric.count,
+  })).sort((left, right) => left.score - right.score);
+  const deviations = audits.flatMap((audit) => audit.items
+    .filter((item) => item.status === "fail")
+    .map((item) => ({
+      order: audit.orderNumber || "Sin numero",
+      advisor: audit.staffName || audit.participants?.asesorServicio || "Sin asignar",
+      question: item.question,
+      note: item.comment?.trim() || (item.photoUrl ? "Evidencia fotografica adjunta" : "Sin nota"),
+    })));
+
+  pdf.setFillColor(...COLOR_DARK_BLUE);
+  pdf.rect(0, 0, pageWidth, 38, "F");
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(19);
+  pdf.text(appTitle, 14, 15);
+  pdf.setFontSize(11);
+  pdf.text("Resumen de campaña de Ordenes", 14, 24);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(8);
+  pdf.text(`Generado: ${new Date().toLocaleString("es-AR")}`, 14, 30);
+
+  autoTable(pdf, {
+    startY: 47,
+    theme: "grid",
+    styles: { fontSize: 9, cellPadding: 3, textColor: COLOR_TEXT_DARK },
+    body: [
+      ["Sucursal", first.location || "-"],
+      ["Fecha / ciclo", first.auditBatchName || first.date || "-"],
+      ["Auditor", auditorName],
+      ["Avance", `${audits.length} de ${sampleTarget} OR`],
+      ["Resultado promedio", `${averageScore}%`],
+      ["Desvios detectados", String(totalDeviations)],
+    ],
+    columnStyles: {
+      0: { fontStyle: "bold", cellWidth: 52, fillColor: COLOR_LIGHT_GRAY },
+      1: { cellWidth: 130 },
+    },
+  });
+
+  let chartY = getLastY(pdf as PdfWithTable, 95) + 10;
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(11);
+  pdf.setTextColor(...COLOR_TEXT_DARK);
+  pdf.text("Cumplimiento por asesor", 14, chartY);
+  chartY += 7;
+
+  advisorMetrics.slice(0, 12).forEach((metric) => {
+    const labelWidth = 48;
+    const barX = 14 + labelWidth;
+    const barWidth = pageWidth - barX - 24;
+    const scoreWidth = Math.max(0, Math.min(barWidth, barWidth * metric.score / 100));
+    const barColor = metric.score >= 90 ? COLOR_PASS : metric.score >= 70 ? COLOR_PENDING : COLOR_FAIL;
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    pdf.setTextColor(...COLOR_TEXT_DARK);
+    pdf.text(`${metric.name} (${metric.count})`, 14, chartY + 3.2, { maxWidth: labelWidth - 3 });
+    pdf.setFillColor(...COLOR_LIGHT_GRAY);
+    pdf.roundedRect(barX, chartY, barWidth, 4.5, 1, 1, "F");
+    pdf.setFillColor(...barColor);
+    if (scoreWidth > 0) pdf.roundedRect(barX, chartY, scoreWidth, 4.5, 1, 1, "F");
+    pdf.setFont("helvetica", "bold");
+    pdf.text(`${metric.score}%`, pageWidth - 14, chartY + 3.2, { align: "right" });
+    chartY += 8;
+  });
+
+  const startY = chartY + 4;
+  autoTable(pdf, {
+    startY,
+    theme: "grid",
+    head: [["OR", "Responsable", "Fecha", "Resultado", "Desvios"]],
+    headStyles: { fillColor: COLOR_DARK_BLUE, textColor: [255, 255, 255], fontStyle: "bold" },
+    styles: { fontSize: 8.5, cellPadding: 3, textColor: COLOR_TEXT_DARK },
+    body: audits.map((audit) => [
+      audit.orderNumber || "Sin numero",
+      audit.staffName || audit.participants?.asesorServicio || "Sin asignar",
+      audit.date || "-",
+      `${audit.totalScore || 0}%`,
+      String(audit.items.filter((item) => item.status === "fail").length),
+    ]),
+    didDrawPage: () => drawPageFooter(pdf, `campana-ordenes-${first.date}`),
+  });
+
+  pdf.addPage();
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(16);
+  pdf.setTextColor(...COLOR_TEXT_DARK);
+  pdf.text("Desvios detectados", 14, 20);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+  pdf.setTextColor(...COLOR_TEXT_MUTED);
+  pdf.text(deviations.length > 0
+    ? `${deviations.length} incumplimiento${deviations.length === 1 ? "" : "s"} que requieren seguimiento.`
+    : "No se detectaron incumplimientos en las OR auditadas.", 14, 27);
+
+  if (deviations.length > 0) {
+    autoTable(pdf, {
+      startY: 34,
+      theme: "grid",
+      head: [["OR", "Responsable", "Desvio", "Nota / evidencia"]],
+      headStyles: { fillColor: COLOR_FAIL, textColor: [255, 255, 255], fontStyle: "bold" },
+      styles: { fontSize: 8, cellPadding: 3, textColor: COLOR_TEXT_DARK, valign: "top", overflow: "linebreak" },
+      body: deviations.map((deviation) => [deviation.order, deviation.advisor, deviation.question, deviation.note]),
+      columnStyles: {
+        0: { cellWidth: 22, fontStyle: "bold" },
+        1: { cellWidth: 38 },
+        2: { cellWidth: 76 },
+        3: { cellWidth: 46 },
+      },
+      didDrawPage: () => drawPageFooter(pdf, `campana-ordenes-${first.date}`),
+    });
+  } else {
+    pdf.setFillColor(236, 253, 245);
+    pdf.roundedRect(14, 36, pageWidth - 28, 22, 2, 2, "F");
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(...COLOR_PASS);
+    pdf.text("Campaña sin desvios registrados", pageWidth / 2, 49, { align: "center" });
+    drawPageFooter(pdf, `campana-ordenes-${first.date}`);
+  }
+
+  const fileName = sanitizeFileName(`campana-ordenes-${first.location}-${first.date}`) || "campana-ordenes";
   pdf.save(`${fileName}.pdf`);
 }

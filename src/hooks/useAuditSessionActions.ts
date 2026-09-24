@@ -23,7 +23,6 @@ interface UseAuditSessionActionsParams {
     existingBatchNames: Iterable<string>,
     formatMonthLabel: (dateValue?: string) => string,
   ) => string;
-  createEmptyAuditedFileNames: () => string[];
   resumeDraftSession: (draft: IncompleteAuditListItem) => void;
   setSession: React.Dispatch<React.SetStateAction<Partial<AuditSession>>>;
   setSelectedRole: React.Dispatch<React.SetStateAction<string | null>>;
@@ -35,6 +34,7 @@ interface UseAuditSessionActionsParams {
   setShowBatchReportModal: React.Dispatch<React.SetStateAction<boolean>>;
   setSelectedAudit: React.Dispatch<React.SetStateAction<AuditSession | null>>;
   setDeleteConfirmModal: React.Dispatch<React.SetStateAction<DeleteConfirmModalState>>;
+  setIsAuditConfigured: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export function useAuditSessionActions({
@@ -45,7 +45,6 @@ export function useAuditSessionActions({
   ensureSessionIdentity,
   formatAuditMonthLabel,
   buildAuditBatchName,
-  createEmptyAuditedFileNames,
   resumeDraftSession,
   setSession,
   setSelectedRole,
@@ -57,6 +56,7 @@ export function useAuditSessionActions({
   setShowBatchReportModal,
   setSelectedAudit,
   setDeleteConfirmModal,
+  setIsAuditConfigured,
 }: UseAuditSessionActionsParams) {
   const createAuditBatchName = React.useCallback((location: Location, dateValue?: string) => {
     const resolvedDate = dateValue || new Date().toISOString().split("T")[0];
@@ -86,13 +86,16 @@ export function useAuditSessionActions({
   const clearSelectedRole = React.useCallback(() => {
     setSelectedRole(null);
     setSelectedStaff("");
-  }, [setSelectedRole, setSelectedStaff]);
+    setIsAuditConfigured(false);
+  }, [setIsAuditConfigured, setSelectedRole, setSelectedStaff]);
 
   const handleResumeTechnicianEvaluation = React.useCallback((auditSession: AuditSession) => {
     setSession({
       id: auditSession.id,
       date: auditSession.date,
       auditBatchName: auditSession.auditBatchName,
+      sampleTarget: auditSession.sampleTarget,
+      selectedStaffNames: auditSession.selectedStaffNames,
       auditorId: auditSession.auditorId,
       location: auditSession.location,
       notes: auditSession.notes,
@@ -103,11 +106,12 @@ export function useAuditSessionActions({
     setActiveAuditItemId(null);
     setFocusedAuditItemId(null);
     setView("audit");
-  }, [setActiveAuditItemId, setFocusedAuditItemId, setSelectedRole, setSelectedStaff, setSession, setView]);
+    setIsAuditConfigured(true);
+  }, [setActiveAuditItemId, setFocusedAuditItemId, setSelectedRole, setSelectedStaff, setSession, setView, setIsAuditConfigured]);
 
   const startNewAudit = React.useCallback(() => {
     if (!canRunAudits) {
-      alert("El perfil Consulta no puede iniciar ni editar auditor?as.");
+      alert("El perfil Consulta no puede iniciar ni editar auditorías.");
       return;
     }
 
@@ -116,11 +120,14 @@ export function useAuditSessionActions({
     setSelectedAudit(null);
     setActiveAuditItemId(null);
     setFocusedAuditItemId(null);
+    setIsAuditConfigured(false);
     setSession({
       id: createClientId(),
       date: new Date().toISOString().split("T")[0],
       auditBatchName: undefined,
-      auditedFileNames: createEmptyAuditedFileNames(),
+      sampleTarget: 30,
+      selectedStaffNames: [],
+      auditedFileNames: Array.from({ length: 6 }, () => ""),
       participants: {
         asesorServicio: "",
         tecnico: "",
@@ -135,7 +142,6 @@ export function useAuditSessionActions({
     setView("setup");
   }, [
     canRunAudits,
-    createEmptyAuditedFileNames,
     setActiveAuditItemId,
     setCompletedAuditReports,
     setFocusedAuditItemId,
@@ -145,11 +151,12 @@ export function useAuditSessionActions({
     setSession,
     setShowBatchReportModal,
     setView,
+    setIsAuditConfigured,
   ]);
 
   const handleSetupSubmit = React.useCallback(() => {
     if (!canRunAudits) {
-      alert("El perfil Consulta no puede iniciar auditor?as.");
+      alert("El perfil Consulta no puede iniciar auditorías.");
       return;
     }
 
@@ -161,23 +168,35 @@ export function useAuditSessionActions({
 
   const handleResumeIncompleteAudit = React.useCallback((draft: IncompleteAuditListItem) => {
     if (draft._source === "history") {
+      const sourceAudit = draft.childAudits?.[0];
+      setCompletedAuditReports(
+        (draft.childAudits || []).map((childAudit) => ({
+          role: childAudit.role || childAudit.items?.[0]?.category || "General",
+          session: childAudit,
+          auditorName: childAudit.staffName || "",
+          templateItems: [],
+        }))
+      );
       setSession({
-        id: draft.id,
+        id: createClientId(),
         date: draft.date,
         auditBatchName: draft.auditBatchName,
-        auditorId: draft.auditorId,
+        sampleTarget: draft.sampleTarget ?? sourceAudit?.sampleTarget,
+        selectedStaffNames: draft.selectedStaffNames ?? sourceAudit?.selectedStaffNames,
+        auditorId: draft.auditorId || sourceAudit?.auditorId,
         location: draft.location,
-        orderNumber: draft.orderNumber,
-        clientIdentifier: draft.clientIdentifier,
+        orderNumber: undefined,
+        clientIdentifier: undefined,
         auditedFileNames: draft.auditedFileNames,
         notes: draft.notes,
-        participants: draft.participants,
+        participants: sourceAudit?.participants || draft.participants,
         items: draft.items ?? [],
       });
-      setSelectedRole(draft.role ?? null);
-      setSelectedStaff(draft.staffName ?? "");
+      setSelectedRole(null);
+      setSelectedStaff("");
       setActiveAuditItemId(null);
       setFocusedAuditItemId(null);
+      setIsAuditConfigured(false);
       setView("setup");
       return;
     }
@@ -191,6 +210,7 @@ export function useAuditSessionActions({
     setSelectedStaff,
     setSession,
     setView,
+    setIsAuditConfigured,
   ]);
 
   const handleRequestDeleteIncompleteAudit = React.useCallback((draft: IncompleteAuditListItem) => {
@@ -212,4 +232,3 @@ export function useAuditSessionActions({
     handleRequestDeleteIncompleteAudit,
   };
 }
-

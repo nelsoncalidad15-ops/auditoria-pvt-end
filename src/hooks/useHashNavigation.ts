@@ -4,17 +4,32 @@ import { AppView, Role } from "../types";
 interface UseHashNavigationParams {
   view: AppView;
   selectedRole: Role | null;
+  availableRoles?: readonly Role[];
   setView: (view: AppView) => void;
   setSelectedRole: (role: Role | null) => void;
   clearSelectedRole: () => void;
+  startNewAudit?: () => void;
 }
 
-export function useHashNavigation({ view, selectedRole, setView, setSelectedRole, clearSelectedRole }: UseHashNavigationParams) {
+export function useHashNavigation({
+  view,
+  selectedRole,
+  availableRoles = [],
+  setView,
+  setSelectedRole,
+  clearSelectedRole,
+  startNewAudit,
+}: UseHashNavigationParams) {
   const isApplyingHashRef = useRef(false);
   const initialHashRef = useRef<string | null>(null);
   const previousEntryRef = useRef<{ view: AppView } | null>(null);
   const navigationHistoryRef = useRef<Array<{ view: AppView }>>([]);
   const isGoingBackRef = useRef(false);
+  const currentViewRef = useRef<AppView>(view);
+  const availableRolesRef = useRef<readonly Role[]>(availableRoles);
+
+  currentViewRef.current = view;
+  availableRolesRef.current = availableRoles;
 
   const AUDIT_SELECTION_SEGMENT = "seleccion";
 
@@ -67,10 +82,21 @@ export function useHashNavigation({ view, selectedRole, setView, setSelectedRole
       return "Jefe";
     }
 
-    return null;
-  }, []);
+    // Las áreas son configurables. Antes, cualquier área que no estuviera
+    // escrita a mano arriba se descartaba al cambiar el hash y el clic parecía
+    // no hacer nada. Conservamos los alias históricos y resolvemos el resto
+    // contra la estructura actualmente cargada.
+    return availableRolesRef.current.find((role) => encodeAuditRole(role) === normalizedSegment) ?? null;
+  }, [encodeAuditRole]);
 
   const applyNavigationFromHash = useCallback(() => {
+    const applyViewFromHash = (nextView: AppView) => {
+      // Si la URL ya representa la pantalla abierta, no bloqueamos el próximo
+      // cambio interno. Esto evita que #/nueva revierta "Elegir área".
+      isApplyingHashRef.current = currentViewRef.current !== nextView;
+      setView(nextView);
+    };
+
     if (typeof window === "undefined") {
       return;
     }
@@ -78,20 +104,21 @@ export function useHashNavigation({ view, selectedRole, setView, setSelectedRole
     const rawHash = window.location.hash.replace(/^#\/?/, "").trim();
     const [section, subSection] = rawHash.split("/");
 
-    isApplyingHashRef.current = true;
-
     if (!section || section === "dashboard" || section === "inicio" || section === "home") {
-      setView("dashboard");
+      applyViewFromHash("dashboard");
       return;
     }
 
     if (section === "setup" || section === "nueva") {
-      setView("setup");
+      if (currentViewRef.current !== "setup") {
+        startNewAudit?.();
+      }
+      applyViewFromHash("setup");
       return;
     }
 
     if (section === "audit" || section === "auditoria") {
-      setView("audit");
+      applyViewFromHash("audit");
       if (!subSection || subSection === AUDIT_SELECTION_SEGMENT) {
         clearSelectedRole();
         return;
@@ -108,28 +135,38 @@ export function useHashNavigation({ view, selectedRole, setView, setSelectedRole
     }
 
     if (section === "history" || section === "historial") {
-      setView("history");
+      applyViewFromHash("history");
       return;
     }
 
     if (section === "estructura" || section === "structure") {
-      setView("structure");
+      applyViewFromHash("structure");
       return;
     }
 
     if (section === "integraciones" || section === "integrations") {
-      setView("integrations");
+      applyViewFromHash("integrations");
       return;
     }
 
     if (section === "continuar" || section === "continue") {
-      setView("continuar");
+      applyViewFromHash("continuar");
+      return;
+    }
+
+    if (section === "reporte" || section === "report") {
+      applyViewFromHash("report");
+      return;
+    }
+
+    if (section === "control-repuestos" || section === "stock-control") {
+      applyViewFromHash("stock-control");
       return;
     }
 
 
-    setView("dashboard");
-  }, [AUDIT_SELECTION_SEGMENT, clearSelectedRole, decodeAuditRole, setSelectedRole, setView]);
+    applyViewFromHash("dashboard");
+  }, [AUDIT_SELECTION_SEGMENT, clearSelectedRole, decodeAuditRole, setSelectedRole, setView, startNewAudit]);
 
   const buildHashForView = useCallback(() => {
     if (view === "setup") {
@@ -158,6 +195,14 @@ export function useHashNavigation({ view, selectedRole, setView, setSelectedRole
 
     if (view === "continuar") {
       return "#/continuar";
+    }
+
+    if (view === "report") {
+      return "#/reporte";
+    }
+
+    if (view === "stock-control") {
+      return "#/control-repuestos";
     }
 
     if (view === "home") {
@@ -219,7 +264,7 @@ export function useHashNavigation({ view, selectedRole, setView, setSelectedRole
       return;
     }
 
-    if (view === "setup" || view === "history" || view === "home" || view === "structure" || view === "integrations" || view === "continuar") {
+    if (view === "setup" || view === "history" || view === "home" || view === "structure" || view === "integrations" || view === "continuar" || view === "report" || view === "stock-control") {
       setView("dashboard");
     }
   }, [clearSelectedRole, selectedRole, setView, view]);

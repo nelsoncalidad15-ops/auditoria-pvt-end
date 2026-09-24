@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { LOCATIONS } from "../constants";
 import { AuditSession } from "../types";
 
@@ -23,16 +23,26 @@ interface TopFailure {
 }
 
 export function useDashboardMetrics(history: AuditSession[] = []) {
+  const [selectedMonth, setSelectedMonth] = useState("Todos");
+  const [selectedCity, setSelectedCity] = useState("Todas");
+
   return useMemo(() => {
-    // Defensive check for history
-    const safeHistory = Array.isArray(history) ? history : [];
-    
+    // Records without a final numeric score are incomplete and do not belong in KPIs.
+    const safeHistory = (Array.isArray(history) ? history : []).filter((audit) => (
+      typeof audit?.totalScore === "number" && Number.isFinite(audit.totalScore)
+    ));
+    const filteredHistory = safeHistory.filter((audit) => (
+      (selectedMonth === "Todos" || audit.date?.slice(5, 7) === selectedMonth)
+      && (selectedCity === "Todas" || audit.location === selectedCity)
+    ));
+
     const currentMonth = new Date().toISOString().slice(0, 7);
-    const monthlyAudits = safeHistory.filter((audit) => audit?.date?.startsWith(currentMonth));
+    const scoreScope = selectedMonth === "Todos" ? filteredHistory.filter((audit) => audit.date?.startsWith(currentMonth)) : filteredHistory;
+    const monthlyAudits = scoreScope;
     
     // Top 5 Failures
     const topFailures: TopFailure[] = Array.from(
-      safeHistory.flatMap(audit => audit?.items || [])
+      filteredHistory.flatMap(audit => audit?.items || [])
         .filter(item => item?.status === "fail")
         .reduce((acc, item) => {
           if (item?.question) {
@@ -47,7 +57,7 @@ export function useDashboardMetrics(history: AuditSession[] = []) {
       .slice(0, 5);
 
     // Monthly Trend Data with City Comparison
-    const monthlyDataMap = safeHistory.reduce((acc, audit) => {
+    const monthlyDataMap = filteredHistory.reduce((acc, audit) => {
       if (!audit?.date) return acc;
       
       const monthKey = audit.date.slice(0, 7);
@@ -56,12 +66,12 @@ export function useDashboardMetrics(history: AuditSession[] = []) {
       }
       const m = acc.get(monthKey)!;
       m.total += 1;
-      m.sum += audit.totalScore || 0;
+      m.sum += audit.totalScore;
       if (audit.location === "Salta") {
-        m.saltaSum += audit.totalScore || 0;
+        m.saltaSum += audit.totalScore;
         m.saltaCount += 1;
       } else if (audit.location === "Jujuy") {
-        m.jujuySum += audit.totalScore || 0;
+        m.jujuySum += audit.totalScore;
         m.jujuyCount += 1;
       }
       return acc;
@@ -88,7 +98,7 @@ export function useDashboardMetrics(history: AuditSession[] = []) {
       monthlyAudits.reduce((acc, audit) => {
         const role = audit?.role || "General";
         const curr = acc.get(role) ?? { role, total: 0, count: 0 };
-        curr.total += audit?.totalScore || 0;
+        curr.total += audit.totalScore;
         curr.count += 1;
         acc.set(role, curr);
         return acc;
@@ -100,10 +110,10 @@ export function useDashboardMetrics(history: AuditSession[] = []) {
     })).sort((a, b) => b.promedio - a.promedio);
 
     const kpis = {
-      total: safeHistory.length,
-      average: safeHistory.length > 0 ? Math.round(safeHistory.reduce((s, a) => s + (a?.totalScore || 0), 0) / safeHistory.length) : 0,
-      approvedRate: safeHistory.length > 0 ? Math.round((safeHistory.filter(a => (a?.totalScore || 0) >= 90).length / safeHistory.length) * 100) : 0,
-      critical: safeHistory.filter(a => (a?.totalScore || 0) < 70).length,
+      total: filteredHistory.length,
+      average: filteredHistory.length > 0 ? Math.round(filteredHistory.reduce((sum, audit) => sum + audit.totalScore, 0) / filteredHistory.length) : 0,
+      approvedRate: filteredHistory.length > 0 ? Math.round((filteredHistory.filter((audit) => audit.totalScore >= 90).length / filteredHistory.length) * 100) : 0,
+      critical: filteredHistory.filter((audit) => audit.totalScore < 70).length,
     };
 
     // Calculate score bands for pie chart
@@ -122,10 +132,10 @@ export function useDashboardMetrics(history: AuditSession[] = []) {
       scoreBands,
       isRefreshing: false,
       cities: [...LOCATIONS, "Todas"],
-      selectedMonth: "Todos",
-      selectedCity: "Todas",
-      setSelectedMonth: (_val: string) => {},
-      setSelectedCity: (_val: string) => {},
+      selectedMonth,
+      selectedCity,
+      setSelectedMonth,
+      setSelectedCity,
     };
-  }, [history]);
+  }, [history, selectedCity, selectedMonth]);
 }

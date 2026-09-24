@@ -44,7 +44,7 @@ export function buildPreDeliveryAuditItems(
       id: templateItem.id,
       question: templateItem.text,
       category: selectedRoleLabel,
-      status: existingItem?.status ?? (templateItem.allowsNa ? "na" : undefined) as any,
+      status: existingItem?.status,
       comment: existingItem?.comment ?? "",
       photoUrl: existingItem?.photoUrl,
       description: templateItem.description ?? existingItem?.description ?? "",

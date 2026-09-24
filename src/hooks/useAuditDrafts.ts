@@ -7,6 +7,8 @@ export interface AuditDraft {
   id: string;
   date: string;
   auditBatchName?: string;
+  sampleTarget?: number;
+  selectedStaffNames?: string[];
   auditorId?: string;
   location?: Location;
   staffName?: string;
@@ -46,6 +48,8 @@ function normalizeDraft(rawDraft: Partial<AuditDraft>): AuditDraft {
     id: rawDraft.id || crypto.randomUUID(),
     date: rawDraft.date || new Date().toISOString().split("T")[0],
     auditBatchName: rawDraft.auditBatchName,
+    sampleTarget: typeof rawDraft.sampleTarget === "number" ? rawDraft.sampleTarget : undefined,
+    selectedStaffNames: Array.isArray(rawDraft.selectedStaffNames) ? rawDraft.selectedStaffNames.filter(Boolean) : undefined,
     auditorId: rawDraft.auditorId,
     location: rawDraft.location,
     staffName: staffName || undefined,
@@ -60,6 +64,22 @@ function normalizeDraft(rawDraft: Partial<AuditDraft>): AuditDraft {
     participants: rawDraft.participants,
     updatedAt: rawDraft.updatedAt || new Date().toISOString(),
   };
+}
+
+function getDraftProgress(draft: AuditDraft) {
+  const totalItems = draft.items?.length || 0;
+  const completedItems = draft.items?.filter((item) => item.status).length || 0;
+  return { totalItems, completedItems };
+}
+
+function isDraftResumable(draft: AuditDraft) {
+  const { totalItems, completedItems } = getDraftProgress(draft);
+
+  if (totalItems === 0) {
+    return false;
+  }
+
+  return completedItems < totalItems;
 }
 
 export function useAuditDrafts({ selectedRole, selectedStaff, session, sessionItems, view, onResume }: UseAuditDraftsParams) {
@@ -105,9 +125,20 @@ export function useAuditDrafts({ selectedRole, selectedStaff, session, sessionIt
   }, [draftAudits, onResume]);
 
   const sortedDraftAudits = useMemo(
-    () => [...draftAudits].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)),
+    () => [...draftAudits]
+      .filter(isDraftResumable)
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)),
     [draftAudits]
   );
+
+  useEffect(() => {
+    const prunedDrafts = draftAudits.filter(isDraftResumable);
+    if (prunedDrafts.length === draftAudits.length) {
+      return;
+    }
+
+    persistDrafts(prunedDrafts);
+  }, [draftAudits, persistDrafts]);
 
   useEffect(() => {
     if (!session.id) {
@@ -121,6 +152,8 @@ export function useAuditDrafts({ selectedRole, selectedStaff, session, sessionIt
     const hasMeaningfulProgress = Boolean(
       session.auditorId ||
       session.location ||
+      session.sampleTarget ||
+      session.selectedStaffNames?.length ||
       selectedRole ||
       selectedStaff ||
       session.orderNumber?.trim() ||
@@ -151,6 +184,8 @@ export function useAuditDrafts({ selectedRole, selectedStaff, session, sessionIt
       id: session.id,
       date: session.date || new Date().toISOString().split("T")[0],
       auditBatchName: session.auditBatchName,
+      sampleTarget: session.sampleTarget,
+      selectedStaffNames: session.selectedStaffNames,
       auditorId: session.auditorId,
       location: session.location,
       staffName: persistedStaffName,

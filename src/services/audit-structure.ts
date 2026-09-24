@@ -99,6 +99,7 @@ function buildTemplateItems(name: string, items: AuditTemplateItem[]): AuditTemp
     weight: typeof item.weight === "number" ? item.weight : 1,
     order: typeof item.order === "number" ? item.order : index + 1,
     active: typeof item.active === "boolean" ? item.active : true,
+    calculationMode: item.calculationMode === "calculated" ? "calculated" : "manual",
     scoreLinks: (() => {
       const normalizedLinks = buildScoreLinks(name, item.text, item.scoreLinks, item.scoreAreas);
       return normalizedLinks;
@@ -142,6 +143,7 @@ function getCategoryDefaultItems(name: string, questions: string[]): AuditTempla
     weight: 1,
     order: index + 1,
     active: true,
+    calculationMode: "manual",
     scoreLinks: getDefaultScoreLinks(name, question),
     scoreAreas: getDefaultScoreLinks(name, question).map((link) => link.area),
   }));
@@ -169,29 +171,64 @@ export function getDefaultAuditCategories(): AuditCategory[] {
   }));
 }
 
-export function normalizeAuditCategories(categories: AuditCategory[] | unknown): AuditCategory[] {
+export interface NormalizeAuditCategoriesOptions {
+  includeMissingDefaults?: boolean;
+}
+
+export function normalizeAuditCategories(categories: AuditCategory[] | unknown, options: NormalizeAuditCategoriesOptions = {}): AuditCategory[] {
   const defaultCategories = getDefaultAuditCategories();
+  const includeMissingDefaults = options.includeMissingDefaults !== false;
 
   if (!Array.isArray(categories) || categories.length === 0) {
-    return defaultCategories;
+    return includeMissingDefaults ? defaultCategories : [];
   }
 
-  const normalized = categories.map((category: any) => {
+  const usedCategoryIds = new Set<string>();
+  const normalized = categories.flatMap((category: any, categoryIndex: number) => {
+    const normalizedName = typeof category?.name === "string" ? category.name.trim() : "";
+    if (!normalizedName) {
+      return [];
+    }
+
     const defaultCategory = defaultCategories.find((item) => item.name === category.name);
     const shouldUpgradeCategory = shouldUpgradePreDeliveryCategory(category);
+    const rawCategoryId = typeof category?.id === "string" ? category.id.trim() : "";
+    let nextCategoryId = rawCategoryId || slugify(normalizedName);
+    let duplicateIndex = 2;
+    while (usedCategoryIds.has(nextCategoryId)) {
+      nextCategoryId = `${slugify(normalizedName)}-${duplicateIndex}`;
+      duplicateIndex += 1;
+    }
+    usedCategoryIds.add(nextCategoryId);
 
-    return ({
-      id: category.id || slugify(category.name),
-      name: category.name,
+    const usedItemIds = new Set<string>();
+    return [{
+      id: nextCategoryId,
+      name: normalizedName,
       description: typeof category.description === "string" ? category.description : "",
       staffOptions: Array.isArray(category.staffOptions) ? category.staffOptions : [],
       items: shouldUpgradeCategory && defaultCategory
         ? defaultCategory.items
         : Array.isArray(category.items)
-        ? category.items.map((item: any, index: number) => ({
-            id: item.id || `${slugify(category.name)}-${index + 1}`,
-            text: item.text,
-            required: false,
+        ? category.items.flatMap((item: any, index: number) => {
+            const normalizedItemText = typeof item?.text === "string" ? item.text.trim() : "";
+            if (!normalizedItemText) {
+              return [];
+            }
+
+            const rawItemId = typeof item?.id === "string" ? item.id.trim() : "";
+            let nextItemId = rawItemId || `${slugify(normalizedName)}-${index + 1}`;
+            let itemDuplicateIndex = 2;
+            while (usedItemIds.has(nextItemId)) {
+              nextItemId = `${slugify(normalizedName)}-${categoryIndex + 1}-${index + 1}-${itemDuplicateIndex}`;
+              itemDuplicateIndex += 1;
+            }
+            usedItemIds.add(nextItemId);
+
+            return [{
+            id: nextItemId,
+            text: normalizedItemText,
+            required: typeof item.required === "boolean" ? item.required : false,
             block: typeof item.block === "string" && item.block.trim() ? item.block.trim() : "General",
             priority: item.priority === "high" || item.priority === "medium" || item.priority === "low" ? item.priority : "medium",
             guidance: typeof item.guidance === "string" ? item.guidance : "",
@@ -203,17 +240,19 @@ export function normalizeAuditCategories(categories: AuditCategory[] | unknown):
             weight: typeof item.weight === "number" ? item.weight : 1,
             order: typeof item.order === "number" ? item.order : index + 1,
             active: typeof item.active === "boolean" ? item.active : true,
+    calculationMode: item.calculationMode === "calculated" ? "calculated" : "manual",
             scoreLinks: (() => {
-              const normalizedLinks = buildScoreLinks(category.name, item.text, item.scoreLinks, item.scoreAreas);
+              const normalizedLinks = buildScoreLinks(normalizedName, normalizedItemText, item.scoreLinks, item.scoreAreas);
               return normalizedLinks;
             })(),
             scoreAreas: (() => {
-              const normalizedLinks = buildScoreLinks(category.name, item.text, item.scoreLinks, item.scoreAreas);
+              const normalizedLinks = buildScoreLinks(normalizedName, normalizedItemText, item.scoreLinks, item.scoreAreas);
               return buildScoreAreas(normalizedLinks);
             })(),
-          }))
+          }];
+        })
         : [],
-    });
+    }];
   });
 
   // Include any missing default categories
@@ -221,7 +260,7 @@ export function normalizeAuditCategories(categories: AuditCategory[] | unknown):
     (defaultCat) => !normalized.some((cat) => cat.name === defaultCat.name)
   );
 
-  return [...normalized, ...missingDefaults];
+  return includeMissingDefaults ? [...normalized, ...missingDefaults] : normalized;
 }
 
 export function getStoredAuditCategories(scope: AuditStructureScope = "global"): AuditCategory[] {

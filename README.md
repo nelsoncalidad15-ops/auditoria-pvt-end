@@ -13,7 +13,7 @@ Aplicación web para auditorías de postventa orientada a uso móvil, preparada 
 ## Funcionalidades actuales
 
 - Auditoría móvil optimizada por categoría
-- Estructura configurable de categorías e ítems
+- Estructura configurable de categorías e ítems desde `ConfiguracionAuditoria` en Google Sheets
 - Bloques operativos y criticidad para ordenar el recorrido del auditor
 - Ítems obligatorios y opcionales con validación al cierre
 - Guía operativa por ítem y observación obligatoria en desvíos críticos
@@ -82,12 +82,12 @@ Cada ítem dentro de `items` guarda:
 
 Usar dos pestañas:
 
-- `Auditorias`: una fila por auditoría
-- `AuditoriaItems`: una fila por respuesta auditada
+- `Auditorias`: una fila por auditoría nueva
+- `AuditoriaItems`: una fila por respuesta auditada nueva
 
 La app ya envía un payload estable para este modelo y el Apps Script listo quedó en [apps-script/Code.gs](apps-script/Code.gs).
 
-La guía operativa de alta quedó en [apps-script/README.md](apps-script/README.md).
+La guía operativa de alta quedó en [apps-script/README.md](apps-script/README.md). La plantilla y las reglas de la hoja maestra están en [apps-script/CONFIGURACION.md](apps-script/CONFIGURACION.md).
 
 Si el Apps Script tiene configurada la propiedad `DRIVE_FOLDER_ID`, las fotos adjuntas por el auditor se suben a esa carpeta y en Sheets queda guardada solo la URL pública.
 

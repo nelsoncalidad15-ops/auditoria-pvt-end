@@ -4,13 +4,23 @@ function normalizeWeight(value?: number) {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 1;
 }
 
-function isApplicableItem(item: Pick<AuditItem, "status">) {
-  return item.status !== "na";
+function isCalculatedScore(item: Pick<AuditItem, "calculatedScore">) {
+  return typeof item.calculatedScore === "number" && Number.isFinite(item.calculatedScore);
+}
+
+function isApplicableItem(item: Pick<AuditItem, "status" | "calculatedScore">) {
+  return isCalculatedScore(item) || item.status === "pass" || item.status === "fail";
 }
 
 export function calculateAuditCompliance(items: AuditItem[]) {
   const applicableItems = items.filter(isApplicableItem);
-  const obtainedWeight = applicableItems.reduce((acc, item) => acc + (item.status === "pass" ? normalizeWeight(item.weight) : 0), 0);
+  const obtainedWeight = applicableItems.reduce((acc, item) => {
+    const weight = normalizeWeight(item.weight);
+    if (isCalculatedScore(item)) {
+      return acc + (weight * Math.max(0, Math.min(100, item.calculatedScore || 0))) / 100;
+    }
+    return acc + (item.status === "pass" ? weight : 0);
+  }, 0);
   const totalApplicableWeight = applicableItems.reduce((acc, item) => acc + normalizeWeight(item.weight), 0);
 
   return {
@@ -20,7 +30,6 @@ export function calculateAuditCompliance(items: AuditItem[]) {
     itemsCount: applicableItems.length,
   };
 }
-
 export function calculateRoleScores(items: AuditItem[], impactSharedItemsOnAllRoles = true): AuditRoleScore[] {
   const roleMetrics = new Map<OrResponsibleRole, { obtainedWeight: number; totalApplicableWeight: number; itemsCount: number }>();
 
@@ -30,7 +39,7 @@ export function calculateRoleScores(items: AuditItem[], impactSharedItemsOnAllRo
 
     applicableRoles.forEach((role) => {
       const current = roleMetrics.get(role) ?? { obtainedWeight: 0, totalApplicableWeight: 0, itemsCount: 0 };
-      if (item.status !== "na") {
+      if (item.status === "pass" || item.status === "fail") {
         current.totalApplicableWeight += normalizeWeight(item.weight);
         current.itemsCount += 1;
         if (item.status === "pass") {
@@ -58,7 +67,7 @@ export function buildOrderAuditItems(templateItems: AuditTemplateItem[], current
       id: templateItem.id,
       question: templateItem.text,
       category: selectedRoleLabel,
-      status: existingItem?.status ?? "na",
+      status: existingItem?.status,
       comment: existingItem?.comment ?? "",
       photoUrl: existingItem?.photoUrl,
       description: templateItem.description ?? existingItem?.description ?? "",

@@ -1,6 +1,76 @@
 @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap");
 @import "tailwindcss";
 
+/* Autosol audit visual system */
+:root {
+	color-scheme: light;
+	--bg: #f4f7fa;
+	--bg-strong: #edf2f7;
+	--panel: rgba(255,255,255,.92);
+	--panel-strong: #ffffff;
+	--text: #12233c;
+	--text-muted: #5f7084;
+	--text-dim: #7a899a;
+	--line: #dfe7ef;
+	--brand: #005b96;
+	--brand-strong: #001e50;
+	--brand-soft: #edf5fb;
+	--radius-lg: 18px;
+	--radius-md: 14px;
+	--shadow-sm: 0 2px 7px rgba(0,30,80,.04);
+	--shadow-md: 0 8px 24px rgba(0,30,80,.07);
+	--shadow-lg: 0 16px 38px rgba(0,30,80,.10);
+}
+body { background: #f4f7fa; }
+.premium-card { border-radius: 14px; box-shadow: 0 7px 22px rgba(0,30,80,.06); }
+.premium-card:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(0,30,80,.09); }
+.dashboard-card { padding: 18px; border-radius: 14px; }
+.audit-welcome { min-height: 100svh; display: flex; flex-direction: column; background: #f7f9fc; color: #001e50; font-family: "Plus Jakarta Sans", sans-serif; }
+.audit-welcome__header { min-height: 70px; padding: 8px clamp(22px,4vw,64px); display: flex; align-items: center; justify-content: space-between; gap: 20px; background: #fff; border-bottom: 1px solid #e3eaf2; }
+.audit-welcome__header > p { color: #65748a; font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.audit-welcome__brand { display: flex; align-items: center; gap: 13px; }
+.audit-welcome__brand img { width: 166px; height: auto; display: block; }
+.audit-welcome__brand span { padding-left: 13px; border-left: 1px solid #d9e1eb; color: #718097; font-size: 17px; }
+.audit-welcome__hero { position: relative; isolation: isolate; min-height: 330px; display: flex; align-items: center; overflow: hidden; background: #eaf2f7; }
+.audit-welcome__photo { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: 65% 55%; }
+.audit-welcome__shade { position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg,#f7f9fc 0%,rgba(247,249,252,.98) 22%,rgba(247,249,252,.9) 35%,rgba(247,249,252,.38) 52%,transparent 72%); }
+.audit-welcome__copy { width: 58%; padding: 34px clamp(22px,4vw,64px); }
+.audit-welcome__eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 17px; color: #316487; font-size: 9px; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; }
+.audit-welcome__eyebrow span { width: 26px; height: 2px; background: #008bc5; }
+.audit-welcome__copy h1 { margin: 0; font-size: clamp(38px,4.4vw,68px); font-weight: 700; letter-spacing: -.055em; line-height: 1.03; }
+.audit-welcome__copy h1 span { color: #34769a; font-weight: 400; }
+.audit-welcome__intro { max-width: 410px; margin: 17px 0 0; color: #4a6078; font-size: 13px; line-height: 1.75; }
+.audit-welcome__status { display: inline-flex; align-items: center; gap: 8px; margin-top: 18px; padding: 8px 11px; border: 1px solid #dce7ef; border-radius: 999px; background: rgba(255,255,255,.78); color: #4b6279; font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.audit-welcome__status i { width: 7px; height: 7px; border-radius: 50%; background: #22a06b; box-shadow: 0 0 0 3px rgba(34,160,107,.12); }
+.audit-welcome__caption { position: absolute; right: 28px; bottom: 20px; padding: 8px 14px; border: 1px solid rgba(255,255,255,.65); border-radius: 999px; background: rgba(255,255,255,.9); color: #25455e; font-size: 9px; font-weight: 700; letter-spacing: .08em; }
+.audit-access { padding: 20px clamp(22px,4vw,64px) 22px; background: #f8fafc; border-top: 1px solid #e6ecf2; }
+.audit-access__heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 13px; }
+.audit-access__heading p { margin: 0 0 2px; color: #2f7197; font-size: 8px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
+.audit-access__heading h2 { margin: 0; color: #001e50; font-size: 18px; font-weight: 750; letter-spacing: -.025em; }
+.audit-access__heading > span { color: #6b7c90; font-size: 10px; }
+.audit-access__grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+.audit-profile-card { display: flex; align-items: center; gap: 13px; min-width: 0; padding: 15px; border: 1px solid #dbe4ed; border-radius: 13px; background: #fff; color: #001e50; text-align: left; box-shadow: 0 4px 14px rgba(0,30,80,.04); transition: .2s ease; }
+.audit-profile-card:hover { transform: translateY(-2px); border-color: #9dbdd2; box-shadow: 0 10px 24px rgba(0,30,80,.09); }
+.audit-profile-card__icon { display: grid; place-items: center; flex: 0 0 40px; height: 40px; border-radius: 11px; }
+.audit-profile-card__icon svg { width: 18px; height: 18px; }
+.audit-profile-card__icon--blue { background:#edf4ff; color:#2866b2; }.audit-profile-card__icon--navy { background:#e9eef5;color:#001e50;}.audit-profile-card__icon--green {background:#eaf7f0;color:#217749;}
+.audit-profile-card__copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 3px; }
+.audit-profile-card__copy strong { font-size: 12px; }.audit-profile-card__copy small { color:#66788d; font-size:9.5px; line-height:1.4; }
+.audit-profile-card__arrow { width: 15px; color: #6e8ca9; transition: transform .2s; }.audit-profile-card:hover .audit-profile-card__arrow { transform: translateX(3px); }
+.audit-google { margin-top: 12px; padding: 9px 14px; border: 1px solid #dbe4ed; border-radius: 10px; background: #fff; color: #40546b; font-size: 10px; font-weight: 700; }
+.audit-welcome__footer { display:flex; justify-content:space-between; padding:10px clamp(22px,4vw,64px); border-top:1px solid #edf1f6; background:#fff; color:#7c899c; font-size:9px; }
+
+/* Compact, professional internal surfaces */
+.audit-app-shell { background: #f4f7fa !important; color: #12233c; }
+.audit-app-main { padding-top: 16px !important; }
+
+@media (max-width: 700px) {
+  .audit-welcome__header { min-height: 62px; padding: 10px 18px; }.audit-welcome__header > p { display:none; }.audit-welcome__brand img{width:145px}.audit-welcome__brand span{font-size:15px}
+  .audit-welcome__hero { display:block; padding-top:210px; min-height:0; }.audit-welcome__photo{height:245px;object-position:center}.audit-welcome__shade{background:linear-gradient(180deg,transparent 85px,#f7f9fc 242px)}
+  .audit-welcome__copy{width:100%;padding:20px 20px 24px}.audit-welcome__copy h1{font-size:38px}.audit-welcome__caption{display:none}.audit-welcome__intro{font-size:12px}
+  .audit-access{padding:20px}.audit-access__heading{display:block}.audit-access__heading>span{display:block;margin-top:5px}.audit-access__grid{grid-template-columns:1fr;gap:9px}.audit-welcome__footer{padding:11px 20px}
+}
+
 :root {
 	color-scheme: dark;
 	--bg: #0b1120;
@@ -1798,4 +1868,54 @@ body {
 
 ::selection {
 	background: rgba(37, 99, 235, 0.18);
+}
+
+@media print {
+	body {
+		background: white !important;
+		-webkit-print-color-adjust: exact;
+		print-color-adjust: exact;
+	}
+
+	.print\:hidden {
+		display: none !important;
+	}
+
+	.print\:break-inside-avoid {
+		break-inside: avoid;
+	}
+
+	table {
+		font-size: 11px !important;
+	}
+
+	.premium-card,
+	.glass-panel {
+		box-shadow: none !important;
+		border: 1px solid #e2e8f0 !important;
+	}
+
+	* {
+		scrollbar-width: none !important;
+	}
+
+	*::-webkit-scrollbar {
+		display: none !important;
+	}
+}
+
+/* Keep the operational UI aligned with the light Autosol identity. */
+:root {
+	color-scheme: light;
+	--bg: #f4f7fa;
+	--bg-strong: #edf2f7;
+	--panel: rgba(255,255,255,.94);
+	--panel-strong: #fff;
+	--text: #12233c;
+	--text-muted: #5f7084;
+	--text-dim: #7a899a;
+	--line: #dfe7ef;
+	--brand: #005b96;
+	--brand-strong: #001e50;
+	--brand-soft: #edf5fb;
 }

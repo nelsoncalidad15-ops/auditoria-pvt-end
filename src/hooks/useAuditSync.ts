@@ -14,7 +14,7 @@ interface UseAuditSyncParams {
   user: FirebaseUser | null;
   hasWebhookUrl: boolean;
   webhookUrl: string;
-  hasSheetCsvUrl: boolean;
+  hasSheetCsvUrl: boolean; getTemplateItems?: (role: string, location: string) => any[];
 }
 
 function mergeAuditHistory(audits: AuditSession[]) {
@@ -31,8 +31,8 @@ function mergeAuditHistory(audits: AuditSession[]) {
   );
 }
 
-export function useAuditSync({ isAuthReady, user, hasWebhookUrl, webhookUrl, hasSheetCsvUrl }: UseAuditSyncParams) {
-  const [firestoreHistory, setFirestoreHistory] = useState<AuditSession[]>([]);
+export function useAuditSync({ isAuthReady, user, hasWebhookUrl, webhookUrl, hasSheetCsvUrl, getTemplateItems }: UseAuditSyncParams) {
+  const [, setFirestoreHistory] = useState<AuditSession[]>([]);
   const [externalHistory, setExternalHistory] = useState<AuditSession[]>([]);
   const [dismissedAuditIds, setDismissedAuditIds] = useState<string[]>(() => {
     if (typeof window === "undefined") {
@@ -70,12 +70,16 @@ export function useAuditSync({ isAuthReady, user, hasWebhookUrl, webhookUrl, has
   });
 
   const syncingLocalAuditIdsRef = useRef<Set<string>>(new Set());
-  const isUsingExternalHistory = externalHistory.length > 0;
-  const sourceHistory = isUsingExternalHistory ? externalHistory : firestoreHistory;
+  const isUsingExternalHistory = hasWebhookUrl;
+  // El historial operativo siempre se lee desde Sheets; si no hay conexión se conserva la cola local.
+  const sourceHistory = externalHistory;
   const dismissedAuditIdSet = useMemo(() => new Set(dismissedAuditIds), [dismissedAuditIds]);
   const history = useMemo(
-    () => mergeAuditHistory([...localAuditHistory, ...sourceHistory]).filter((audit) => !dismissedAuditIdSet.has(audit.id)),
-    [dismissedAuditIdSet, localAuditHistory, sourceHistory]
+    () => {
+      const baseHistory = hasWebhookUrl ? sourceHistory : [...localAuditHistory, ...sourceHistory];
+      return mergeAuditHistory(baseHistory).filter((audit) => !dismissedAuditIdSet.has(audit.id));
+    },
+    [dismissedAuditIdSet, hasWebhookUrl, localAuditHistory, sourceHistory]
   );
   const historySyncModeLabel = hasWebhookUrl ? "Apps Script" : hasSheetCsvUrl ? "CSV" : "Pendiente";
 
@@ -133,21 +137,22 @@ export function useAuditSync({ isAuthReady, user, hasWebhookUrl, webhookUrl, has
     const externalAudits = await fetchAuditHistoryFromWebhook(webhookUrl);
     const externalAuditIds = new Set(externalAudits.map((audit) => audit.id));
     persistDismissedAuditIds((current) => current.filter((id) => !externalAuditIds.has(id)));
-    setExternalHistory((current) => mergeAuditHistory([...externalAudits, ...current]));
+    persistLocalAuditHistory((current) => current.filter((audit) => !externalAuditIds.has(audit.id)));
+    setExternalHistory(mergeAuditHistory(externalAudits));
     return externalAudits;
-  }, [hasWebhookUrl, persistDismissedAuditIds, webhookUrl]);
+  }, [hasWebhookUrl, persistDismissedAuditIds, persistLocalAuditHistory, webhookUrl]);
 
   const prependExternalAudit = useCallback((session: AuditSession) => {
     persistDismissedAuditIds((current) => current.filter((id) => id !== session.id));
     setExternalHistory((current) => mergeAuditHistory([session, ...current]));
   }, [persistDismissedAuditIds]);
 
-  const deleteRemoteAudit = useCallback(async (auditId: string) => {
+  const deleteRemoteAudit = useCallback(async (auditId: string, options?: { userEmail?: string; reason?: string }) => {
     if (!hasWebhookUrl) {
       throw new Error("No hay un Apps Script configurado para borrar en Sheets.");
     }
 
-    await deleteAuditFromWebhook(webhookUrl, auditId);
+    await deleteAuditFromWebhook(webhookUrl, auditId, options);
     persistDismissedAuditIds((current) => current.filter((id) => id !== auditId));
     setExternalHistory((current) => current.filter((audit) => audit.id !== auditId));
     setFirestoreHistory((current) => current.filter((audit) => audit.id !== auditId));
@@ -213,6 +218,7 @@ export function useAuditSync({ isAuthReady, user, hasWebhookUrl, webhookUrl, has
         if (!cancelled) {
           const externalAuditIds = new Set(externalAudits.map((audit) => audit.id));
           persistDismissedAuditIds((current) => current.filter((id) => !externalAuditIds.has(id)));
+          persistLocalAuditHistory((current) => current.filter((audit) => !externalAuditIds.has(audit.id)));
           setExternalHistory(externalAudits);
         }
       } catch (error) {
@@ -225,7 +231,7 @@ export function useAuditSync({ isAuthReady, user, hasWebhookUrl, webhookUrl, has
     return () => {
       cancelled = true;
     };
-  }, [hasWebhookUrl, persistDismissedAuditIds, webhookUrl]);
+  }, [hasWebhookUrl, persistDismissedAuditIds, persistLocalAuditHistory, webhookUrl]);
 
   useEffect(() => {
     if (!hasWebhookUrl || typeof window === "undefined") {
@@ -260,53 +266,33 @@ export function useAuditSync({ isAuthReady, user, hasWebhookUrl, webhookUrl, has
   }, [hasWebhookUrl, refreshExternalHistory]);
 
   useEffect(() => {
-    if (localAuditHistory.length === 0) {
+    if (localAuditHistory.length === 0 || !hasWebhookUrl) {
       return;
     }
 
-    if (!hasWebhookUrl && (!user || !db)) {
-      return;
-    }
-
-    const firestoreIds = new Set(firestoreHistory.map((audit) => audit.id));
+    const syncedAuditIds = new Set(externalHistory.map((audit) => audit.id));
     const pendingLocalAudits = localAuditHistory.filter(
-      (audit) => !firestoreIds.has(audit.id) && !syncingLocalAuditIdsRef.current.has(audit.id)
+      (audit) => !syncedAuditIds.has(audit.id) && !syncingLocalAuditIdsRef.current.has(audit.id)
     );
-
-    if (pendingLocalAudits.length === 0) {
-      return;
-    }
 
     pendingLocalAudits.forEach((audit) => {
       syncingLocalAuditIdsRef.current.add(audit.id);
-
       const auditorName = AUDITORS.find((auditor) => auditor.id === audit.auditorId)?.name || "N/A";
 
-      const syncPromise = hasWebhookUrl
-        ? sendAuditToWebhook(
-            webhookUrl,
-            buildAuditSyncPayload({
-              session: audit,
-              auditorName,
-              submittedByEmail: user?.email,
-            })
-          )
-        : user
-          ? saveToFirestore(audit)
-          : Promise.reject(new Error("No sync target available"));
-
-      void syncPromise
-        .then(() => {
-          removeLocalAuditHistoryItem(audit.id);
+      void sendAuditToWebhook(
+        webhookUrl,
+        buildAuditSyncPayload({
+          session: audit,
+          templateItems: getTemplateItems?.(audit.role || "", audit.location) || audit.items || [],
+          auditorName,
+          submittedByEmail: user?.email,
         })
-        .catch((error) => {
-          console.error("Local audit sync failed:", error);
-        })
-        .finally(() => {
-          syncingLocalAuditIdsRef.current.delete(audit.id);
-        });
+      )
+        .then(() => removeLocalAuditHistoryItem(audit.id))
+        .catch((error) => console.error("Local audit sync failed:", error))
+        .finally(() => syncingLocalAuditIdsRef.current.delete(audit.id));
     });
-  }, [firestoreHistory, hasWebhookUrl, localAuditHistory, removeLocalAuditHistoryItem, saveToFirestore, user, webhookUrl]);
+  }, [externalHistory, getTemplateItems, hasWebhookUrl, localAuditHistory, removeLocalAuditHistoryItem, user?.email, webhookUrl]);
 
   return {
     history,

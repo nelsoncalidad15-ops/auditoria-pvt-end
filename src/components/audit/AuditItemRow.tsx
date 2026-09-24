@@ -1,8 +1,8 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Camera, CheckCircle2, History, Mic, MicOff, MinusCircle, Trash2, XCircle, HelpCircle, Info } from "lucide-react";
+import { Camera, CheckCircle2, History, Mic, MicOff, MinusCircle, Trash2, XCircle, HelpCircle, Info, Sparkles } from "lucide-react";
 import { cn } from "../../lib/utils";
-import { AuditItem, AuditItemPriority, OrResponsibleRole } from "../../types";
+import { AuditItem, AuditItemPriority, CalculatedItemResult, OrResponsibleRole } from "../../types";
 
 interface AuditItemRowProps {
   rowId?: string;
@@ -22,6 +22,7 @@ interface AuditItemRowProps {
   showStructuredQuestion?: boolean;
   compactMeta?: boolean;
   quickMode?: boolean;
+  compact?: boolean;
   isActive?: boolean;
   observationSuggestions?: string[];
   onActivate?: () => void;
@@ -29,6 +30,8 @@ interface AuditItemRowProps {
   onCommentUpdate: (comment: string) => void;
   onPhotoUpdate: (photoUrl?: string) => void;
   weight?: number;
+  isCalculated?: boolean;
+  calculatedResult?: CalculatedItemResult;
 }
 
 async function compressImage(file: File) {
@@ -79,6 +82,9 @@ function AuditItemRowBase({
   onCommentUpdate,
   onPhotoUpdate,
   quickMode = false,
+  compact = false,
+  isCalculated = false,
+  calculatedResult,
 }: AuditItemRowProps) {
   const [showComment, setShowComment] = useState(false);
   const [showGuidance, setShowGuidance] = useState(false);
@@ -170,6 +176,69 @@ function AuditItemRowBase({
     }
   };
 
+  if (isCalculated) {
+    const state = calculatedResult?.state ?? "pending";
+    const stateLabel = state === "complete"
+      ? "Calculado"
+      : state === "provisional"
+        ? "Provisorio"
+        : state === "not_applicable"
+          ? "Sin dato aplicable"
+          : "Pendiente";
+    const scoreLabel = typeof calculatedResult?.score === "number"
+      ? `${calculatedResult.score.toLocaleString("es-AR", { maximumFractionDigits: 1 })}%`
+      : "—";
+
+    return (
+      <motion.div
+        id={rowId}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: index * 0.05 }}
+        className={cn(
+          "premium-card p-5 space-y-4 scroll-mt-32 border-blue-500/20 bg-blue-500/[0.03]",
+          state === "pending" && "border-dashed border-amber-400/40 bg-amber-500/[0.03]",
+          state === "provisional" && "border-amber-400/40 bg-amber-500/[0.04]",
+        )}
+      >
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-2 min-w-0">
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-300">
+              <Sparkles className="h-3.5 w-3.5" />
+              Indicador calculado · {stateLabel}
+            </div>
+            <p className="text-[15px] font-black leading-tight text-slate-900 dark:text-white">
+              <span className="text-blue-600 dark:text-blue-400 mr-1">{questionOrder}.</span> {questionMainCopy}
+            </p>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              {calculatedResult?.detail || "Pendiente de una regla de cálculo configurada en Sheets."}
+            </p>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-blue-500/20 bg-white/70 px-4 py-3 text-right shadow-sm dark:bg-slate-950/40 md:min-w-32">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Resultado</p>
+              <p className="text-2xl font-black text-blue-700 dark:text-blue-300">{scoreLabel}</p>
+            </div>
+          </div>
+        </div>
+        {calculatedResult?.sources?.length ? (
+          <details className="rounded-xl border border-slate-200/80 bg-white/70 px-3 py-2 text-xs dark:border-white/10 dark:bg-slate-950/30">
+            <summary className="cursor-pointer font-bold text-slate-600 dark:text-slate-300">Ver fuentes del cálculo</summary>
+            <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+              {calculatedResult.sources.map((source) => (
+                <div key={source.name} className="flex items-center justify-between rounded-lg bg-slate-50 px-2.5 py-1.5 dark:bg-white/5">
+                  <span className="font-medium text-slate-600 dark:text-slate-300">{source.name}</span>
+                  <span className="font-black text-slate-800 dark:text-white">
+                    {source.status === "pending" ? "Pendiente" : source.status === "na" ? "N/A" : `${source.score}%`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </details>
+        ) : null}
+      </motion.div>
+    );
+  }
   return (
     <motion.div
       id={rowId}
@@ -178,7 +247,8 @@ function AuditItemRowBase({
       transition={{ delay: index * 0.05 }}
       onClick={onActivate}
       className={cn(
-        "premium-card p-5 space-y-4 scroll-mt-32 transition-all duration-500",
+        "premium-card scroll-mt-32 transition-all duration-500",
+        compact ? "p-3.5 space-y-2.5" : "p-5 space-y-4",
         item?.status === "pass" ? "bg-emerald-500/5 border-emerald-500/20 shadow-emerald-500/5" :
         item?.status === "fail" ? "bg-red-500/5 border-red-500/20 shadow-red-500/5" :
         item?.status === "na" ? "bg-slate-500/5 border-slate-500/10 opacity-70" :
@@ -194,9 +264,9 @@ function AuditItemRowBase({
       {item?.status === "pass" && (
         <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500 rounded-l-2xl opacity-50 z-10" />
       )}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-2 flex-1 min-w-0">
-          <p className="text-[15px] font-black leading-tight text-slate-900 dark:text-white group-hover:text-[--accent-neon] transition-colors">
+      <div className={cn("flex flex-col md:flex-row md:items-center justify-between", compact ? "gap-3" : "gap-6")}>
+        <div className={cn("flex-1 min-w-0", compact ? "space-y-1.5" : "space-y-2")}>
+          <p className={cn("font-black leading-tight text-slate-900 dark:text-white group-hover:text-[--accent-neon] transition-colors", compact ? "text-sm" : "text-[15px]")}>
             <span className="text-blue-600 dark:text-blue-400 mr-1">{questionOrder}.</span> {questionMainCopy}
           </p>
           {(questionHint || description) && (
@@ -242,9 +312,9 @@ function AuditItemRowBase({
                 <HelpCircle className="h-4 w-4" />
               </button>
             )}
-            <div className="flex justify-center gap-3 w-full">
+            <div className={cn("flex justify-center w-full", compact ? "gap-2" : "gap-3")}>
               {[
-                { id: "pass", label: "OK", icon: CheckCircle2, bg: "bg-emerald-500", glow: "rgba(16, 185, 129, 0.4)" },
+                { id: "pass", label: "SI", icon: CheckCircle2, bg: "bg-emerald-500", glow: "rgba(16, 185, 129, 0.4)" },
                 { id: "fail", label: "NO", icon: XCircle, bg: "bg-red-500", glow: "rgba(239, 68, 68, 0.4)" },
                 { id: "na", label: "N/A", icon: MinusCircle, bg: "bg-slate-500", glow: "rgba(100, 116, 139, 0.4)" },
               ].map((btn) => (
@@ -258,7 +328,8 @@ function AuditItemRowBase({
                     setTimeout(() => setLastStatusChange(null), 1000);
                   }}
                   className={cn(
-                    "flex flex-col items-center justify-center gap-1 h-20 w-24 md:h-16 md:w-20 rounded-[2rem] border-2 transition-all active:scale-95 relative overflow-hidden",
+                    "flex flex-col items-center justify-center gap-1 border-2 transition-all active:scale-95 relative overflow-hidden",
+                    compact ? "h-14 w-[4.25rem] rounded-2xl" : "h-20 w-24 md:h-16 md:w-20 rounded-[2rem]",
                     item?.status === btn.id
                       ? `${btn.bg} border-transparent text-white shadow-lg`
                       : "bg-white dark:bg-slate-900 border-slate-100 dark:border-white/5 text-slate-500 hover:border-slate-200 dark:hover:border-white/10",
@@ -276,7 +347,7 @@ function AuditItemRowBase({
                       />
                     )}
                   </AnimatePresence>
-                  <btn.icon className={cn("h-6 w-6 relative z-10 transition-transform", item?.status === btn.id && "scale-110")} />
+                  <btn.icon className={cn(compact ? "h-5 w-5" : "h-6 w-6", "relative z-10 transition-transform", item?.status === btn.id && "scale-110")} />
                   <span className="text-[10px] font-black uppercase tracking-widest relative z-10">{btn.label}</span>
                 </button>
               ))}
@@ -284,7 +355,7 @@ function AuditItemRowBase({
         </div>
       </div>
 
-      <div className={cn("flex gap-2", quickMode && "md:w-1/3 ml-auto")}>
+      <div className={cn("flex gap-2", quickMode && "md:w-1/3 ml-auto", compact && "md:w-[14rem] md:ml-auto")}>
         <button
           onClick={(e) => { e.stopPropagation(); setShowComment(!showComment); }}
           className={cn(

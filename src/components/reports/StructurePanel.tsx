@@ -17,6 +17,7 @@ import {
 import { cn } from "../../lib/utils";
 import {
   AuditCategory,
+  CalculationRule,
   AuditItemPriority,
   AuditStructureScope,
   OrAuditSector,
@@ -29,16 +30,24 @@ interface StructurePanelProps {
   structureStorageLabel: "local" | "cloud" | "sheet";
   isLoadingStructureFromCloud: boolean;
   isSavingStructureToCloud: boolean;
+  isLoadingStructureFromSheet: boolean;
   isSavingStructureToSheet: boolean;
   handleLoadStructureFromCloud: () => void;
   handleSaveStructureToCloud: () => void;
   handleSaveStructureToSheet: () => void;
+  handleLoadStructureFromSheet: () => void;
   handleResetStructure: () => void;
   auditCategories: AuditCategory[];
+  calculationRules: CalculationRule[];
+  handleToggleCalculationLink: (link: {
+    sourceArea: string;
+    sourceItemId: string;
+    targetArea: string;
+    targetItemId: string;
+  }) => void;
   selectedStructureCategory: AuditCategory | null;
   selectedStructureCategoryId: string;
   setSelectedStructureCategoryId: (categoryId: string) => void;
-  updateCategory: (categoryId: string, updater: (category: AuditCategory) => AuditCategory) => void;
   handleDuplicateCategory: (categoryId: string) => void;
   handleDeleteCategory: (categoryId: string) => void;
   handleDeleteItem: (categoryId: string, itemId: string) => void;
@@ -74,6 +83,7 @@ interface StructurePanelProps {
   setNewItemRequiresCommentOnFail: (value: boolean) => void;
   handleAddItem: () => void;
   handleMoveItem: (itemId: string, direction: "up" | "down") => void;
+  handleToggleItemResponsibleRole: (itemId: string, role: OrResponsibleRole) => void;
   lastStructureSavedAt: string | null;
   hasPendingStructureChanges: boolean;
 }
@@ -84,10 +94,11 @@ export function StructurePanel({
   selectedStructureScope,
   setSelectedStructureScope,
   auditCategories,
+  calculationRules,
+  handleToggleCalculationLink,
   selectedStructureCategory,
   selectedStructureCategoryId,
   setSelectedStructureCategoryId,
-  updateCategory,
   handleDuplicateCategory,
   handleDeleteCategory,
   handleDeleteItem,
@@ -98,21 +109,28 @@ export function StructurePanel({
   handleAddCategory,
   newItemText,
   setNewItemText,
+  newItemSector,
+  setNewItemSector,
+  newItemResponsibleRoles,
+  setNewItemResponsibleRoles,
   handleAddItem,
   handleMoveItem,
+  handleToggleItemResponsibleRole,
   lastStructureSavedAt,
-  handleSaveStructureToCloud,
+  handleSaveStructureToCloud: _handleSaveStructureToCloud,
   handleSaveStructureToSheet,
-  isSavingStructureToCloud,
+  handleLoadStructureFromSheet,
+  isSavingStructureToCloud: _isSavingStructureToCloud,
   isSavingStructureToSheet,
+  isLoadingStructureFromSheet,
   hasPendingStructureChanges,
-  structureStorageLabel
 }: StructurePanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>("categories");
   const [itemSearch, setItemSearch] = useState("");
   const [showOnlyActive, setShowOnlyActive] = useState(false);
   const [selectedSourceAreaName, setSelectedSourceAreaName] = useState("");
   const [selectedTargetAreaName, setSelectedTargetAreaName] = useState("");
+  const renderableCategories = auditCategories.filter((category) => category.name.trim().length > 0);
   
   const savedLabel = lastStructureSavedAt
     ? new Date(lastStructureSavedAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })
@@ -120,10 +138,10 @@ export function StructurePanel({
 
   // Auto-select category if none selected
   useEffect(() => {
-    if (!selectedStructureCategory && auditCategories.length > 0) {
-      setSelectedStructureCategoryId(auditCategories[0].id);
+    if (!selectedStructureCategory && renderableCategories.length > 0) {
+      setSelectedStructureCategoryId(renderableCategories[0].id);
     }
-  }, [auditCategories, selectedStructureCategory, setSelectedStructureCategoryId]);
+  }, [renderableCategories, selectedStructureCategory, setSelectedStructureCategoryId]);
 
   // Derived data
   const selectedStructureItems = selectedStructureCategory?.items ?? [];
@@ -136,50 +154,44 @@ export function StructurePanel({
     return matchesSearch && matchesActive;
   });
 
-  const sourceMatrixItems = auditCategories.find(c => c.name === selectedSourceAreaName)?.items ?? [];
-  const targetMatrixItems = auditCategories.find(c => c.name === selectedTargetAreaName)?.items ?? [];
-
-  const toggleMatrixCell = (sourceItemId: string, destinationItemId: string) => {
-    const sourceCategory = auditCategories.find(c => c.name === selectedSourceAreaName);
-    const targetCategory = auditCategories.find(c => c.name === selectedTargetAreaName);
-    if (!sourceCategory || !targetCategory) return;
-
-    const sourceItem = sourceCategory.items.find(i => i.id === sourceItemId);
-    const destinationItem = targetCategory.items.find(i => i.id === destinationItemId);
-    if (!sourceItem || !destinationItem) return;
-
-    updateCategory(sourceCategory.id, (category) => ({
-      ...category,
-      items: category.items.map((item) => {
-        if (item.id !== sourceItemId) return item;
-        const currentLinks = Array.isArray(item.scoreLinks) ? item.scoreLinks : [];
-        const hasLink = currentLinks.some(l => l.area === targetCategory.name && l.destinationItemId === destinationItemId);
-        const nextLinks = hasLink
-          ? currentLinks.filter(l => !(l.area === targetCategory.name && l.destinationItemId === destinationItemId))
-          : [...currentLinks, { area: targetCategory.name, weight: 100, destinationItemId, destinationItemText: destinationItem.text }];
-        return { ...item, scoreLinks: nextLinks, scoreAreas: nextLinks.map(l => l.area) };
-      }),
-    }));
+  const sourceMatrixItems = renderableCategories.find(c => c.name === selectedSourceAreaName)?.items ?? [];
+  const targetMatrixItems = renderableCategories.find(c => c.name === selectedTargetAreaName)?.items ?? [];
+  const isOrdersCategory = selectedStructureCategory?.name.toLowerCase().includes("orden") ?? false;
+  const responsibleRoleOptions: Array<{ value: OrResponsibleRole; label: string }> = [
+    { value: "asesor", label: "Asesor" },
+    { value: "tecnico", label: "Técnico" },
+    { value: "controller", label: "Controller" },
+    { value: "lavador", label: "Lavador" },
+    { value: "repuestos", label: "Repuestos" },
+  ];
+  const sectorLabels: Record<OrAuditSector, string> = {
+    recepcion: "Recepción",
+    taller: "Taller",
+    control_calidad: "Control de calidad",
+    lavado: "Lavado",
+    repuestos: "Repuestos",
+    resumen: "Resumen",
   };
 
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-700">
+    <div className="space-y-4 animate-in fade-in duration-700">
       {/* Header & Controls */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-white/5 shadow-xl shadow-slate-200/50 dark:shadow-none">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
-            <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Gestión de Estructura</h2>
+            <h2 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Estructura de auditorías</h2>
           </div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-             Configure áreas, preguntas y vínculos inteligentes
-             {savedLabel && <span className="text-emerald-500">• Último guardado: {savedLabel}</span>}
+          <p className="text-xs font-medium text-slate-500 flex items-center gap-2">
+             Administrá áreas, preguntas y reglas de cálculo.
+             {savedLabel && <span>Último guardado: {savedLabel}</span>}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
           {/* Sync Buttons */}
-          <div className="flex items-center gap-2 bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-slate-200 dark:border-white/5 relative">
+          <div className="flex items-center gap-2 relative">
             {hasPendingStructureChanges && (
               <motion.div 
                 initial={{ scale: 0 }}
@@ -190,35 +202,28 @@ export function StructurePanel({
               </motion.div>
             )}
             <button 
-              onClick={handleSaveStructureToSheet}
-              disabled={isSavingStructureToSheet}
-              title="Guardar configuración en el Google Sheet"
+              onClick={handleLoadStructureFromSheet}
+              disabled={isLoadingStructureFromSheet}
+              title="Leer la configuración vigente de Google Sheets"
               className={cn(
-                "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                structureStorageLabel === 'sheet' && !hasPendingStructureChanges
-                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20" 
-                  : hasPendingStructureChanges 
-                    ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20 animate-pulse"
-                    : "bg-white dark:bg-white/10 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20 hover:bg-emerald-50"
+                "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border border-slate-200 text-slate-600 hover:bg-slate-50"
               )}
             >
               <Table className="h-4 w-4" />
-              {isSavingStructureToSheet ? "Enviando..." : hasPendingStructureChanges ? "Publicar Cambios" : "Sincronizar Sheet"}
+              {isLoadingStructureFromSheet ? "Recargando..." : "Recargar"}
             </button>
             
             <button 
-              onClick={handleSaveStructureToCloud}
-              disabled={isSavingStructureToCloud}
-              title="Guardar configuración en Firestore (Nube)"
+              onClick={handleSaveStructureToSheet}
+              disabled={isSavingStructureToSheet}
+              title="Guardar la estructura actual en Google Sheets"
               className={cn(
-                "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                structureStorageLabel === 'cloud' 
-                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" 
-                  : "bg-white dark:bg-white/10 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20 hover:bg-blue-50"
+                "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
+                hasPendingStructureChanges ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-slate-100 text-slate-400"
               )}
             >
               <Database className="h-4 w-4" />
-              {isSavingStructureToCloud ? "Guardando..." : "Sincronizar Nube"}
+              {isSavingStructureToSheet ? "Guardando..." : "Guardar cambios"}
             </button>
           </div>
 
@@ -244,20 +249,20 @@ export function StructurePanel({
       </div>
 
       {/* Tabs Navigation */}
-      <div className="flex items-center gap-2 bg-slate-100 dark:bg-white/5 p-1.5 rounded-3xl w-fit border border-slate-200 dark:border-white/5">
+      <div className="flex items-center gap-1 bg-slate-100 dark:bg-white/5 p-1 rounded-xl w-fit border border-slate-200 dark:border-white/5">
         <button 
           onClick={() => setActiveTab("categories")}
           className={cn(
-            "flex items-center gap-2 px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all",
+            "flex items-center gap-2 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
             activeTab === "categories" ? "bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-md" : "text-slate-500"
           )}
         >
-          <FolderKanban className="h-4 w-4" /> Categorías
+          <FolderKanban className="h-4 w-4" /> Áreas
         </button>
         <button 
           onClick={() => setActiveTab("questions")}
           className={cn(
-            "flex items-center gap-2 px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all",
+            "flex items-center gap-2 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
             activeTab === "questions" ? "bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-md" : "text-slate-500"
           )}
         >
@@ -266,127 +271,50 @@ export function StructurePanel({
         <button 
           onClick={() => setActiveTab("matrix")}
           className={cn(
-            "flex items-center gap-2 px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all",
+            "flex items-center gap-2 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
             activeTab === "matrix" ? "bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-md" : "text-slate-500"
           )}
         >
-          <Link2 className="h-4 w-4" /> Vínculos
+          <Link2 className="h-4 w-4" /> Reglas de cálculo
         </button>
       </div>
 
       {/* Main Content Area */}
-      <div className="grid grid-cols-1 gap-6 min-h-[600px]">
+      <div className="grid grid-cols-1 gap-4">
         
         {/* Tab: Categories */}
         {activeTab === "categories" && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in slide-in-from-left-4 duration-500">
-            <div className="lg:col-span-4 space-y-6">
-              <div className="premium-card bg-white dark:bg-slate-900 border-white/5 p-6 shadow-xl">
-                 <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
-                   <PlusCircle className="h-4 w-4 text-emerald-500" /> Nueva Área
-                 </h4>
-                 <div className="space-y-4">
-                    <input 
-                      value={newCategoryName}
-                      onChange={e => setNewCategoryName(e.target.value)}
-                      placeholder="Nombre del Área (Ej: Lavadero)" 
-                      className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                    <textarea 
-                      value={newCategoryDescription}
-                      onChange={e => setNewCategoryDescription(e.target.value)}
-                      placeholder="Descripción breve..." 
-                      className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-2xl px-5 py-4 text-sm font-medium text-slate-600 dark:text-slate-400 h-24 outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                    <button 
-                      onClick={handleAddCategory}
-                      className="w-full py-4 rounded-2xl bg-emerald-600 text-[11px] font-black uppercase tracking-widest text-white shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 transition-all"
-                    >
-                      Crear Área
-                    </button>
-                 </div>
+          <div className="space-y-4 animate-in slide-in-from-left-4 duration-500">
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-3 flex items-center gap-2"><PlusCircle className="h-4 w-4 text-blue-600" /><h4 className="text-xs font-black text-slate-900">Agregar área</h4></div>
+              <div className="grid gap-3 lg:grid-cols-[minmax(220px,0.8fr)_minmax(300px,1.4fr)_140px]">
+                <input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="Nombre del área" className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none focus:border-blue-400" />
+                <input value={newCategoryDescription} onChange={e => setNewCategoryDescription(e.target.value)} placeholder="Descripción opcional" className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none focus:border-blue-400" />
+                <button onClick={handleAddCategory} disabled={!newCategoryName.trim()} className="h-11 rounded-xl bg-slate-950 px-4 text-[10px] font-black uppercase tracking-wider text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400">Agregar</button>
               </div>
+            </section>
 
-              <div className="p-6 rounded-3xl bg-blue-500/5 border border-blue-500/20">
-                <div className="flex items-start gap-3">
-                   <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
-                   <div>
-                     <p className="text-xs font-black text-blue-600 uppercase tracking-widest mb-1">Información</p>
-                     <p className="text-xs font-medium text-slate-500 leading-relaxed">
-                       Las categorías definen los sectores del negocio. Puedes duplicar una categoría existente para usarla como base en otra sucursal.
-                     </p>
-                   </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="lg:col-span-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {auditCategories.map(category => (
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3"><h4 className="text-xs font-black text-slate-900">Áreas configuradas</h4><span className="text-[10px] font-bold text-slate-400">{renderableCategories.length} áreas</span></div>
+              <div className="divide-y divide-slate-100">
+                {renderableCategories.map(category => (
                   <div 
                     key={category.id}
                     onClick={() => setSelectedStructureCategoryId(category.id)}
                     className={cn(
-                      "group premium-card p-6 cursor-pointer transition-all border border-white/5",
+                      "group grid cursor-pointer gap-3 px-4 py-3 transition sm:grid-cols-[minmax(0,1fr)_120px_auto] sm:items-center",
                       selectedStructureCategoryId === category.id 
-                        ? "bg-slate-900 dark:bg-white ring-4 ring-blue-500/20" 
-                        : "bg-white dark:bg-slate-900 hover:border-blue-500/50"
+                        ? "bg-blue-50" 
+                        : "hover:bg-slate-50"
                     )}
                   >
-                    <div className="flex items-start justify-between mb-4">
-                       <div className={cn(
-                         "h-12 w-12 rounded-2xl flex items-center justify-center transition-colors",
-                         selectedStructureCategoryId === category.id 
-                          ? "bg-white/10 text-white dark:bg-slate-900/5 dark:text-slate-900" 
-                          : "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                       )}>
-                          <FolderKanban className="h-6 w-6" />
-                       </div>
-                       <div className="flex items-center gap-2">
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); handleDuplicateCategory(category.id); }}
-                            className="p-2 rounded-xl bg-slate-50 dark:bg-white/5 text-slate-400 hover:text-blue-500 transition-colors"
-                          >
-                             <Layers className="h-4 w-4" />
-                          </button>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); handleDeleteCategory(category.id); }}
-                            className="p-2 rounded-xl bg-red-50 dark:bg-red-500/10 text-red-400 hover:text-red-500 transition-colors"
-                          >
-                             <Trash2 className="h-4 w-4" />
-                          </button>
-                       </div>
-                    </div>
-                    <h5 className={cn(
-                      "text-lg font-black uppercase tracking-tight",
-                      selectedStructureCategoryId === category.id ? "text-white dark:text-slate-900" : "text-slate-900 dark:text-white"
-                    )}>
-                      {category.name}
-                    </h5>
-                    <p className={cn(
-                      "text-xs font-medium mt-1 line-clamp-2",
-                      selectedStructureCategoryId === category.id ? "text-slate-400 dark:text-slate-500" : "text-slate-400"
-                    )}>
-                      {category.description || "Sin descripción"}
-                    </p>
-                    <div className="mt-6 flex items-center justify-between">
-                       <span className={cn(
-                         "text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg",
-                         selectedStructureCategoryId === category.id 
-                          ? "bg-white/10 text-white dark:bg-slate-900/5 dark:text-slate-900" 
-                          : "bg-slate-50 dark:bg-white/5 text-slate-500"
-                       )}>
-                         {category.items.length} Preguntas
-                       </span>
-                       <ChevronRight className={cn(
-                         "h-5 w-5 transition-transform group-hover:translate-x-1",
-                         selectedStructureCategoryId === category.id ? "text-white dark:text-slate-900" : "text-slate-300"
-                       )} />
-                    </div>
+                    <div className="min-w-0"><div className="flex items-center gap-2"><FolderKanban className="h-4 w-4 shrink-0 text-blue-600" /><h5 className="truncate text-sm font-black text-slate-900">{category.name}</h5></div>{category.description && <p className="mt-1 truncate pl-6 text-xs text-slate-500">{category.description}</p>}</div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">{category.items.length} preguntas</span>
+                    <div className="flex items-center justify-end gap-1"><button title="Duplicar área" onClick={(e) => { e.stopPropagation(); handleDuplicateCategory(category.id); }} className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-white hover:text-blue-600"><Layers className="h-4 w-4" /></button><button title="Eliminar área" onClick={(e) => { e.stopPropagation(); handleDeleteCategory(category.id); }} className="flex h-9 w-9 items-center justify-center rounded-lg text-rose-500 hover:bg-rose-50"><Trash2 className="h-4 w-4" /></button><button title="Ver preguntas" onClick={(e) => { e.stopPropagation(); setSelectedStructureCategoryId(category.id); setActiveTab("questions"); }} className="flex h-9 items-center gap-1 rounded-lg px-3 text-[10px] font-black uppercase text-blue-700 hover:bg-blue-100">Abrir <ChevronRight className="h-3.5 w-3.5" /></button></div>
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
           </div>
         )}
 
@@ -411,6 +339,12 @@ export function StructurePanel({
                           className="w-full mt-1.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
                         />
                       </div>
+                      {isOrdersCategory && (
+                        <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                          <label className="block space-y-1.5"><span className="text-[9px] font-black uppercase tracking-wider text-slate-500">Sector de la OR</span><select value={newItemSector} onChange={(event) => setNewItemSector(event.target.value as OrAuditSector)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 outline-none focus:border-blue-400">{Object.entries(sectorLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+                          <div><p className="mb-2 text-[9px] font-black uppercase tracking-wider text-slate-500">Responsables del punto</p><div className="flex flex-wrap gap-1.5">{responsibleRoleOptions.map((role) => <button key={role.value} type="button" onClick={() => setNewItemResponsibleRoles((current) => current.includes(role.value) ? current.filter((value) => value !== role.value) : [...current, role.value])} className={cn("rounded-lg border px-2.5 py-2 text-[9px] font-black", newItemResponsibleRoles.includes(role.value) ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500")}>{role.label}</button>)}</div></div>
+                        </div>
+                      )}
                       <button 
                         onClick={handleAddItem}
                         className="w-full py-4 rounded-2xl bg-blue-600 text-[11px] font-black uppercase tracking-widest text-white shadow-lg shadow-blue-500/20 hover:scale-[1.02] active:scale-95 transition-all"
@@ -470,10 +404,17 @@ export function StructurePanel({
                                             {item.block}
                                          </span>
                                        )}
+                                       {isOrdersCategory && item.sector && <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-indigo-600">{sectorLabels[item.sector]}</span>}
                                        {item.priority === 'high' && (
                                          <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-red-500/10 text-red-500">Crítico</span>
                                        )}
                                     </div>
+                                    {isOrdersCategory && (
+                                      <div className="space-y-1.5">
+                                        <div className="flex flex-wrap items-center gap-1.5"><span className="mr-1 text-[9px] font-black uppercase tracking-wider text-slate-400">Responsables</span>{responsibleRoleOptions.map((role) => { const assigned = item.responsibleRoles?.includes(role.value) ?? false; return <button key={role.value} type="button" onClick={() => handleToggleItemResponsibleRole(item.id, role.value)} className={cn("rounded-md border px-2 py-1 text-[9px] font-bold transition", assigned ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-400 hover:border-blue-300")}>{assigned ? "✓ " : "+ "}{role.label}</button>; })}</div>
+                                        <div className="flex flex-wrap items-center gap-1.5"><span className="mr-1 text-[9px] font-black uppercase tracking-wider text-slate-400">Impacta en</span>{(item.scoreAreas?.length ? item.scoreAreas : []).map((area) => <span key={area} className="rounded-md bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700">{area}</span>)}{!item.scoreAreas?.length && <span className="text-[9px] font-medium text-slate-400">Sin regla de cálculo</span>}</div>
+                                      </div>
+                                    )}
                                  </div>
                               </div>
                               
@@ -523,9 +464,9 @@ export function StructurePanel({
                    <div className="space-y-1">
                       <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Matriz de Vínculos de Calidad</h4>
                       <p className="text-xs font-medium text-slate-500 leading-relaxed">
-                        Defina cómo el resultado de un área impacta automáticamente en otra. 
+                        Cada tilde agrega esa pregunta al promedio automático de la pregunta destino.
                         <br />
-                        <span className="text-blue-600 dark:text-blue-400 font-bold">💡 Consejo:</span> Haga clic en las celdas para vincular preguntas.
+                        <span className="text-blue-600 dark:text-blue-400 font-bold">Google Sheets:</span> los vínculos se leen y se guardan en la hoja Reglas de cálculo.
                       </p>
                    </div>
                    
@@ -538,7 +479,7 @@ export function StructurePanel({
                             className="bg-transparent text-sm font-black text-slate-900 dark:text-white outline-none min-w-[120px]"
                          >
                             <option value="">Seleccionar...</option>
-                            {auditCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                            {renderableCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                          </select>
                       </div>
                       <div className="w-[1px] h-8 bg-slate-200 dark:bg-white/10" />
@@ -550,7 +491,7 @@ export function StructurePanel({
                             className="bg-transparent text-sm font-black text-slate-900 dark:text-white outline-none min-w-[120px]"
                          >
                             <option value="">Seleccionar...</option>
-                            {auditCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                            {renderableCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                          </select>
                       </div>
                    </div>
@@ -584,11 +525,27 @@ export function StructurePanel({
                                   </div>
                                </td>
                                {targetMatrixItems.map(target => {
-                                  const isLinked = source.scoreLinks?.some(l => l.area === selectedTargetAreaName && l.destinationItemId === target.id);
+                                  const isLinked = calculationRules.some((rule) => (
+                                    rule.active
+                                    && rule.scope === selectedStructureScope
+                                    && rule.sourceArea === selectedSourceAreaName
+                                    && rule.sourceItemId === source.id
+                                    && rule.targetArea === selectedTargetAreaName
+                                    && rule.targetItemId === target.id
+                                  )) || source.scoreLinks?.some((link) => (
+                                    link.area === selectedTargetAreaName && link.destinationItemId === target.id
+                                  ));
                                   return (
                                     <td key={target.id} className="p-6 text-center border-l border-slate-100 dark:border-white/5">
                                        <button 
-                                         onClick={() => toggleMatrixCell(source.id, target.id)}
+                                         onClick={() => handleToggleCalculationLink({
+                                           sourceArea: selectedSourceAreaName,
+                                           sourceItemId: source.id,
+                                           targetArea: selectedTargetAreaName,
+                                           targetItemId: target.id,
+                                         })}
+                                         title={isLinked ? "Quitar del promedio" : "Agregar al promedio"}
+                                         aria-label={`${isLinked ? "Quitar" : "Agregar"} vínculo entre preguntas`}
                                          className={cn(
                                            "h-14 w-14 mx-auto rounded-[1.2rem] border-2 transition-all flex items-center justify-center text-lg",
                                            isLinked 

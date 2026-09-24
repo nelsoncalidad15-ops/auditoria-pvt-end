@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { LogOut, Settings, LucideIcon, X } from "lucide-react";
+import { LogOut, LucideIcon, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "../../lib/utils";
 
@@ -21,47 +21,48 @@ interface SidebarProps {
   onLogout: () => void;
 }
 
-function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNavigate, onMobileClose, onLogout }: SidebarProps) {
+function SidebarBase({ show, view, isMobileOpen, items, user, onNavigate, onMobileClose, onLogout }: SidebarProps) {
   const isActive = (itemId: string) => (itemId === "home" ? view === "setup" || view === "audit" || view === "command-center" : view === itemId);
 
   const sidebarContent = (isMobile: boolean) => (
     <div className="flex flex-col h-full relative z-10">
       {/* Brand Section */}
-      <div className="flex items-center gap-3 px-6 py-10 transition-all duration-300">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[--accent-neon] text-[#050a14] shadow-lg shadow-[--accent-neon-glow]">
-          <Settings className="h-6 w-6" />
-        </div>
+      <div className="flex items-center gap-3 px-5 py-6 border-b border-white/10 transition-all duration-300">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/50 text-white text-[11px] font-black italic">VW</div>
         <motion.div 
           initial={{ opacity: 0, x: -10 }} 
           animate={{ opacity: 1, x: 0 }}
           className="min-w-0"
         >
-          <h1 className="text-xl font-black leading-none tracking-tighter text-white uppercase italic">{appTitle}</h1>
-          <p className="mt-1.5 text-[9px] font-black uppercase tracking-[0.25em] text-[--accent-neon] neon-text">SYSTEM CORE</p>
+          <h1 className="text-sm font-bold leading-tight tracking-tight text-white">Autosol Auditoría</h1>
+          <p className="mt-1 text-[8px] font-bold uppercase tracking-[0.2em] text-[#7fbae0]">Control operativo</p>
         </motion.div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-2 px-3 py-4">
+      <nav className="flex-1 space-y-1 px-3 py-4">
         {items.map((item) => (
           <button
             key={item.id}
             onClick={() => {
+              if (item.id === "setup" && typeof window !== "undefined") {
+                window.location.hash = "#/nueva";
+              }
               onNavigate(item.id);
               if (isMobile) onMobileClose();
             }}
             className={cn(
-              "group relative flex w-full items-center gap-4 rounded-2xl px-4 py-3.5 transition-all duration-300",
+              "group relative flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 transition-all duration-200",
               isActive(item.id)
-                ? "bg-[--accent-neon] text-[#050a14] shadow-xl shadow-[--accent-neon-glow]"
-                : "text-white hover:bg-white/10 hover:text-white"
+                ? "bg-white text-[#001e50] shadow-sm"
+                : "text-slate-300 hover:bg-white/10 hover:text-white"
             )}
           >
-            <item.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110 group-active:scale-90", isActive(item.id) ? "text-[#050a14]" : "text-white group-hover:text-white")} />
+            <item.icon className={cn("h-[17px] w-[17px] shrink-0", isActive(item.id) ? "text-[#001e50]" : "text-slate-400 group-hover:text-white")} />
             <motion.span 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }}
-              className="text-xs font-black uppercase tracking-widest truncate"
+              className="text-[10px] font-bold uppercase tracking-[0.12em] truncate"
             >
               {item.label}
             </motion.span>
@@ -102,8 +103,8 @@ function SidebarBase({ appTitle, show, view, isMobileOpen, items, user, onNaviga
       {show && (
         <aside
           className={cn(
-            "hidden lg:flex flex-col fixed inset-y-0 left-0 z-50 border-r border-white/10 bg-[#111827] shadow-[10px_0_30px_rgba(0,0,0,0.3)]",
-            "w-[280px]"
+            "hidden lg:flex flex-col fixed inset-y-0 left-0 z-50 border-r border-[#173963] bg-[#001e50] shadow-[8px_0_24px_rgba(0,30,80,0.12)]",
+            "w-[236px]"
           )}
         >
           <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />

@@ -17,6 +17,10 @@ interface AppShellProps {
   view: AppView;
   user: { displayName?: string | null; email?: string | null } | null;
   userProfile: AuditUserProfile;
+  syncStatusLabel?: string;
+  syncStatusDetail?: string;
+  syncStatusTone?: "success" | "warning" | "neutral";
+  isSyncing?: boolean;
   authenticationEnabled: boolean;
   showSidebar: boolean;
   sidebarItems: SidebarItem[];
@@ -37,7 +41,7 @@ function getMainClassName(view: AppView) {
   if (view === "dashboard" || view === "command-center" || view === "home") return "max-w-7xl mx-auto w-full";
   if (view === "setup") return "max-w-5xl mx-auto w-full pb-32";
   if (view === "audit") return "max-w-7xl mx-auto w-full pb-28 pt-2 md:pt-4";
-  if (view === "structure" || view === "integrations") return "max-w-[1440px] mx-auto w-full pb-12";
+  if (view === "structure" || view === "integrations" || view === "stock-control") return "max-w-[1440px] mx-auto w-full pb-12";
   if (view === "continuar") return "max-w-6xl mx-auto w-full pb-28";
   return "max-w-md mx-auto w-full lg:max-w-4xl lg:mx-0";
 }
@@ -47,6 +51,10 @@ export function AppShell({
   view,
   user,
   userProfile,
+  syncStatusLabel,
+  syncStatusDetail,
+  syncStatusTone,
+  isSyncing,
   authenticationEnabled,
   showSidebar,
   sidebarItems,
@@ -63,20 +71,9 @@ export function AppShell({
   children,
 }: AppShellProps) {
   return (
-    <div className="min-h-screen flex bg-[--bg] transition-colors duration-500 overflow-x-hidden relative">
+    <div className="audit-app-shell min-h-screen flex transition-colors duration-300 overflow-x-hidden relative">
       {/* Premium Background Elements */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-40 dark:opacity-100">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[140px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-cyan-500/10 rounded-full blur-[140px]" />
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03]" />
-        <div 
-          className="absolute inset-0" 
-          style={{ 
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)`,
-            backgroundSize: '50px 50px'
-          }} 
-        />
-      </div>
+      <div className="fixed inset-0 pointer-events-none z-0 bg-[linear-gradient(180deg,#f8fafc_0%,#f3f6fa_100%)]" />
 
       <Sidebar
         appTitle={appTitle}
@@ -90,23 +87,27 @@ export function AppShell({
         onLogout={onLogout}
       />
 
-      <div ref={contentContainerRef} className={cn("flex-1 flex flex-col min-h-[100dvh] relative", showSidebar && "lg:pl-[280px]")}>
+      <div ref={contentContainerRef} className={cn("flex-1 flex flex-col min-h-[100dvh] relative", showSidebar && "lg:pl-[236px]")}>
         <Topbar
           appTitle={appTitle}
           view={view}
           user={user}
           userProfile={userProfile}
+          syncStatusLabel={syncStatusLabel}
+          syncStatusDetail={syncStatusDetail}
+          syncStatusTone={syncStatusTone}
+          isSyncing={isSyncing}
           onUserProfileChange={() => {}}
           authenticationEnabled={authenticationEnabled}
           showMenuButton={showSidebar}
-          showBackButton={view !== "home" && view !== "command-center"}
+          showBackButton={view !== "dashboard" && view !== "home" && view !== "command-center"}
           backLabel={backLabel}
           onOpenMenu={onOpenMobileNav}
           onBack={onBack}
           onLogin={() => {}}
         />
 
-        <main className={cn("px-4 pb-4 pt-2 md:px-8 md:pb-8 md:pt-4 flex-1 transition-all duration-300 relative z-10", getMainClassName(view))}>
+        <main className={cn("audit-app-main px-4 pb-4 md:px-6 md:pb-6 flex-1 transition-all duration-300 relative z-10", getMainClassName(view))}>
           <AnimatePresence mode="wait">
             <motion.div
               key={view}

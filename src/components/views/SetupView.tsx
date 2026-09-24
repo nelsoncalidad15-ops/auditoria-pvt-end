@@ -1,15 +1,4 @@
-import { 
-  ArrowLeft, 
-  Check, 
-  ChevronRight, 
-  MapPin, 
-  User, 
-  Calendar,
-  Info,
-  Settings2,
-  ClipboardCheck
-} from "lucide-react";
-import { motion } from "motion/react";
+import { ArrowLeft, Calendar, Check, ChevronRight, ClipboardEdit, MapPin, User } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Auditor, Location } from "../../types";
 
@@ -22,208 +11,53 @@ interface SetupViewProps {
   auditBatchDisplayName?: string;
   onSelectAuditor: (auditorId: string) => void;
   onSelectLocation: (location: Location) => void;
+  onAuditNameChange?: (name: string) => void;
   onCancel: () => void;
   onContinue: () => void;
 }
 
-export function SetupView({
-  dateLabel,
-  auditors,
-  locations,
-  selectedAuditorId,
-  selectedLocation,
-  auditBatchDisplayName,
-  onSelectAuditor,
-  onSelectLocation,
-  onCancel,
-  onContinue,
-}: SetupViewProps) {
+export function SetupView({ dateLabel, auditors, locations, selectedAuditorId, selectedLocation, auditBatchDisplayName, onSelectAuditor, onSelectLocation, onAuditNameChange, onCancel, onContinue }: SetupViewProps) {
   const canContinue = Boolean(selectedAuditorId && selectedLocation);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-10 pt-2 pb-6">
-      {/* Hero Section */}
-      <div className="space-y-4 px-2">
-        <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-black uppercase tracking-[0.2em] text-[10px]">
-          <Settings2 className="h-4 w-4" />
-          Configuración Inicial
+    <div className="mx-auto w-full max-w-3xl space-y-4 py-2">
+      <header className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">Nueva auditoría</p>
+          <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950">Datos iniciales</h2>
+          <p className="mt-1 text-xs font-medium text-slate-500">Definí estos datos una sola vez. Después elegís el tipo y el área.</p>
         </div>
-        <h2 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">Preparar Auditoría</h2>
-        <p className="text-lg text-slate-500 dark:text-slate-400 font-medium">Define los parámetros de la sesión antes de comenzar el relevamiento.</p>
-      </div>
+        <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600"><Calendar className="h-4 w-4 text-blue-600" /> {dateLabel || "Hoy"}</div>
+      </header>
 
-      {/* Progress Cards */}
-      <div className="grid grid-cols-2 gap-4 px-2">
-        <div className="premium-card p-4 md:p-6 bg-white dark:bg-slate-900 flex flex-col md:flex-row items-center md:items-start lg:items-center gap-3 md:gap-4">
-          <div className="h-10 w-10 md:h-12 md:w-12 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 shrink-0">
-            <Calendar className="h-5 w-5 md:h-6 md:w-6" />
-          </div>
-          <div className="text-center md:text-left">
-            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400">Fecha</p>
-            <p className="text-sm md:text-lg font-black truncate max-w-[120px] md:max-w-none">{dateLabel || "Hoy"}</p>
-          </div>
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="space-y-2">
+            <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500"><User className="h-4 w-4" /> Auditor</span>
+            <select value={selectedAuditorId || ""} onChange={(event) => onSelectAuditor(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
+              <option value="">Seleccionar auditor</option>
+              {auditors.map((auditor) => <option key={auditor.id} value={auditor.id}>{auditor.name}</option>)}
+            </select>
+          </label>
+          <label className="space-y-2">
+            <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500"><MapPin className="h-4 w-4" /> Sucursal</span>
+            <select value={selectedLocation || ""} onChange={(event) => onSelectLocation(event.target.value as Location)} className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
+              <option value="">Seleccionar sucursal</option>
+              {locations.map((location) => <option key={location} value={location}>{location}</option>)}
+            </select>
+          </label>
         </div>
-        <div className={cn(
-          "premium-card p-4 md:p-6 flex flex-col md:flex-row items-center md:items-start lg:items-center gap-3 md:gap-4 transition-all duration-500",
-          canContinue ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800" : "bg-white dark:bg-slate-900"
-        )}>
-          <div className={cn(
-            "h-10 w-10 md:h-12 md:w-12 rounded-2xl flex items-center justify-center transition-colors shrink-0",
-            canContinue ? "bg-emerald-100 text-emerald-600" : "bg-slate-50 dark:bg-slate-800 text-slate-400"
-          )}>
-            {canContinue ? <Check className="h-5 w-5 md:h-6 md:w-6" /> : <Info className="h-5 w-5 md:h-6 md:w-6" />}
-          </div>
-          <div className="text-center md:text-left">
-            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400">Estado</p>
-            <p className={cn("text-sm md:text-lg font-black", canContinue ? "text-emerald-700" : "text-slate-500")}>
-              {canContinue ? "Listo" : "Pendiente"}
-            </p>
-          </div>
-        </div>
-      </div>
+        <label className="mt-4 block space-y-2">
+          <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500"><ClipboardEdit className="h-4 w-4" /> Nombre de la auditoría <span className="font-medium normal-case tracking-normal text-slate-400">(opcional)</span></span>
+          <input value={auditBatchDisplayName || ""} onChange={(event) => onAuditNameChange?.(event.target.value)} placeholder="Ej.: Control Postventa - Septiembre" className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+          <p className="text-[11px] font-medium text-slate-400">Sirve para identificarla y evita mezclarla con auditorías anteriores.</p>
+        </label>
+      </section>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Auditor Selection */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between px-2">
-            <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Seleccionar Auditor</h3>
-            <User className="h-4 w-4 text-slate-300" />
-          </div>
-          <div className="space-y-3">
-            {auditors.map((auditor, i) => {
-              const isActive = selectedAuditorId === auditor.id;
-              return (
-                <motion.button
-                  key={auditor.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  onClick={() => onSelectAuditor(auditor.id)}
-                  className={cn(
-                    "w-full premium-card p-4 text-left flex items-center justify-between transition-all group relative overflow-hidden",
-                    isActive 
-                      ? "!bg-slate-950 !text-white !border-slate-900 shadow-2xl ring-2 ring-blue-500/35" 
-                      : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-white/5"
-                  )}
-                >
-                  <div className="flex items-center gap-4 relative z-10">
-                    <div className={cn(
-                      "h-12 w-12 rounded-2xl flex items-center justify-center font-black text-lg shadow-inner",
-                      isActive ? "bg-white/12 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500 group-hover:bg-blue-500 group-hover:text-white transition-all duration-300"
-                    )}>
-                      {auditor.name.charAt(0)}
-                    </div>
-                    <div>
-                      <p className={cn("font-black tracking-tight", isActive ? "text-white" : "text-slate-900 dark:text-white")}>{auditor.name}</p>
-                      <p className={cn("text-[10px] font-bold uppercase tracking-widest", isActive ? "text-slate-300" : "text-slate-400")}>
-                        {isActive ? "Seleccionado" : "Auditor Certificado"}
-                      </p>
-                    </div>
-                  </div>
-                  {isActive && (
-                    <motion.div layoutId="auditor-check" className="relative z-10">
-                      <Check className="h-6 w-6 text-blue-300" />
-                    </motion.div>
-                  )}
-                </motion.button>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Location Selection */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between px-2">
-            <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Seleccionar Sucursal</h3>
-            <MapPin className="h-4 w-4 text-slate-300" />
-          </div>
-          <div className="grid grid-cols-1 gap-3">
-            {locations.map((location, i) => {
-              const isActive = selectedLocation === location;
-              return (
-                <motion.button
-                  key={location}
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  onClick={() => onSelectLocation(location)}
-                  className={cn(
-                    "w-full premium-card p-4 text-left flex items-center justify-between transition-all group relative overflow-hidden",
-                    isActive 
-                      ? "!bg-slate-950 !text-white !border-slate-900 shadow-2xl ring-2 ring-blue-500/35" 
-                      : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-white/5"
-                  )}
-                >
-                  <div className="flex items-center gap-4 relative z-10">
-                    <div className={cn(
-                      "h-12 w-12 rounded-2xl flex items-center justify-center shadow-inner",
-                      isActive ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300"
-                    )}>
-                      <MapPin className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <p className={cn("font-black tracking-tight", isActive ? "text-white" : "text-slate-900 dark:text-white")}>{location}</p>
-                      <p className={cn("text-[10px] font-bold uppercase tracking-widest", isActive ? "text-slate-300" : "text-slate-400")}>
-                        {isActive ? "Sucursal Activa" : "Ubicación de Red"}
-                      </p>
-                    </div>
-                  </div>
-                  {isActive && (
-                    <motion.div layoutId="location-check" className="relative z-10">
-                      <Check className="h-6 w-6 text-white" />
-                    </motion.div>
-                  )}
-                </motion.button>
-              );
-            })}
-          </div>
-        </section>
-      </div>
-
-      {/* Footer Info & Actions */}
-      <div className="pt-8 space-y-6">
-        {selectedLocation && (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }} 
-            animate={{ opacity: 1, y: 0 }}
-            className="premium-card p-6 bg-slate-50 dark:bg-slate-900 border-dashed border-slate-300 dark:border-slate-700"
-          >
-            <div className="flex items-start gap-4">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg">
-                <ClipboardCheck className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nombre de la Auditoría</p>
-                <p className="text-sm font-bold mt-1">{auditBatchDisplayName || "Generando nombre automático..."}</p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <button
-            onClick={onCancel}
-            className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-slate-500 hover:text-slate-900 dark:hover:text-white font-bold transition-all border border-transparent hover:border-slate-200 dark:hover:border-white/10"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            Volver
-          </button>
-          <button
-            onClick={onContinue}
-            disabled={!canContinue}
-            className={cn(
-              "w-full md:w-auto flex items-center justify-center gap-2 px-10 py-5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-xl",
-              canContinue 
-                ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950 hover:bg-black active:scale-95" 
-                : "bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600 cursor-not-allowed shadow-none"
-            )}
-          >
-            Continuar a Auditoría
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
+      <footer className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <button type="button" onClick={onCancel} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-900"><ArrowLeft className="h-4 w-4" /> Cancelar</button>
+        <button type="button" onClick={onContinue} disabled={!canContinue} className={cn("inline-flex h-12 items-center justify-center gap-2 rounded-xl px-7 text-xs font-black uppercase tracking-wider transition", canContinue ? "bg-slate-950 text-white shadow-lg hover:bg-blue-700" : "cursor-not-allowed bg-slate-100 text-slate-300")}>{canContinue && <Check className="h-4 w-4" />} Continuar <ChevronRight className="h-4 w-4" /></button>
+      </footer>
     </div>
   );
 }
-
