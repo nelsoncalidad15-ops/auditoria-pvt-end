@@ -15,6 +15,7 @@ import {
   Trash2,
   FileText,
   ChevronRight,
+  Pencil,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppShell } from "./app/AppShell";
@@ -2703,10 +2704,23 @@ function AuditApp() {
                 )}
               </div>
 
-              <div className="p-8 border-t border-white/5 bg-white/5">
+              <div className="p-8 border-t border-white/5 bg-white/5 flex gap-3">
+                {canRunAudits && (
+                  <button 
+                    onClick={() => {
+                      const auditToEdit = selectedAudit;
+                      setSelectedAudit(null);
+                      handleEditAudit(auditToEdit);
+                    }}
+                    className="flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-wider text-slate-200 bg-white/10 hover:bg-white/20 transition-all active:scale-95 border border-white/10 flex items-center justify-center gap-2"
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Editar / Recalcular
+                  </button>
+                )}
                 <button 
                   onClick={() => setSelectedAudit(null)}
-                  className="w-full py-4 rounded-2xl font-black text-white bg-blue-600 hover:bg-blue-500 transition-all active:scale-95 shadow-lg shadow-blue-600/20"
+                  className="flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-wider text-white bg-blue-600 hover:bg-blue-500 transition-all active:scale-95 shadow-lg shadow-blue-600/20"
                 >
                   Cerrar Inspección
                 </button>
