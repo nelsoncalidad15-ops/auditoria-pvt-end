@@ -26,6 +26,7 @@ interface UseAuditStructureParams {
   sessionLocation?: Location;
   hasWebhookUrl: boolean;
   webhookUrl: string;
+  onSaveSuccess?: (message: string) => void;
 }
 
 function getStoredScopeOrEmpty(scope: Exclude<AuditStructureScope, "global">) {

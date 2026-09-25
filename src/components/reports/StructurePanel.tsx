@@ -237,21 +237,26 @@ export function StructurePanel({
 
           <div className="h-10 w-[1px] bg-slate-200 dark:bg-white/10 hidden lg:block" />
           
-          <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-slate-200 dark:border-white/5">
-             {(["global", "Salta", "Jujuy"] as AuditStructureScope[]).map((scope) => (
-               <button
-                 key={scope}
-                 onClick={() => setSelectedStructureScope(scope)}
-                 className={cn(
-                   "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                   selectedStructureScope === scope 
-                    ? "bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm" 
-                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                 )}
-               >
-                 {scope === "global" ? "Base" : scope}
-               </button>
-             ))}
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-slate-200 dark:border-white/5">
+               {(["global", "Salta", "Jujuy"] as AuditStructureScope[]).map((scope) => (
+                 <button
+                   key={scope}
+                   onClick={() => setSelectedStructureScope(scope)}
+                   className={cn(
+                     "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                     selectedStructureScope === scope 
+                      ? "bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm" 
+                      : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                   )}
+                 >
+                   {scope === "global" ? "Base Global" : scope}
+                 </button>
+               ))}
+            </div>
+            <span className="text-[10px] text-slate-400 font-medium">
+              {selectedStructureScope === "global" ? "Aplica a ambas sucursales por defecto" : `Específico para sucursal ${selectedStructureScope}`}
+            </span>
           </div>
         </div>
       </div>

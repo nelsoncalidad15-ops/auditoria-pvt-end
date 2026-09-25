@@ -118,11 +118,11 @@ function TopbarBase({
         <div className="flex items-center gap-2 sm:gap-3">
           <div 
             title={syncStatusDetail ? `${syncStatusLabel} • ${syncStatusDetail}` : syncStatusLabel}
-            className={cn("flex items-center gap-1.5 rounded-full border px-2.5 py-1 transition-all cursor-default", syncToneClass)}
+            className="flex items-center gap-1.5 rounded-full border border-slate-200/70 bg-slate-50/80 px-2 py-1 transition-all cursor-default dark:border-slate-800 dark:bg-slate-900/80"
           >
             <div className={cn("h-2 w-2 rounded-full shrink-0", syncDotClass, isSyncing && "animate-pulse")} />
-            <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200">
-              {isSyncing ? "Sincronizando..." : (syncStatusTone === "success" ? "Conectado" : syncStatusLabel)}
+            <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300">
+              {isSyncing ? "Sync..." : (syncStatusTone === "success" ? "En línea" : syncStatusLabel)}
             </span>
           </div>
 

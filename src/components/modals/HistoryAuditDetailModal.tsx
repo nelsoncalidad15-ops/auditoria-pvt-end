@@ -1,3 +1,4 @@
+import { Camera, ExternalLink } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 import { AuditSession } from "../../types";
@@ -91,6 +92,20 @@ export function HistoryAuditDetailModal({ audit, isOpen, onClose }: HistoryAudit
                     </div>
                     {item.comment && (
                       <p className="mt-2 text-xs font-medium italic leading-relaxed text-slate-500">"{item.comment}"</p>
+                    )}
+                    {item.photoUrl && (
+                      <div className="mt-2.5 flex items-center gap-2">
+                        <a
+                          href={item.photoUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-blue-700 transition hover:bg-blue-100"
+                        >
+                          <Camera className="h-3 w-3" />
+                          Ver foto en Drive
+                          <ExternalLink className="h-2.5 w-2.5 opacity-60" />
+                        </a>
+                      </div>
                     )}
                   </article>
                 ))}

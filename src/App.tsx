@@ -313,6 +313,10 @@ function AuditApp() {
     sessionLocation: session.location,
     hasWebhookUrl,
     webhookUrl,
+    onSaveSuccess: (msg) => {
+      setToastNotification({ message: msg, tone: 'success' });
+      setTimeout(() => setToastNotification(null), 3500);
+    },
   });
 
   const dashboardMetrics = useDashboardMetrics(history);
@@ -1666,6 +1670,8 @@ function AuditApp() {
 
       setSubmissionState("success");
       setShowSuccessModal(true);
+      setToastNotification({ message: "Auditoría guardada exitosamente en Sheets", tone: "success" });
+      setTimeout(() => setToastNotification(null), 3000);
     } catch (error) {
       console.error("Submit audit failed:", error);
       setSubmissionState("error");
