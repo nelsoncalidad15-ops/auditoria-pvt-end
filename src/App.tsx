@@ -17,6 +17,8 @@ import {
   ChevronRight,
   Pencil,
   X,
+  Camera,
+  ExternalLink,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppShell } from "./app/AppShell";
@@ -2785,6 +2787,20 @@ function AuditApp() {
                               {item.comment && (
                                 <div className="pl-3 border-l-2 border-slate-300 bg-slate-50/80 p-2 rounded-r-xl">
                                   <p className="text-[11px] text-slate-600 font-medium italic leading-relaxed">"{item.comment}"</p>
+                                </div>
+                              )}
+                              {item.photoUrl && (
+                                <div className="flex items-center gap-2 pt-1">
+                                  <a 
+                                    href={item.photoUrl} 
+                                    target="_blank" 
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition"
+                                  >
+                                    <Camera className="h-3 w-3" />
+                                    Ver evidencia fotográfica
+                                    <ExternalLink className="h-2.5 w-2.5 opacity-60" />
+                                  </a>
                                 </div>
                               )}
                             </div>

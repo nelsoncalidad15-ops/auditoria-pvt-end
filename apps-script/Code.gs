@@ -1117,22 +1117,56 @@ function uploadPhotoToDrive_(audit, row, dataUrl) {
   var parsedFile = parseDataUrl_(dataUrl);
   var fileName = buildPhotoFileName_(audit, row, parsedFile.extension);
   var blob = Utilities.newBlob(parsedFile.bytes, parsedFile.mimeType, fileName);
-  var folder = getDriveFolder_();
+  var targetFolder = getTargetDriveFolderForAudit_(audit);
 
-  if (folder) {
-    return folder.createFile(blob);
+  if (targetFolder) {
+    return targetFolder.createFile(blob);
   }
 
   return DriveApp.createFile(blob);
 }
 
+function getTargetDriveFolderForAudit_(audit) {
+  var rootFolder = getDriveFolder_();
+  if (!rootFolder) {
+    return null;
+  }
+
+  // Estructura organizada: Subcarpeta por Fecha y Área / OR
+  // Ej: "2026-09-25 - Ordenes - OR 12345" o "2026-09-25 - Asesores"
+  var dateStr = (audit && audit.date) || Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'GMT-3', 'yyyy-MM-dd');
+  var roleStr = (audit && audit.role) || 'General';
+  var orStr = (audit && audit.orderNumber) ? (' - OR ' + audit.orderNumber) : '';
+  var subfolderName = sanitizeFolderName_(dateStr + ' - ' + roleStr + orStr);
+
+  var subfolders = rootFolder.getFoldersByName(subfolderName);
+  if (subfolders.hasNext()) {
+    return subfolders.next();
+  }
+
+  return rootFolder.createFolder(subfolderName);
+}
+
 function getDriveFolder_() {
-  var folderId = PropertiesService.getScriptProperties().getProperty(DRIVE_FOLDER_ID_PROPERTY);
+  var defaultFolderId = '1pO1Atfsx0w66bPzdaGmRo9OSjRi2pZnv';
+  var folderId = PropertiesService.getScriptProperties().getProperty(DRIVE_FOLDER_ID_PROPERTY) || defaultFolderId;
   if (!folderId) {
     return null;
   }
 
-  return DriveApp.getFolderById(folderId);
+  try {
+    return DriveApp.getFolderById(folderId);
+  } catch (e) {
+    return null;
+  }
+}
+
+function sanitizeFolderName_(value) {
+  return String(value || '')
+    .replace(/[^a-zA-Z0-9-_s]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 100) || 'Auditoria';
 }
 
 function buildPhotoFileName_(audit, row, extension) {
