@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Auditoría VW">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f766e" />
+      <stop offset="100%" stop-color="#115e59" />
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="44" fill="url(#bg)" />
+  <rect x="32" y="28" width="96" height="136" rx="18" fill="#f8fafc" opacity="0.96" />
+  <path d="M62 68h36" stroke="#0f766e" stroke-width="10" stroke-linecap="round" />
+  <path d="M62 96h36" stroke="#0f766e" stroke-width="10" stroke-linecap="round" />
+  <path d="M62 124h24" stroke="#0f766e" stroke-width="10" stroke-linecap="round" />
+  <circle cx="136" cy="122" r="26" fill="#d97706" />
+  <path d="M122 122l9 9 19-24" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M68 18h24" stroke="#f59e0b" stroke-width="12" stroke-linecap="round" />
+</svg>
