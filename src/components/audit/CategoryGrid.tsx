@@ -1,3 +1,4 @@
+
 import { 
   UserCheck, 
   Wrench, 
@@ -24,65 +25,6 @@ interface CategoryGridProps {
   advisorGoal?: number;
 }
 
-// Paleta de tonos pastel elegantes y contrastados por cada área
-const ROLE_THEMES: Record<string, { iconBg: string; iconColor: string; hoverBorder: string; badge: string }> = {
-  "Asesores de servicio": {
-    iconBg: "bg-blue-50 text-blue-600",
-    iconColor: "text-blue-600",
-    hoverBorder: "hover:border-blue-300",
-    badge: "bg-blue-50 text-blue-700",
-  },
-  "Técnicos": {
-    iconBg: "bg-amber-50 text-amber-600",
-    iconColor: "text-amber-600",
-    hoverBorder: "hover:border-amber-300",
-    badge: "bg-amber-50 text-amber-700",
-  },
-  "Jefe de Taller": {
-    iconBg: "bg-indigo-50 text-indigo-600",
-    iconColor: "text-indigo-600",
-    hoverBorder: "hover:border-indigo-300",
-    badge: "bg-indigo-50 text-indigo-700",
-  },
-  "Lavadero": {
-    iconBg: "bg-cyan-50 text-cyan-600",
-    iconColor: "text-cyan-600",
-    hoverBorder: "hover:border-cyan-300",
-    badge: "bg-cyan-50 text-cyan-700",
-  },
-  "Garantía": {
-    iconBg: "bg-emerald-50 text-emerald-600",
-    iconColor: "text-emerald-600",
-    hoverBorder: "hover:border-emerald-300",
-    badge: "bg-emerald-50 text-emerald-700",
-  },
-  "Repuestos": {
-    iconBg: "bg-violet-50 text-violet-600",
-    iconColor: "text-violet-600",
-    hoverBorder: "hover:border-violet-300",
-    badge: "bg-violet-50 text-violet-700",
-  },
-  "Pre Entrega": {
-    iconBg: "bg-rose-50 text-rose-600",
-    iconColor: "text-rose-600",
-    hoverBorder: "hover:border-rose-300",
-    badge: "bg-rose-50 text-rose-700",
-  },
-  "Ordenes": {
-    iconBg: "bg-teal-50 text-teal-600",
-    iconColor: "text-teal-600",
-    hoverBorder: "hover:border-teal-300",
-    badge: "bg-teal-50 text-teal-700",
-  },
-};
-
-const DEFAULT_THEME = {
-  iconBg: "bg-slate-50 text-slate-600",
-  iconColor: "text-slate-600",
-  hoverBorder: "hover:border-blue-300",
-  badge: "bg-slate-50 text-slate-700",
-};
-
 export function CategoryGrid({
   categories,
   completedReports,
@@ -93,20 +35,19 @@ export function CategoryGrid({
   advisorGoal = 10,
 }: CategoryGridProps) {
   const getDisplayName = (name: string) => ({
-    "Ordenes": "Órdenes de Reparación (OR)",
+    "Ordenes": "Órdenes de reparación",
     "Tecnicos": "Técnicos",
     "TÃ©cnicos": "Técnicos",
     "Garantia": "Garantía",
     "GarantÃ­a": "Garantía",
     "Pre Entrega": "Pre-entrega",
   }[name] || name);
-
   const getIcon = (name: string) => {
     if (name.includes("Asesor")) return UserCheck;
     if (name.includes("Técnico")) return Wrench;
     if (name.includes("Jefe")) return ShieldCheck;
     if (name.includes("Lavadero")) return Droplets;
-    if (name.includes("Garantía") || name.includes("Garantia")) return FileCheck;
+    if (name.includes("Garantía")) return FileCheck;
     if (name.includes("Repuestos")) return Package;
     if (name.includes("Pre Entrega")) return Truck;
     if (name.includes("Ordenes")) return FileText;
@@ -119,7 +60,6 @@ export function CategoryGrid({
         const Icon = getIcon(category.name);
         const report = completedReports.find((r) => r.role === category.name);
         const count = auditCounts[category.name] || 0;
-        const theme = ROLE_THEMES[category.name] || DEFAULT_THEME;
         
         let progress = report?.session.totalScore;
         if (category.name === "Ordenes") progress = sampledOrdersProgress;
@@ -130,55 +70,59 @@ export function CategoryGrid({
         return (
           <motion.button
             key={category.id}
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.03 }}
+            transition={{ delay: index * 0.05 }}
             onClick={() => onSelectCategory(category)}
             className={cn(
-              "group relative flex min-h-[86px] items-center gap-3.5 rounded-2xl border bg-white p-4 text-left transition-all duration-200 active:scale-[0.98] shadow-xs hover:shadow-md",
+              "group relative flex min-h-[82px] items-center gap-3 rounded-2xl border p-3.5 text-left transition-all active:scale-[0.98]",
               isCompleted
-                ? "border-emerald-200 bg-emerald-50/20 hover:border-emerald-300"
-                : cn("border-slate-200", theme.hoverBorder)
+                ? "bg-emerald-50/50 border-emerald-100 hover:border-emerald-300 dark:bg-emerald-500/5 dark:border-emerald-500/20"
+                : "bg-white border-slate-100 hover:border-blue-300 dark:bg-slate-900 dark:border-slate-800 dark:hover:border-blue-500/50",
+              "shadow-sm hover:-translate-y-0.5 hover:shadow-md"
             )}
           >
             <div className={cn(
-              "h-11 w-11 shrink-0 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105 shadow-xs",
-              isCompleted ? "bg-emerald-500 text-white" : theme.iconBg
+              "h-10 w-10 shrink-0 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105",
+              isCompleted ? "bg-emerald-500 text-white" : "bg-slate-50 dark:bg-slate-800 text-slate-400 group-hover:text-blue-500 group-hover:bg-blue-50 dark:group-hover:bg-blue-500/10"
             )}>
               <Icon className="h-5 w-5" />
             </div>
             
-            <div className="flex-1 min-w-0">
-              <span className="block truncate text-xs font-black uppercase tracking-wider text-slate-900">
+            <div className="space-y-1 w-full">
+              <span className={cn(
+                "block pr-4 font-black text-[11px] uppercase tracking-wider leading-tight",
+                isCompleted ? "text-emerald-950 dark:text-emerald-400" : "text-slate-900 dark:text-slate-200"
+              )}>
                 {getDisplayName(category.name)}
               </span>
               
               {isCompleted ? (
-                <div className="space-y-1.5 mt-2">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 bg-emerald-100 rounded-full overflow-hidden">
+                <div className="space-y-1.5 mt-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex-1 h-1.5 bg-emerald-200 dark:bg-emerald-500/20 rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-emerald-500 transition-all duration-500" 
+                        className="h-full bg-emerald-500" 
                         style={{ width: `${progress || 0}%` }} 
                       />
                     </div>
-                    <span className="text-[10px] font-black text-emerald-700">{progress || 0}%</span>
+                    <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">{progress || 0}%</span>
                   </div>
-                  <p className="text-[9px] font-bold text-slate-500">
-                    {category.name === "Ordenes" ? `${count} de ${advisorGoal} ORs completadas` : `${count} evaluación(es)`}
+                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-700/60 dark:text-emerald-400/60">
+                    {category.name === "Ordenes" ? `${count} / ${advisorGoal} ORs` : category.name === "Asesores de servicio" ? `${count} / ${advisorGoal} Audit.` : `${count} Audit.`}
                   </p>
                 </div>
               ) : (
-                <div className="flex items-center justify-between mt-2">
-                  <span className="text-[10px] font-bold text-slate-400">Iniciar evaluación</span>
-                  <ChevronRight className="h-3.5 w-3.5 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
+                <div className="flex items-center justify-between mt-1.5 w-full">
+                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Seleccionar</p>
+                   <ChevronRight className="h-3 w-3 text-slate-300 group-hover:text-blue-500 transform group-hover:translate-x-1 transition-all" />
                 </div>
               )}
             </div>
 
             {isCompleted && (
-              <div className="absolute top-3.5 right-3.5">
-                <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
+              <div className="absolute top-4 right-4">
+                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               </div>
             )}
           </motion.button>

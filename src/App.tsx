@@ -16,6 +16,7 @@ import {
   FileText,
   ChevronRight,
   Pencil,
+  X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppShell } from "./app/AppShell";
@@ -747,33 +748,45 @@ function AuditApp() {
       alert("El perfil Consulta no puede editar auditorías.");
       return;
     }
+    // Si la auditoría tiene auditorías hijas (ej. lote de varias ORs), tomamos la primera para editar o la auditoría directa
     const sourceAudit = audit.childAudits?.[0] ?? audit;
-    const editableRole = sourceAudit.role || sourceAudit.items[0]?.category || null;
+    const editableRole = sourceAudit.role || sourceAudit.items[0]?.category || audit.role || null;
+    const cleanStaffName = (sourceAudit.staffName || sourceAudit.participants?.asesorServicio || audit.staffName || "").trim();
+    // Limpiar número de orden si viene con "2 OR" etc. de agrupados
+    let cleanOrderNumber = (sourceAudit.orderNumber || audit.orderNumber || "").trim();
+    if (cleanOrderNumber.includes("OR")) {
+      const numericMatch = cleanOrderNumber.match(/\d{2,10}/);
+      cleanOrderNumber = numericMatch ? numericMatch[0] : "";
+    }
 
     setSession({
       id: sourceAudit.id,
       date: sourceAudit.date,
-      auditBatchName: sourceAudit.auditBatchName,
-      sampleTarget: sourceAudit.sampleTarget,
-      selectedStaffNames: sourceAudit.selectedStaffNames,
-      auditorId: sourceAudit.auditorId,
-      location: sourceAudit.location,
-      staffName: sourceAudit.staffName,
-      orderNumber: sourceAudit.orderNumber,
-      clientIdentifier: sourceAudit.clientIdentifier,
-      auditedFileNames: sourceAudit.auditedFileNames,
-      notes: sourceAudit.notes,
-      participants: sourceAudit.participants,
-      items: sourceAudit.items ?? [],
+      auditBatchName: sourceAudit.auditBatchName || audit.auditBatchName,
+      sampleTarget: sourceAudit.sampleTarget || audit.sampleTarget,
+      selectedStaffNames: sourceAudit.selectedStaffNames || audit.selectedStaffNames,
+      auditorId: sourceAudit.auditorId || audit.auditorId,
+      location: sourceAudit.location || audit.location,
+      staffName: cleanStaffName,
+      orderNumber: cleanOrderNumber,
+      clientIdentifier: sourceAudit.clientIdentifier || audit.clientIdentifier,
+      auditedFileNames: sourceAudit.auditedFileNames || audit.auditedFileNames,
+      notes: sourceAudit.notes || audit.notes,
+      participants: {
+        ...(audit.participants || {}),
+        ...(sourceAudit.participants || {}),
+        asesorServicio: cleanStaffName,
+      },
+      items: (sourceAudit.items && sourceAudit.items.length > 0) ? sourceAudit.items : (audit.items ?? []),
     });
     setSelectedRole(editableRole);
-    setSelectedStaff(sourceAudit.staffName ?? sourceAudit.participants?.asesorServicio ?? "");
+    setSelectedStaff(cleanStaffName);
     setActiveAuditItemId(null);
     setFocusedAuditItemId(null);
     setSelectedAudit(null);
     setView(editableRole ? "audit" : "setup");
-    setIsAuditConfigured(Boolean(editableRole && sourceAudit.staffName));
-    }, [canRunAudits]);
+    setIsAuditConfigured(Boolean(editableRole));
+  }, [canRunAudits]);
 
   const advisorGoal = session.sampleTarget || 30;
   
@@ -2296,8 +2309,8 @@ function AuditApp() {
               ) : selectedRole && (
                 !isAuditConfigured || 
                 (!selectedStaff && selectedRole !== "General") || 
-                (isOrdersAudit && !/^\d{2,10}$/.test(session.orderNumber?.trim() || "")) || 
-                (isServiceAdvisorAudit && (!session.clientIdentifier || !session.orderNumber))
+                (isOrdersAudit && !/^\d{2,10}$/.test(session.orderNumber?.trim() || "") && !isAuditConfigured) || 
+                (isServiceAdvisorAudit && (!session.clientIdentifier || !session.orderNumber) && !isAuditConfigured)
               ) && !isPreDeliveryAudit ? (
                 <AuditStaffSelectionView
                   role={selectedRole}
@@ -2609,115 +2622,219 @@ function AuditApp() {
       )}
 
       <AnimatePresence>
-        {selectedAudit && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedAudit(null)}
-              className="absolute inset-0 bg-slate-950/60 backdrop-blur-md"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="premium-glass-alt relative w-full max-w-2xl overflow-hidden rounded-[3rem] border border-white/10 shadow-2xl flex flex-col max-h-[85vh]"
-            >
-              <div className="p-10 border-b border-white/5 bg-white/5 flex justify-between items-center">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="h-2 w-2 rounded-full bg-blue-500" />
-                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em]">Inspección Detallada</p>
+        {selectedAudit && (() => {
+          const childAudits = selectedAudit.childAudits && selectedAudit.childAudits.length > 0
+            ? selectedAudit.childAudits
+            : [selectedAudit];
+          const hasMultipleChildren = childAudits.length > 1;
+          const displayAudit = childAudits[0] ?? selectedAudit;
+          const displayedItems = (displayAudit.items && displayAudit.items.length > 0)
+            ? displayAudit.items
+            : (selectedAudit.items ?? []);
+          const roleLabel = displayAudit.role || displayAudit.items?.[0]?.category || selectedAudit.role || "Auditoría";
+          const score = selectedAudit.totalScore ?? displayAudit.totalScore ?? 0;
+          const passedCount = displayedItems.filter((i) => i.status === "pass").length;
+          const failedCount = displayedItems.filter((i) => i.status === "fail").length;
+          const naCount = displayedItems.filter((i) => i.status === "na").length;
+
+          return (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setSelectedAudit(null)}
+                className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-2xl flex flex-col max-h-[90vh] z-10"
+              >
+                {/* Modal Header */}
+                <div className="p-6 border-b border-slate-100 bg-slate-50/70 flex justify-between items-start gap-4">
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-blue-600" />
+                      <p className="text-[10px] font-black uppercase tracking-wider text-blue-700">Detalle de Inspección</p>
+                      {hasMultipleChildren && (
+                        <span className="rounded-md bg-blue-100/80 px-2 py-0.5 text-[9px] font-black uppercase text-blue-800">
+                          Lote ({childAudits.length} evaluaciones)
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight truncate">
+                      {roleLabel}
+                    </h3>
+                    <p className="text-slate-500 text-xs font-semibold flex items-center gap-2">
+                      <span>{displayAudit.date}</span>
+                      <span>•</span>
+                      <span>{displayAudit.location || "Sin sucursal"}</span>
+                      {selectedAudit.source === "sheet" && (
+                        <>
+                          <span>•</span>
+                          <span className="text-emerald-700 font-bold">Sheets</span>
+                        </>
+                      )}
+                    </p>
                   </div>
-                  <h3 className="text-2xl font-black text-white tracking-tight leading-tight">
-                    {selectedAudit.role || selectedAudit.items?.[0]?.category || "Auditoría"}
-                  </h3>
-                  <p className="text-slate-400 text-sm font-bold mt-1">
-                    {selectedAudit.date} • {selectedAudit.location}
-                  </p>
-                </div>
-                <div className={cn(
-                  "h-20 w-20 rounded-full flex flex-col items-center justify-center font-black border-4",
-                  selectedAudit.totalScore >= 90 ? "border-emerald-500/20 text-emerald-500 bg-emerald-500/5" : 
-                  selectedAudit.totalScore >= 70 ? "border-amber-500/20 text-amber-500 bg-amber-500/5" : "border-red-500/20 text-red-500 bg-red-500/5"
-                )}>
-                  <span className="text-[10px] uppercase opacity-60">Score</span>
-                  <span className="text-2xl">{selectedAudit.totalScore}%</span>
-                </div>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-10 space-y-8 custom-scrollbar">
-                <div className="grid grid-cols-2 gap-8">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Personal Auditado</p>
-                    <p className="text-base font-bold text-white">{selectedAudit.staffName || "No especificado"}</p>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className={cn(
+                      "h-16 w-16 rounded-2xl flex flex-col items-center justify-center font-black border",
+                      score >= 90 ? "border-emerald-200 bg-emerald-50 text-emerald-700" : 
+                      score >= 70 ? "border-amber-200 bg-amber-50 text-amber-700" : "border-rose-200 bg-rose-50 text-rose-700"
+                    )}>
+                      <span className="text-[9px] uppercase tracking-wider opacity-75">Score</span>
+                      <span className="text-xl font-black">{score}%</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAudit(null)}
+                      className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+                      title="Cerrar"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
                   </div>
-                  {selectedAudit.orderNumber && (
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nº de Orden</p>
-                      <p className="text-base font-black text-blue-400 tracking-wider">{selectedAudit.orderNumber}</p>
+                </div>
+
+                {/* Sub-audits tabs if grouped */}
+                {hasMultipleChildren && (
+                  <div className="flex gap-2 overflow-x-auto p-3 bg-slate-100/70 border-b border-slate-200/60 custom-scrollbar">
+                    {childAudits.map((child, index) => (
+                      <button
+                        key={child.id || index}
+                        type="button"
+                        onClick={() => setSelectedAudit(child)}
+                        className={cn(
+                          "rounded-xl px-3.5 py-1.5 text-xs font-bold transition whitespace-nowrap border",
+                          (selectedAudit.id === child.id || (!selectedAudit.childAuditIds && index === 0))
+                            ? "bg-white text-blue-700 border-blue-200 shadow-sm"
+                            : "bg-transparent text-slate-600 border-transparent hover:bg-white/60"
+                        )}
+                      >
+                        {child.orderNumber ? `OR ${child.orderNumber}` : `Evaluación ${index + 1}`}
+                        <span className="ml-1.5 opacity-60">({child.totalScore}%)</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Modal Body */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+                  {/* Meta cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5 space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Responsable</p>
+                      <p className="text-xs sm:text-sm font-bold text-slate-800 truncate">{displayAudit.staffName || "No especificado"}</p>
+                    </div>
+                    {displayAudit.orderNumber && (
+                      <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-3.5 space-y-1">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-blue-600">Nº de Orden</p>
+                        <p className="text-xs sm:text-sm font-black text-blue-800 truncate">{displayAudit.orderNumber}</p>
+                      </div>
+                    )}
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5 space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Cumplimiento</p>
+                      <p className="text-xs sm:text-sm font-black text-emerald-700">{passedCount} de {displayedItems.length} ítems</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5 space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Desvíos / NA</p>
+                      <p className="text-xs sm:text-sm font-black text-rose-700">{failedCount} desvío{failedCount === 1 ? "" : "s"} · {naCount} N/A</p>
+                    </div>
+                  </div>
+
+                  {/* Checklist detail */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-black uppercase tracking-wider text-slate-500">Puntos Evaluados ({displayedItems.length})</p>
+                    </div>
+
+                    {displayedItems.length > 0 ? (
+                      <div className="space-y-2.5">
+                        {displayedItems.map((item, idx) => {
+                          const isPass = item.status === "pass";
+                          const isFail = item.status === "fail";
+                          return (
+                            <div 
+                              key={idx} 
+                              className={cn(
+                                "p-4 rounded-2xl border transition space-y-2",
+                                isPass ? "border-slate-100 bg-white" :
+                                isFail ? "border-rose-100 bg-rose-50/30" : "border-slate-100 bg-slate-50/50"
+                              )}
+                            >
+                              <div className="flex justify-between items-start gap-4">
+                                <div className="space-y-1 min-w-0">
+                                  {item.category && item.category !== roleLabel && (
+                                    <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                                      {item.category}
+                                    </span>
+                                  )}
+                                  <p className="text-xs sm:text-sm font-semibold text-slate-800 leading-snug">{item.question}</p>
+                                </div>
+                                <span className={cn(
+                                  "text-[10px] font-black uppercase px-2.5 py-1 rounded-lg shrink-0 border",
+                                  isPass ? "bg-emerald-50 text-emerald-700 border-emerald-200" : 
+                                  isFail ? "bg-rose-50 text-rose-700 border-rose-200" : "bg-slate-100 text-slate-600 border-slate-200"
+                                )}>
+                                  {isPass ? "Cumple" : isFail ? "No Cumple" : "N/A"}
+                                </span>
+                              </div>
+                              {item.comment && (
+                                <div className="pl-3 border-l-2 border-slate-300 bg-slate-50/80 p-2 rounded-r-xl">
+                                  <p className="text-[11px] text-slate-600 font-medium italic leading-relaxed">"{item.comment}"</p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-xs font-bold text-slate-400">
+                        Esta evaluación no contiene ítems individuales registrados.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Notes */}
+                  {displayAudit.notes && (
+                    <div className="p-4 bg-blue-50/60 rounded-2xl border border-blue-100 space-y-1">
+                      <p className="text-[10px] font-black text-blue-700 uppercase tracking-wider">Observaciones Generales</p>
+                      <p className="text-xs text-slate-700 leading-relaxed font-medium">{displayAudit.notes}</p>
                     </div>
                   )}
                 </div>
 
-                <div className="space-y-4">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Detalle de Cumplimiento</p>
-                  <div className="space-y-3">
-                    {selectedAudit.items.map((item, idx) => (
-                      <div key={idx} className="p-5 bg-white/5 rounded-3xl border border-white/5 space-y-3">
-                        <div className="flex justify-between items-start gap-6">
-                          <p className="text-sm font-bold text-slate-200 leading-snug">{item.question}</p>
-                          <span className={cn(
-                            "text-[10px] font-black uppercase px-3 py-1.5 rounded-xl shrink-0 border",
-                            item.status === "pass" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : 
-                            item.status === "fail" ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-slate-500/10 text-slate-400 border-white/10"
-                          )}>
-                            {item.status === "pass" ? "Cumple" : item.status === "fail" ? "No Cumple" : "N/A"}
-                          </span>
-                        </div>
-                        {item.comment && (
-                          <div className="pl-4 border-l-2 border-blue-500/30">
-                            <p className="text-[11px] text-slate-400 font-medium italic">"{item.comment}"</p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {selectedAudit.notes && (
-                  <div className="p-6 bg-blue-600/5 rounded-[2rem] border border-blue-500/20">
-                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2">Observaciones Generales</p>
-                    <p className="text-sm text-slate-300 leading-relaxed">{selectedAudit.notes}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-8 border-t border-white/5 bg-white/5 flex gap-3">
-                {canRunAudits && (
+                {/* Modal Footer */}
+                <div className="p-4 border-t border-slate-100 bg-slate-50 flex gap-3">
+                  {canRunAudits && (
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const auditToEdit = displayAudit;
+                        setSelectedAudit(null);
+                        handleEditAudit(auditToEdit);
+                      }}
+                      className="flex-1 py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider text-slate-700 bg-white hover:bg-slate-100 transition border border-slate-200 flex items-center justify-center gap-2 shadow-sm"
+                    >
+                      <Pencil className="h-4 w-4 text-blue-600" />
+                      Editar / Recalcular
+                    </button>
+                  )}
                   <button 
-                    onClick={() => {
-                      const auditToEdit = selectedAudit;
-                      setSelectedAudit(null);
-                      handleEditAudit(auditToEdit);
-                    }}
-                    className="flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-wider text-slate-200 bg-white/10 hover:bg-white/20 transition-all active:scale-95 border border-white/10 flex items-center justify-center gap-2"
+                    type="button"
+                    onClick={() => setSelectedAudit(null)}
+                    className="flex-1 py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 transition shadow-sm"
                   >
-                    <Pencil className="h-4 w-4" />
-                    Editar / Recalcular
+                    Cerrar
                   </button>
-                )}
-                <button 
-                  onClick={() => setSelectedAudit(null)}
-                  className="flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-wider text-white bg-blue-600 hover:bg-blue-500 transition-all active:scale-95 shadow-lg shadow-blue-600/20"
-                >
-                  Cerrar Inspección
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
       </AnimatePresence>
 
       {/* Modal de confirmación de eliminación */}
@@ -2729,35 +2846,35 @@ function AuditApp() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setDeleteConfirmModal({ show: false, auditId: "", auditName: "" })}
-              className="absolute inset-0 bg-slate-950/60 backdrop-blur-md"
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="premium-glass relative w-full max-w-md overflow-hidden rounded-[2.5rem] border border-white/10 p-10 shadow-2xl space-y-8"
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xl space-y-6 z-10"
             >
               <div className="text-center">
-                <div className="mx-auto h-16 w-16 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 mb-6">
-                  <Trash2 className="h-8 w-8" />
+                <div className="mx-auto h-12 w-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 mb-4">
+                  <Trash2 className="h-6 w-6" />
                 </div>
-                <h3 className="text-2xl font-black text-white tracking-tight">Eliminar Auditoría</h3>
-                <p className="text-slate-400 font-medium mt-2">¿Estás seguro de que deseas eliminar este registro de forma permanente?</p>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">Eliminar Auditoría</h3>
+                <p className="text-slate-500 font-medium text-xs mt-1">¿Estás seguro de que deseas eliminar este registro?</p>
               </div>
 
-              <div className="bg-red-500/5 border border-red-500/20 rounded-3xl p-6 text-center">
-                <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-2">Registro Seleccionado</p>
-                <p className="text-base font-bold text-white break-words">{deleteConfirmModal.auditName}</p>
+              <div className="bg-rose-50/50 border border-rose-100 rounded-2xl p-4 text-center">
+                <p className="text-[10px] font-black text-rose-600 uppercase tracking-wider mb-1">Registro</p>
+                <p className="text-sm font-black text-slate-800 break-words">{deleteConfirmModal.auditName}</p>
               </div>
 
               {deleteConfirmModal.error && (
-                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-xs font-semibold text-red-400 text-center">
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700 text-center">
                   {deleteConfirmModal.error}
                 </div>
               )}
 
-              <div className="space-y-2 text-left">
-                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+              <div className="space-y-1.5 text-left">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">
                   Motivo de eliminación (opcional)
                 </label>
                 <input
@@ -2766,7 +2883,7 @@ function AuditApp() {
                   onChange={(e) => setDeleteReason(e.target.value)}
                   placeholder="Ej: Prueba, error de carga, duplicado..."
                   disabled={deleteConfirmModal.isDeleting}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white placeholder-slate-500 outline-none focus:border-red-500/50"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-rose-400 focus:bg-white"
                 />
               </div>
 
@@ -2777,19 +2894,19 @@ function AuditApp() {
                     setDeleteConfirmModal({ show: false, auditId: "", auditName: "", isDeleting: false, error: null });
                     setDeleteReason("");
                   }}
-                  className="flex-1 px-6 py-4 rounded-2xl bg-white/5 border border-white/10 font-black text-xs uppercase tracking-widest text-slate-300 hover:bg-white/10 transition-all disabled:opacity-50"
+                  className="flex-1 px-4 py-3 rounded-xl bg-slate-100 font-black text-xs uppercase tracking-wider text-slate-600 hover:bg-slate-200 transition disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
                   disabled={deleteConfirmModal.isDeleting}
                   onClick={() => void handleDeleteAudit(deleteConfirmModal.auditId, deleteConfirmModal.auditSource, deleteConfirmModal.auditIds, deleteReason)}
-                  className="flex-1 px-6 py-4 rounded-2xl bg-red-600 hover:bg-red-500 font-black text-xs uppercase tracking-widest text-white transition-all shadow-lg shadow-red-600/20 flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="flex-1 px-4 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 font-black text-xs uppercase tracking-wider text-white transition shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {deleteConfirmModal.isDeleting ? (
                     <>
-                      <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>Borrando en Sheets...</span>
+                      <div className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Borrando...</span>
                     </>
                   ) : (
                     "Eliminar"
