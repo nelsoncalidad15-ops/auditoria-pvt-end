@@ -19,6 +19,7 @@ import {
   X,
   Camera,
   ExternalLink,
+  CheckCircle2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppShell } from "./app/AppShell";
@@ -132,6 +133,7 @@ function AuditApp() {
   const [, setShowBatchReportModal] = useState(false);
   const [deleteConfirmModal, setDeleteConfirmModal] = useState<{ show: boolean; auditId: string; auditIds?: string[]; auditName: string; auditSource?: AuditSource; isDeleting?: boolean; error?: string | null }>({ show: false, auditId: "", auditName: "", isDeleting: false, error: null });
   const [deleteReason, setDeleteReason] = useState("");
+  const [toastNotification, setToastNotification] = useState<{ message: string; tone?: "success" | "error" } | null>(null);
   const [activeAuditBlock, setActiveAuditBlock] = useState<string | null>(null);
   const [preDeliverySection, setPreDeliverySection] = useState<"general" | "legajos">("general");
   const [preDeliveryActiveLegajoIndex, setPreDeliveryActiveLegajoIndex] = useState(0);
@@ -251,10 +253,8 @@ function AuditApp() {
     setNewCategoryName,
     newCategoryDescription,
     setNewCategoryDescription,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    newCategoryStaff: _newCategoryStaff,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    setNewCategoryStaff: _setNewCategoryStaff,
+    newCategoryStaff,
+    setNewCategoryStaff,
     newItemText,
     setNewItemText,
     newItemDescription,
@@ -279,6 +279,7 @@ function AuditApp() {
     setNewItemActive,
     newItemRequiresCommentOnFail,
     setNewItemRequiresCommentOnFail,
+    updateCategory,
     handleAddCategory,
     handleDuplicateCategory,
     handleDeleteCategory,
@@ -1433,6 +1434,8 @@ function AuditApp() {
 
       setDeleteConfirmModal({ show: false, auditId: "", auditName: "", isDeleting: false, error: null });
       setDeleteReason("");
+      setToastNotification({ message: "Auditoría eliminada y archivada correctamente en Sheets", tone: "success" });
+      setTimeout(() => setToastNotification(null), 2800);
     } catch (err: any) {
       console.error("Error al eliminar auditoría:", err);
       setDeleteConfirmModal((prev) => ({
@@ -2457,10 +2460,13 @@ function AuditApp() {
                   handleDuplicateCategory={handleDuplicateCategory}
                   handleDeleteCategory={handleDeleteCategory}
                   handleDeleteItem={handleDeleteItem}
+                  updateCategory={updateCategory}
                   newCategoryName={newCategoryName}
                   setNewCategoryName={setNewCategoryName}
                   newCategoryDescription={newCategoryDescription}
                   setNewCategoryDescription={setNewCategoryDescription}
+                  newCategoryStaff={newCategoryStaff}
+                  setNewCategoryStaff={setNewCategoryStaff}
                   handleAddCategory={handleAddCategory}
                   newItemText={newItemText}
                   setNewItemText={setNewItemText}
@@ -2931,6 +2937,33 @@ function AuditApp() {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Notification flotante rápido */}
+      <AnimatePresence>
+        {toastNotification && (
+          <motion.div
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-6 right-6 z-[200] flex items-center gap-3 rounded-2xl border border-emerald-200 bg-white/95 backdrop-blur-md px-5 py-3.5 shadow-xl shadow-slate-900/10 text-slate-800"
+          >
+            <div className="h-8 w-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-black text-slate-900 leading-tight">Operación exitosa</p>
+              <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{toastNotification.message}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setToastNotification(null)}
+              className="ml-2 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
 
