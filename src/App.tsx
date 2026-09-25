@@ -1997,52 +1997,42 @@ function AuditApp() {
             >
               {!selectedRole ? (
                 <div className="space-y-4">
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                      <div className="space-y-2">
-                        <span className="inline-flex items-center gap-2 rounded-full bg-white/85 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 shadow-sm">
-                          <div className="h-2 w-2 rounded-full bg-blue-600" />
-                          Nueva auditoría
-                        </span>
-                        <div className="space-y-2">
-                          <h2 className="text-xl font-black tracking-tight text-slate-950 lg:text-2xl">¿Qué tipo de auditoría vas a realizar?</h2>
-                          {auditBatchDisplayName && (
-                            <p className="text-sm font-bold text-slate-600">{auditBatchDisplayName}</p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+                    <div>
+                      <h2 className="text-lg font-black text-slate-900 tracking-tight">
+                        {auditBatchDisplayName || "Selección de Auditoría"}
+                      </h2>
+                      <p className="text-xs font-medium text-slate-500 mt-0.5">
+                        {session.location || "Sin sucursal"} · Auditor: {selectedAuditorOption?.name || "Sin asignar"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="inline-grid grid-cols-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
+                        <button
+                          type="button"
+                          onClick={() => setAuditEntryTab("areas")}
+                          className={cn(
+                            "rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition",
+                            auditEntryTab === "areas" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500"
                           )}
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2 text-[10px] font-bold text-slate-600">
-                        <span className="rounded-lg bg-slate-100 px-3 py-2">{selectedAuditorOption?.name ?? "Sin auditor"}</span>
-                        <span className="rounded-lg bg-slate-100 px-3 py-2">{session.location ?? "Sin sucursal"}</span>
-                        <span className="rounded-lg bg-blue-50 px-3 py-2 text-blue-700">{auditBatchDisplayName}</span>
+                        >
+                          Áreas
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAuditEntryTab("scores")}
+                          className={cn(
+                            "rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition",
+                            auditEntryTab === "scores" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500"
+                          )}
+                        >
+                          Resumen
+                        </button>
                       </div>
                     </div>
                   </div>
 
-                  <div className="mx-auto w-full max-w-sm rounded-xl border border-slate-200 bg-white p-1">
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setAuditEntryTab("areas")}
-                        className={cn(
-                          "rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] transition",
-                          auditEntryTab === "areas" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"
-                        )}
-                      >
-                        Seleccionar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAuditEntryTab("scores")}
-                        className={cn(
-                          "rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] transition",
-                          auditEntryTab === "scores" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"
-                        )}
-                      >
-                        Resumen
-                      </button>
-                    </div>
-                  </div>
+
 
                   {auditEntryTab === "areas" ? (
                     auditScope === null ? (

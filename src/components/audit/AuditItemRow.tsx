@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Camera, CheckCircle2, History, Mic, MicOff, MinusCircle, Trash2, XCircle, HelpCircle, Info, Sparkles } from "lucide-react";
+import { Camera, CheckCircle2, Mic, MicOff, MinusCircle, Trash2, XCircle, Info, Sparkles, MessageSquare } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { AuditItem, AuditItemPriority, CalculatedItemResult, OrResponsibleRole } from "../../types";
 
@@ -56,9 +56,7 @@ async function compressImage(file: File) {
   canvas.height = Math.max(1, Math.round(image.height * scale));
 
   const context = canvas.getContext("2d");
-  if (!context) {
-    return dataUrl;
-  }
+  if (!context) return dataUrl;
 
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL("image/jpeg", 0.78);
@@ -81,16 +79,13 @@ function AuditItemRowBase({
   onStatusToggle,
   onCommentUpdate,
   onPhotoUpdate,
-  quickMode = false,
   compact = false,
   isCalculated = false,
   calculatedResult,
 }: AuditItemRowProps) {
-  const [showComment, setShowComment] = useState(false);
-  const [showGuidance, setShowGuidance] = useState(false);
+  const [showComment, setShowComment] = useState(Boolean(item?.comment || item?.photoUrl));
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [lastStatusChange, setLastStatusChange] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const recognitionRef = useRef<any>(null);
 
@@ -98,55 +93,53 @@ function AuditItemRowBase({
   const hasStructuredCopy = showStructuredQuestion && separatorIndex > -1;
   const questionTitle = hasStructuredCopy ? question.slice(0, separatorIndex).trim() : question;
   const questionHint = hasStructuredCopy ? question.slice(separatorIndex + 1).trim() : "";
-  const questionOrderMatch = questionTitle.match(/^(\d+)[.)\-\s]+(.+)$/);
-  const questionOrder = questionOrderMatch?.[1] ?? String(index + 1);
-  const questionMainCopy = questionOrderMatch?.[2] ?? questionTitle;
-  
+  const match = questionTitle.trim().match(/^(\d+)[.)]?\s*(.*)$/);
+  const questionOrder = match ? match[1] : String(index + 1);
+  const questionMainCopy = match ? match[2] : questionTitle;
   const hasComment = Boolean(item?.comment?.trim());
   const hasPhoto = Boolean(item?.photoUrl);
 
   useEffect(() => {
-    if (item?.status === "fail" && requiresCommentOnFail && !item?.comment?.trim()) {
-      setShowComment(true);
+    if (typeof window !== "undefined" && ("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+      recognitionRef.current.lang = "es-AR";
+
+      recognitionRef.current.onresult = (event: any) => {
+        let transcript = "";
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            transcript += event.results[i][0].transcript;
+          }
+        }
+        if (transcript) {
+          const currentComment = item?.comment?.trim() || "";
+          const nextComment = currentComment ? `${currentComment} ${transcript}` : transcript;
+          onCommentUpdate(nextComment);
+        }
+      };
+
+      recognitionRef.current.onerror = () => setIsListening(false);
+      recognitionRef.current.onend = () => setIsListening(false);
     }
-  }, [item?.comment, item?.status, requiresCommentOnFail]);
+  }, [item?.comment, onCommentUpdate]);
 
   const toggleListening = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isListening) {
-      recognitionRef.current?.stop();
-      return;
-    }
-
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Tu navegador no soporta el reconocimiento de voz.");
-      return;
-    }
-
     if (!recognitionRef.current) {
-      const recognition = new SpeechRecognition();
-      recognition.lang = "es-AR";
-      recognition.continuous = true;
-      recognition.interimResults = true;
-
-      recognition.onstart = () => setIsListening(true);
-      recognition.onend = () => setIsListening(false);
-      recognition.onerror = () => setIsListening(false);
-
-      recognition.onresult = (event: any) => {
-        const transcript = Array.from(event.results)
-          .map((result: any) => result[0].transcript)
-          .join("");
-        
-        onCommentUpdate(transcript);
-      };
-
-      recognitionRef.current = recognition;
+      alert("El dictado por voz no es compatible con este navegador.");
+      return;
     }
-
-    recognitionRef.current.start();
-    setShowComment(true);
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      setShowComment(true);
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
   };
 
   const applyObservationSuggestion = (suggestion: string) => {
@@ -183,7 +176,7 @@ function AuditItemRowBase({
       : state === "provisional"
         ? "Provisorio"
         : state === "not_applicable"
-          ? "Sin dato aplicable"
+          ? "Sin dato"
           : "Pendiente";
     const scoreLabel = typeof calculatedResult?.score === "number"
       ? `${calculatedResult.score.toLocaleString("es-AR", { maximumFractionDigits: 1 })}%`
@@ -192,208 +185,190 @@ function AuditItemRowBase({
     return (
       <motion.div
         id={rowId}
-        initial={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: index * 0.05 }}
+        transition={{ delay: index * 0.02 }}
         className={cn(
-          "premium-card p-5 space-y-4 scroll-mt-32 border-blue-500/20 bg-blue-500/[0.03]",
-          state === "pending" && "border-dashed border-amber-400/40 bg-amber-500/[0.03]",
-          state === "provisional" && "border-amber-400/40 bg-amber-500/[0.04]",
+          "rounded-2xl border p-4.5 space-y-3 bg-blue-50/20 border-blue-200/70 shadow-xs",
+          state === "pending" && "bg-amber-50/20 border-amber-200/70",
         )}
       >
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-2 min-w-0">
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-300">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1 min-w-0">
+            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-blue-700">
               <Sparkles className="h-3.5 w-3.5" />
-              Indicador calculado · {stateLabel}
+              Automático · {stateLabel}
             </div>
-            <p className="text-[15px] font-black leading-tight text-slate-900 dark:text-white">
-              <span className="text-blue-600 dark:text-blue-400 mr-1">{questionOrder}.</span> {questionMainCopy}
+            <p className="text-sm font-black leading-snug text-slate-900">
+              <span className="text-blue-600 mr-1">{questionOrder}.</span> {questionMainCopy}
             </p>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              {calculatedResult?.detail || "Pendiente de una regla de cálculo configurada en Sheets."}
+            <p className="text-xs font-medium text-slate-500">
+              {calculatedResult?.detail || "Calculado según las reglas del ciclo."}
             </p>
           </div>
-          <div className="flex items-center justify-between gap-3 rounded-2xl border border-blue-500/20 bg-white/70 px-4 py-3 text-right shadow-sm dark:bg-slate-950/40 md:min-w-32">
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Resultado</p>
-              <p className="text-2xl font-black text-blue-700 dark:text-blue-300">{scoreLabel}</p>
-            </div>
+          <div className="flex items-center justify-between sm:justify-end gap-3 rounded-xl border border-blue-200 bg-white px-3.5 py-2 text-right shadow-xs sm:min-w-28">
+            <span className="text-[10px] font-bold uppercase text-slate-400">Score</span>
+            <span className="text-xl font-black text-blue-700">{scoreLabel}</span>
           </div>
         </div>
-        {calculatedResult?.sources?.length ? (
-          <details className="rounded-xl border border-slate-200/80 bg-white/70 px-3 py-2 text-xs dark:border-white/10 dark:bg-slate-950/30">
-            <summary className="cursor-pointer font-bold text-slate-600 dark:text-slate-300">Ver fuentes del cálculo</summary>
-            <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
-              {calculatedResult.sources.map((source) => (
-                <div key={source.name} className="flex items-center justify-between rounded-lg bg-slate-50 px-2.5 py-1.5 dark:bg-white/5">
-                  <span className="font-medium text-slate-600 dark:text-slate-300">{source.name}</span>
-                  <span className="font-black text-slate-800 dark:text-white">
-                    {source.status === "pending" ? "Pendiente" : source.status === "na" ? "N/A" : `${source.score}%`}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </details>
-        ) : null}
       </motion.div>
     );
   }
+
   return (
     <motion.div
       id={rowId}
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
+      transition={{ delay: index * 0.02 }}
       onClick={onActivate}
       className={cn(
-        "premium-card scroll-mt-32 transition-all duration-500",
-        compact ? "p-3.5 space-y-2.5" : "p-5 space-y-4",
-        item?.status === "pass" ? "bg-emerald-500/5 border-emerald-500/20 shadow-emerald-500/5" :
-        item?.status === "fail" ? "bg-red-500/5 border-red-500/20 shadow-red-500/5" :
-        item?.status === "na" ? "bg-slate-500/5 border-slate-500/10 opacity-70" :
-        "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800",
-        emphasized && "ring-2 ring-blue-500 shadow-xl scale-[1.02]",
-        isActive && !emphasized && "ring-1 ring-slate-400 dark:ring-slate-600 shadow-lg",
-        item?.status === "fail" && !hasComment && requiresCommentOnFail && "animate-pulse border-red-500/40"
+        "relative rounded-2xl border bg-white transition-all duration-200 shadow-xs hover:shadow-sm",
+        compact ? "p-3.5 space-y-3" : "p-4.5 space-y-3.5",
+        item?.status === "pass" && "border-emerald-200 bg-emerald-50/15",
+        item?.status === "fail" && "border-rose-200 bg-rose-50/15",
+        item?.status === "na" && "border-slate-200 bg-slate-50/40 opacity-80",
+        !item?.status && "border-slate-200",
+        emphasized && "ring-2 ring-blue-500 shadow-md",
+        isActive && !emphasized && "border-slate-400"
       )}
     >
-      {item?.status === "fail" && (
-        <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500 rounded-l-2xl opacity-50 z-10" />
-      )}
-      {item?.status === "pass" && (
-        <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500 rounded-l-2xl opacity-50 z-10" />
-      )}
-      <div className={cn("flex flex-col md:flex-row md:items-center justify-between", compact ? "gap-3" : "gap-6")}>
-        <div className={cn("flex-1 min-w-0", compact ? "space-y-1.5" : "space-y-2")}>
-          <p className={cn("font-black leading-tight text-slate-900 dark:text-white group-hover:text-[--accent-neon] transition-colors", compact ? "text-sm" : "text-[15px]")}>
-            <span className="text-blue-600 dark:text-blue-400 mr-1">{questionOrder}.</span> {questionMainCopy}
+      {/* Indicador sutil de estado lateral */}
+      {item?.status === "pass" && <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500 rounded-l-2xl" />}
+      {item?.status === "fail" && <div className="absolute top-0 left-0 w-1.5 h-full bg-rose-500 rounded-l-2xl" />}
+      {item?.status === "na" && <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-400 rounded-l-2xl" />}
+
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        {/* Pregunta y descripción */}
+        <div className="flex-1 min-w-0 space-y-1.5">
+          <p className="text-[13.5px] font-black leading-snug text-slate-900">
+            <span className="text-blue-600 mr-1">{questionOrder}.</span> {questionMainCopy}
           </p>
           {(questionHint || description) && (
-            <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-3 py-2 border border-slate-100 dark:border-slate-800">
+            <p className="text-xs font-medium leading-relaxed text-slate-500 bg-slate-50/80 rounded-xl px-3 py-2 border border-slate-100">
               {questionHint || description}
             </p>
           )}
-          
-          <AnimatePresence>
-            {showGuidance && guidance && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="p-5 rounded-[1.5rem] bg-gradient-to-br from-blue-600/10 to-blue-600/5 border border-blue-500/20 text-xs font-medium text-blue-900 dark:text-blue-300 leading-relaxed shadow-inner">
-                  <div className="flex items-start gap-3">
-                    <div className="h-5 w-5 rounded-lg bg-blue-500 text-white flex items-center justify-center shrink-0">
-                       <Info className="h-3 w-3" />
-                    </div>
-                    <span className="italic">{guidance}</span>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+
+          {guidance && (
+            <p className="text-[11px] font-semibold text-blue-700 bg-blue-50/60 rounded-xl px-3 py-1.5 border border-blue-100 flex items-center gap-1.5">
+              <Info className="h-3.5 w-3.5 shrink-0" />
+              <span>{guidance}</span>
+            </p>
+          )}
 
           {requiresCommentOnFail && item?.status === "fail" && !hasComment && (
-            <p className="text-[10px] font-black text-red-500 uppercase tracking-widest animate-pulse">Nota obligatoria</p>
+            <span className="inline-block text-[10px] font-black text-rose-600 uppercase tracking-wider">
+              * Requiere observación obligatoria
+            </span>
           )}
         </div>
 
-        <div className={cn("flex flex-col items-center justify-center w-full md:w-auto shrink-0 gap-3", quickMode && "hidden md:flex")}>
-            {guidance && (
-              <button
-                onClick={(e) => { e.stopPropagation(); setShowGuidance(!showGuidance); }}
-                className={cn(
-                  "hidden md:flex items-center justify-center h-8 w-8 rounded-full transition-all",
-                  showGuidance ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                )}
-              >
-                <HelpCircle className="h-4 w-4" />
-              </button>
+        {/* Botones de respuesta Sí / No / N/A simples y estándar */}
+        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onStatusToggle("pass"); }}
+            className={cn(
+              "h-10 px-4 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95 border",
+              item?.status === "pass"
+                ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                : "bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border-slate-200"
             )}
-            <div className={cn("flex justify-center w-full", compact ? "gap-2" : "gap-3")}>
-              {[
-                { id: "pass", label: "SI", icon: CheckCircle2, bg: "bg-emerald-500", glow: "rgba(16, 185, 129, 0.4)" },
-                { id: "fail", label: "NO", icon: XCircle, bg: "bg-red-500", glow: "rgba(239, 68, 68, 0.4)" },
-                { id: "na", label: "N/A", icon: MinusCircle, bg: "bg-slate-500", glow: "rgba(100, 116, 139, 0.4)" },
-              ].map((btn) => (
-                <button
-                  key={btn.id}
-                  disabled={btn.id === "na" && !allowsNa}
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    onStatusToggle(btn.id as any);
-                    setLastStatusChange(btn.id);
-                    setTimeout(() => setLastStatusChange(null), 1000);
-                  }}
-                  className={cn(
-                    "flex flex-col items-center justify-center gap-1 border-2 transition-all active:scale-95 relative overflow-hidden",
-                    compact ? "h-14 w-[4.25rem] rounded-2xl" : "h-20 w-24 md:h-16 md:w-20 rounded-[2rem]",
-                    item?.status === btn.id
-                      ? `${btn.bg} border-transparent text-white shadow-lg`
-                      : "bg-white dark:bg-slate-900 border-slate-100 dark:border-white/5 text-slate-500 hover:border-slate-200 dark:hover:border-white/10",
-                    btn.id === "na" && !allowsNa && "opacity-20 cursor-not-allowed"
-                  )}
-                  style={{ boxShadow: item?.status === btn.id ? `0 10px 25px ${btn.glow}` : 'none' }}
-                >
-                  <AnimatePresence>
-                    {lastStatusChange === btn.id && (
-                      <motion.div
-                        initial={{ scale: 0, opacity: 1 }}
-                        animate={{ scale: 3, opacity: 0 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-white/40 rounded-full"
-                      />
-                    )}
-                  </AnimatePresence>
-                  <btn.icon className={cn(compact ? "h-5 w-5" : "h-6 w-6", "relative z-10 transition-transform", item?.status === btn.id && "scale-110")} />
-                  <span className="text-[10px] font-black uppercase tracking-widest relative z-10">{btn.label}</span>
-                </button>
-              ))}
-            </div>
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            <span>Sí</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onStatusToggle("fail"); }}
+            className={cn(
+              "h-10 px-4 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95 border",
+              item?.status === "fail"
+                ? "bg-rose-600 text-white border-rose-600 shadow-sm"
+                : "bg-slate-50 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border-slate-200"
+            )}
+          >
+            <XCircle className="h-4 w-4" />
+            <span>No</span>
+          </button>
+
+          {allowsNa && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onStatusToggle("na"); }}
+              className={cn(
+                "h-10 px-3.5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95 border",
+                item?.status === "na"
+                  ? "bg-slate-600 text-white border-slate-600 shadow-sm"
+                  : "bg-slate-50 hover:bg-slate-100 text-slate-500 border-slate-200"
+              )}
+            >
+              <MinusCircle className="h-4 w-4" />
+              <span>N/A</span>
+            </button>
+          )}
         </div>
       </div>
 
-      <div className={cn("flex gap-2", quickMode && "md:w-1/3 ml-auto", compact && "md:w-[14rem] md:ml-auto")}>
-        <button
-          onClick={(e) => { e.stopPropagation(); setShowComment(!showComment); }}
-          className={cn(
-            "flex-1 h-10 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all",
-            showComment || hasComment ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900" : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700"
-          )}
-        >
-          <History className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">{hasComment ? "Ver Nota" : "Añadir Nota"}</span>
-          <span className="sm:hidden">{hasComment ? "Nota" : "Nota"}</span>
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-          disabled={isProcessingPhoto}
-          className={cn(
-            "flex-1 h-10 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700",
-            hasPhoto && "text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20"
-          )}
-        >
-          <Camera className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">{isProcessingPhoto ? "Procesando..." : hasPhoto ? "Foto lista" : "Añadir Foto"}</span>
-          <span className="sm:hidden">{isProcessingPhoto ? "..." : "Foto"}</span>
-        </button>
+      {/* Barra de herramientas para Nota y Foto */}
+      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setShowComment(!showComment); }}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-bold transition-colors",
+              hasComment ? "bg-blue-50 text-blue-700 border border-blue-200" : "text-slate-500 hover:bg-slate-100"
+            )}
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            <span>{hasComment ? "Editar nota" : "Agregar nota"}</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={isProcessingPhoto}
+            onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-bold transition-colors",
+              hasPhoto ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "text-slate-500 hover:bg-slate-100"
+            )}
+          >
+            <Camera className="h-3.5 w-3.5" />
+            <span>{isProcessingPhoto ? "Cargando..." : hasPhoto ? "Foto adjunta" : "Foto"}</span>
+          </button>
+        </div>
+
+        {hasComment && !showComment && (
+          <span className="text-[11px] text-slate-400 italic truncate max-w-[260px]">
+            "{item?.comment}"
+          </span>
+        )}
       </div>
 
       <input ref={fileInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoSelection} />
 
+      {/* Desplegable de Observaciones y Foto */}
       <AnimatePresence>
         {showComment && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden space-y-4">
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }} 
+            animate={{ height: "auto", opacity: 1 }} 
+            exit={{ height: 0, opacity: 0 }} 
+            className="overflow-hidden space-y-3 pt-1"
+          >
             {item?.photoUrl && (
-              <div className="relative group rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
-                <img src={item.photoUrl} alt="Evidencia" className="w-full h-48 object-cover" />
+              <div className="relative group rounded-xl overflow-hidden border border-slate-200 max-h-48">
+                <img src={item.photoUrl} alt="Evidencia" className="w-full h-44 object-cover" />
                 <button
+                  type="button"
                   onClick={(e) => { e.stopPropagation(); onPhotoUpdate(undefined); }}
-                  className="absolute top-3 right-3 p-2 bg-red-500 text-white rounded-xl shadow-lg active:scale-90"
+                  className="absolute top-2 right-2 p-1.5 bg-rose-600 text-white rounded-lg shadow-sm hover:bg-rose-500"
+                  title="Eliminar foto"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
             )}
@@ -403,40 +378,34 @@ function AuditItemRowBase({
                 value={item?.comment || ""}
                 onClick={(e) => e.stopPropagation()}
                 onChange={(e) => onCommentUpdate(e.target.value)}
-                placeholder="Escribe una observación o dictado por voz..."
-                className="w-full h-24 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-sm focus:ring-2 focus:ring-blue-500/20 transition-all outline-none resize-none pr-12"
+                placeholder="Escribe un comentario u observación para el informe..."
+                className="w-full h-20 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-800 focus:border-blue-400 focus:bg-white transition-all outline-none resize-none pr-10"
               />
               <button
+                type="button"
                 onClick={toggleListening}
                 className={cn(
-                  "absolute bottom-3 right-3 h-9 w-9 rounded-xl flex items-center justify-center transition-all shadow-md",
-                  isListening ? "bg-red-500 text-white animate-pulse" : "bg-white dark:bg-slate-700 text-slate-500"
+                  "absolute bottom-2.5 right-2.5 h-7 w-7 rounded-lg flex items-center justify-center transition-all shadow-xs",
+                  isListening ? "bg-rose-500 text-white animate-pulse" : "bg-white text-slate-500 hover:text-slate-800 border border-slate-200"
                 )}
+                title={isListening ? "Detener dictado" : "Dictar por voz"}
               >
-                {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                {isListening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
               </button>
             </div>
 
             {observationSuggestions.length > 0 && (
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center gap-2">
-                  <div className="h-1 w-1 rounded-full bg-blue-500" />
-                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Sugerencias rápidas</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {observationSuggestions.map((s, i) => (
-                    <motion.button
-                      key={s}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: i * 0.03 }}
-                      onClick={(e) => { e.stopPropagation(); applyObservationSuggestion(s); }}
-                      className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 border border-slate-200 dark:border-slate-700 hover:border-transparent text-[11px] font-bold text-slate-700 dark:text-slate-300 transition-all active:scale-95 shadow-sm"
-                    >
-                      {s}
-                    </motion.button>
-                  ))}
-                </div>
+              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                {observationSuggestions.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); applyObservationSuggestion(s); }}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 text-[10px] font-semibold text-slate-600 transition-colors"
+                  >
+                    + {s}
+                  </button>
+                ))}
               </div>
             )}
           </motion.div>
