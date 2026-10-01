@@ -326,10 +326,12 @@ function AuditApp() {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .trim();
+    const targetScope: "Salta" | "Jujuy" = session.location === "Salta" ? "Salta" : "Jujuy";
+    const targetCategories = auditCategoryScopes[targetScope] || activeAuditCategories;
     const findStaff = (...areaNames: string[]) => {
       const normalizedNames = areaNames.map(normalizeAreaName);
-      const exact = auditCategories.find((category) => normalizedNames.includes(normalizeAreaName(category.name)));
-      const partial = exact || auditCategories.find((category) => normalizedNames.some((name) => normalizeAreaName(category.name).includes(name)));
+      const exact = targetCategories.find((category) => normalizedNames.includes(normalizeAreaName(category.name)));
+      const partial = exact || targetCategories.find((category) => normalizedNames.some((name) => normalizeAreaName(category.name).includes(name)));
       return partial?.staffOptions || [];
     };
     return {
@@ -339,7 +341,7 @@ function AuditApp() {
       lavador: findStaff("Lavadero", "Lavado"),
       repuestos: findStaff("Repuestos"),
     };
-  }, [auditCategories]);
+  }, [activeAuditCategories, auditCategoryScopes, session.location]);
 
   // Derive variables expected by the UI from the hook's actual output
   const groupedHistory = React.useMemo(() => buildGroupedHistory(history), [history]);
@@ -381,7 +383,7 @@ function AuditApp() {
   };
   const isGlobalAudit = selectedRole === "General";
   const selectedAuditItems = (isGlobalAudit
-    ? auditCategories.flatMap((category) => category.items.map((item) => ({ ...item, block: category.name })))
+    ? activeAuditCategories.flatMap((category) => category.items.map((item) => ({ ...item, block: category.name })))
     : [...(selectedAuditCategory?.items ?? [])].sort((left, right) => {
         const leftOrder = left.order ?? getQuestionOrder(left.text);
         const rightOrder = right.order ?? getQuestionOrder(right.text);
@@ -427,20 +429,20 @@ function AuditApp() {
     return buildCalculatedItemResults({
       session: { ...session, role: selectedRole } as AuditSession,
       history,
-      categories: auditCategories,
+      categories: activeAuditCategories,
       rules: activeCalculationRules,
     });
-  }, [activeCalculationRules, auditCategories, history, selectedRole, session]);
+  }, [activeCalculationRules, activeAuditCategories, history, selectedRole, session]);
   const activeProcessDefinitions = processDefinitions.filter((definition) => (
     definition.scope === 'global' || definition.scope === session.location
   ));
   const processResults = React.useMemo(() => buildProcessResults({
     session: session as AuditSession,
     history,
-    categories: auditCategories,
+    categories: activeAuditCategories,
     definitions: activeProcessDefinitions,
     rules: activeCalculationRules,
-  }), [activeProcessDefinitions, auditCategories, history, session]);
+  }), [activeProcessDefinitions, activeAuditCategories, history, session]);
 
   const calculatedSessionItems = displayedAuditItems
     .filter((item) => item.calculationMode === 'calculated')
@@ -2227,7 +2229,7 @@ function AuditApp() {
                         <button type="button" onClick={() => setAuditScope(null)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-600 hover:border-blue-300">Cambiar tipo</button>
                       </div>
                     <CategoryGrid
-                      categories={auditCategories}
+                      categories={activeAuditCategories}
                       completedReports={completedAuditReports}
                       sampledOrdersProgress={sampledOrdersProgress}
                       sampledServiceAdvisorClientsProgress={sampledServiceAdvisorClientsProgress}
@@ -2462,7 +2464,7 @@ function AuditApp() {
                       ? orParticipantOptions.asesorServicio
                       : selectedAuditCategory?.staffOptions?.length
                       ? selectedAuditCategory.staffOptions
-                      : STAFF[selectedRole as keyof typeof STAFF] || []
+                      : ((session.location === "Salta" ? STAFF_BY_LOCATION.Salta : STAFF_BY_LOCATION.Jujuy)[selectedRole as keyof typeof STAFF] || [])
                   }
                   selectedStaff={selectedStaff}
                   onSelectStaff={setSelectedStaff}

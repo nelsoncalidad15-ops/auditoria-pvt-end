@@ -29,26 +29,23 @@ interface UseAuditStructureParams {
   onSaveSuccess?: (message: string) => void;
 }
 
-function getStoredScopeOrEmpty(scope: Exclude<AuditStructureScope, "global">) {
-  if (typeof window === "undefined") {
-    return [] as AuditCategory[];
-  }
+export const isControllerCategory = (name: string) => {
+  const norm = String(name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  return norm.includes("controller");
+};
 
-  return window.localStorage.getItem(`audit-structure-v1:${scope}`)
-    ? getStoredAuditCategories(scope)
-    : [];
-}
-
-const createInitialScopes = (): Record<AuditStructureScope, AuditCategory[]> => ({
-  global: getStoredAuditCategories("global"),
-  // Jujuy y Salta comparten la base global hasta que exista una excepción
-  // explícita guardada para una sucursal.
-  Salta: getStoredScopeOrEmpty("Salta"),
-  Jujuy: getStoredScopeOrEmpty("Jujuy"),
-  "Sin ubicación": getStoredScopeOrEmpty("Sin ubicación"),
-});
+const createInitialScopes = (): Record<AuditStructureScope, AuditCategory[]> => {
+  const saltaCategories = getStoredAuditCategories("Salta");
+  const jujuyCategories = getStoredAuditCategories("Jujuy");
+  return {
+    global: saltaCategories,
+    Salta: saltaCategories,
+    Jujuy: jujuyCategories,
+    "Sin ubicación": [],
+  };
+};
 const createInitialReportFilter = () => ({
-  role: getStoredAuditCategories("global")[0]?.name || "Ordenes",
+  role: getStoredAuditCategories("Jujuy")[0]?.name || "Ordenes",
   staff: "",
   month: new Date().toISOString().slice(0, 7),
 });
@@ -219,24 +216,17 @@ export function useAuditStructure({
   const loadedSheetUrlRef = useRef("");
 
   const getCategoriesForScope = (scope?: AuditStructureScope) => {
-    const globalCategories = auditCategoryScopes.global;
-    if (!scope || scope === "global") {
-      return globalCategories;
+    const targetScope: "Salta" | "Jujuy" = scope === "Salta" ? "Salta" : "Jujuy";
+    const scopedCategories = auditCategoryScopes[targetScope];
+    if (scopedCategories && scopedCategories.length > 0) {
+      return scopedCategories;
     }
-
-    const scopedCategories = auditCategoryScopes[scope];
-    if (scopedCategories.length === 0) {
-      return globalCategories;
-    }
-
-    const scopedKeys = new Set(scopedCategories.map((category) => `${category.id}:${category.name}`));
-    return [
-      ...globalCategories.filter((category) => !scopedKeys.has(`${category.id}:${category.name}`)),
-      ...scopedCategories,
-    ];
+    return getStoredAuditCategories(targetScope);
   };
   const auditCategories = getCategoriesForScope(selectedStructureScope);
-  const activeAuditCategories = getCategoriesForScope(sessionLocation).filter((category) => category.items.length > 0);
+  const activeAuditCategories = getCategoriesForScope(sessionLocation).filter(
+    (category) => category.items.length > 0 && !isControllerCategory(category.name)
+  );
   const selectedAuditCategory = selectedRole
     ? activeAuditCategories.find((category) => category.name === selectedRole)
       ?? auditCategories.find((category) => category.name === selectedRole)
@@ -713,7 +703,8 @@ export function useAuditStructure({
 
   const handleSaveStructureToSheet = useCallback(async () => {
     const effectiveWebhookUrl = webhookUrl.trim() || localStorage.getItem("webhookUrl") || "";
-    const categoriesForScope = auditCategoryScopes[selectedStructureScope];
+    const targetScope: "Salta" | "Jujuy" = selectedStructureScope === "Salta" ? "Salta" : "Jujuy";
+    const categoriesForScope = getCategoriesForScope(targetScope);
     const derivedRules = buildCalculationRulesFromLinks(selectedStructureScope, categoriesForScope);
     const rulesForScope = mergeCalculationRules(
       calculationRules.filter((rule) => rule.scope === selectedStructureScope),
@@ -774,14 +765,21 @@ export function useAuditStructure({
       const receivedStructure = await fetchAuditStructureFromWebhook(effectiveWebhookUrl);
       const receivedScopes = receivedStructure.scopes;
       setProcessDefinitions(receivedStructure.processDefinitions);
-      const scopes = ["global", "Salta", "Jujuy", "Sin ubicación"] as AuditStructureScope[];
+      const scopes = ["Salta", "Jujuy"] as ("Salta" | "Jujuy")[];
       const normalizedScopes = scopes.reduce((acc, scope) => {
         const categories = receivedScopes[scope];
         if (Array.isArray(categories) && categories.length > 0) {
-          acc[scope] = normalizeAuditCategories(categories, { includeMissingDefaults: false });
+          acc[scope] = normalizeAuditCategories(categories, { includeMissingDefaults: true, scope });
         }
         return acc;
       }, {} as Partial<Record<AuditStructureScope, AuditCategory[]>>);
+
+      if (!normalizedScopes.Salta && receivedScopes.global) {
+        normalizedScopes.Salta = normalizeAuditCategories(receivedScopes.global, { includeMissingDefaults: true, scope: "Salta" });
+      }
+      if (!normalizedScopes.Jujuy && receivedScopes.global) {
+        normalizedScopes.Jujuy = normalizeAuditCategories(receivedScopes.global, { includeMissingDefaults: true, scope: "Jujuy" });
+      }
 
       if (Object.keys(normalizedScopes).length === 0) {
         if (!options.silent) {

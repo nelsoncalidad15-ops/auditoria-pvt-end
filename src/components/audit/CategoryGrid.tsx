@@ -54,9 +54,18 @@ export function CategoryGrid({
     return ClipboardList;
   };
 
+  const isControllerCategory = (name: string) => {
+    const norm = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    return norm.includes("controller");
+  };
+
+  const auditableCategories = categories.filter(
+    (category) => !isControllerCategory(category.name) && (category.items?.length ?? 0) > 0
+  );
+
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {categories.map((category, index) => {
+      {auditableCategories.map((category, index) => {
         const Icon = getIcon(category.name);
         const report = completedReports.find((r) => r.role === category.name);
         const count = auditCounts[category.name] || 0;

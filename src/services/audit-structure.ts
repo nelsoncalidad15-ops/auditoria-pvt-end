@@ -1,4 +1,4 @@
-import { ASESOR_CHECKLIST_ITEMS, AUDIT_QUESTIONS, OR_CHECKLIST_ITEMS, PRE_DELIVERY_CHECKLIST_ITEMS, STAFF, SUBGERENTE_CHECKLIST_ITEMS } from "../constants";
+import { ASESOR_CHECKLIST_ITEMS, AUDIT_QUESTIONS, OR_CHECKLIST_ITEMS, PRE_DELIVERY_CHECKLIST_ITEMS, STAFF, STAFF_BY_LOCATION, SUBGERENTE_CHECKLIST_ITEMS } from "../constants";
 import { createClientId } from "../lib/utils";
 import { AuditCategory, AuditStructureScope, AuditTemplateItem, ScoreLink } from "../types";
 
@@ -161,22 +161,27 @@ function shouldUpgradePreDeliveryCategory(category: any) {
   return hasLegacyOnlyItems && !hasNewDocumentaryItem;
 }
 
-export function getDefaultAuditCategories(): AuditCategory[] {
+export function getDefaultAuditCategories(scope: AuditStructureScope = "Salta"): AuditCategory[] {
+  const effectiveScope: "Salta" | "Jujuy" = scope === "Jujuy" ? "Jujuy" : "Salta";
+  const staffByLocation = STAFF_BY_LOCATION[effectiveScope] || STAFF_BY_LOCATION.Salta;
+
   return Object.entries(AUDIT_QUESTIONS).map(([name, questions]) => ({
     id: slugify(name),
     name,
     description: "",
-    staffOptions: STAFF[name] ?? [],
+    staffOptions: staffByLocation[name as keyof typeof staffByLocation] ?? [],
     items: getCategoryDefaultItems(name, questions),
   }));
 }
 
 export interface NormalizeAuditCategoriesOptions {
   includeMissingDefaults?: boolean;
+  scope?: AuditStructureScope;
 }
 
 export function normalizeAuditCategories(categories: AuditCategory[] | unknown, options: NormalizeAuditCategoriesOptions = {}): AuditCategory[] {
-  const defaultCategories = getDefaultAuditCategories();
+  const scope: "Salta" | "Jujuy" = options.scope === "Jujuy" ? "Jujuy" : "Salta";
+  const defaultCategories = getDefaultAuditCategories(scope);
   const includeMissingDefaults = options.includeMissingDefaults !== false;
 
   if (!Array.isArray(categories) || categories.length === 0) {
@@ -266,26 +271,47 @@ export function normalizeAuditCategories(categories: AuditCategory[] | unknown, 
   return includeMissingDefaults ? [...normalized, ...missingDefaults] : [...normalized, ...controllerDirectory];
 }
 
-export function getStoredAuditCategories(scope: AuditStructureScope = "global"): AuditCategory[] {
+export function getStoredAuditCategories(scope: AuditStructureScope = "Jujuy"): AuditCategory[] {
+  const effectiveScope: "Salta" | "Jujuy" = scope === "Salta" ? "Salta" : "Jujuy";
   try {
-    const rawValue = localStorage.getItem(getStorageKey(scope));
+    const rawValue = localStorage.getItem(getStorageKey(effectiveScope));
     if (!rawValue) {
-      return getDefaultAuditCategories();
+      return getDefaultAuditCategories(effectiveScope);
     }
 
-    return normalizeAuditCategories(JSON.parse(rawValue) as AuditCategory[]);
+    const categories = normalizeAuditCategories(JSON.parse(rawValue) as AuditCategory[], { scope: effectiveScope });
+
+    // Sanitize contaminated cache:
+    // If Jujuy has Salta's exact advisors ("Mauro Gutierrez", "Cristian Cardozo", "Carlos Farina"),
+    // clear them so Jujuy never accidentally shows Salta's advisors due to old cached fallbacks!
+    if (effectiveScope === "Jujuy") {
+      const saltaAdvisorSet = new Set(STAFF_BY_LOCATION.Salta["Asesores de servicio"]);
+      return categories.map((cat) => {
+        if (cat.name === "Asesores de servicio" || cat.name === "Ordenes") {
+          const isPolluted = cat.staffOptions.length > 0 && cat.staffOptions.every((name) => saltaAdvisorSet.has(name));
+          if (isPolluted) {
+            return { ...cat, staffOptions: [] };
+          }
+        }
+        return cat;
+      });
+    }
+
+    return categories;
   } catch {
-    return getDefaultAuditCategories();
+    return getDefaultAuditCategories(effectiveScope);
   }
 }
 
-export function saveAuditCategories(categories: AuditCategory[], scope: AuditStructureScope = "global") {
-  localStorage.setItem(getStorageKey(scope), JSON.stringify(categories));
+export function saveAuditCategories(categories: AuditCategory[], scope: AuditStructureScope = "Jujuy") {
+  const effectiveScope: "Salta" | "Jujuy" = scope === "Salta" ? "Salta" : "Jujuy";
+  localStorage.setItem(getStorageKey(effectiveScope), JSON.stringify(categories));
 }
 
-export function resetAuditCategories(scope: AuditStructureScope = "global") {
-  const defaults = getDefaultAuditCategories();
-  saveAuditCategories(defaults, scope);
+export function resetAuditCategories(scope: AuditStructureScope = "Jujuy") {
+  const effectiveScope: "Salta" | "Jujuy" = scope === "Salta" ? "Salta" : "Jujuy";
+  const defaults = getDefaultAuditCategories(effectiveScope);
+  saveAuditCategories(defaults, effectiveScope);
   return defaults;
 }
 

@@ -1016,20 +1016,38 @@ export const SUBGERENTE_CHECKLIST_ITEMS: AuditTemplateItem[] = [
   },
 ];
 
-export const STAFF: Record<Role, string[]> = {
-  "Asesores de servicio": ["Mauro Gutierrez", "Cristian Cardozo", "Carlos Farina"],
-  "Asesores de cita": ["Pablo Guantay"],
-  "Técnicos": ["J. Araya", "N. Poclava", "R. Garcia", "P. Fernandez", "E. Cruz", "I. Alanoca"],
-  "Subgerente de servicio": ["Nelson Notario"],
-  "Jefe de Taller": ["Marcelo Pereyra"],
-  "Garantía": ["Garantía 1"],
-  "Repuestos": ["Repuestos 1"],
-  "Jefe de Repuestos": ["Jefe Repuestos 1"],
-  "Lavadero": ["Claudio Bravo", "Santiago Silva", "Alejandro Mamani"],
-  "Controllers de OR": ["Marcelo Pereyra", "Nelson Notario"],
-  "Pre Entrega": ["Baysse Fernando", "Paredes Gustavo", "Cañzares Otero", "Bedoya Victoria", "Luna Jimenez Alejandro", "Quispe Orlando David"],
-  "Ordenes": ["Mauro Gutierrez", "Cristian Cardozo", "Carlos Farina"],
+export const STAFF_BY_LOCATION: Record<"Salta" | "Jujuy", Record<Role, string[]>> = {
+  Salta: {
+    "Asesores de servicio": ["Mauro Gutierrez", "Cristian Cardozo", "Carlos Farina"],
+    "Asesores de cita": ["Pablo Guantay"],
+    "Técnicos": ["J. Araya", "N. Poclava", "R. Garcia", "P. Fernandez", "E. Cruz", "I. Alanoca"],
+    "Subgerente de servicio": [],
+    "Jefe de Taller": ["Marcelo Pereyra"],
+    "Garantía": ["Garantía 1"],
+    "Repuestos": ["Repuestos 1"],
+    "Jefe de Repuestos": ["Jefe Repuestos 1"],
+    "Lavadero": ["Claudio Bravo", "Santiago Silva", "Alejandro Mamani"],
+    "Controllers de OR": ["Marcelo Pereyra", "Nelson Notario"],
+    "Pre Entrega": ["Baysse Fernando", "Paredes Gustavo", "Cañzares Otero", "Bedoya Victoria", "Luna Jimenez Alejandro", "Quispe Orlando David"],
+    "Ordenes": ["Mauro Gutierrez", "Cristian Cardozo", "Carlos Farina"],
+  },
+  Jujuy: {
+    "Asesores de servicio": [],
+    "Asesores de cita": [],
+    "Técnicos": [],
+    "Subgerente de servicio": ["Nelson Notario"],
+    "Jefe de Taller": [],
+    "Garantía": [],
+    "Repuestos": [],
+    "Jefe de Repuestos": [],
+    "Lavadero": [],
+    "Controllers de OR": ["Nelson Notario"],
+    "Pre Entrega": [],
+    "Ordenes": [],
+  },
 };
+
+export const STAFF: Record<Role, string[]> = STAFF_BY_LOCATION.Salta;
 
 export const AUDIT_QUESTIONS: Record<Role, string[]> = {
   // Directorio de personal para el selector de controller; no es una auditoría.
