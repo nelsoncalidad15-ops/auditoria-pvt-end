@@ -12,6 +12,22 @@ Los resultados no se mezclan con esta configuracion: se guardan en `Auditorias` 
 
 No hace falta crear las pestañas a mano para la primera carga.
 
+## Evidencias fotograficas en Google Drive
+
+Cada punto permite adjuntar una imagen desde la camara o la galeria. Apps Script convierte esa evidencia en un archivo de Drive y guarda el enlace en la columna `photoUrl` de `AuditoriaItems`.
+
+1. Crea o elige la carpeta de Google Drive.
+2. Copia el ID que aparece en la URL de la carpeta.
+3. En Apps Script abre Configuracion del proyecto y Propiedades de la secuencia de comandos.
+4. Crea la propiedad `DRIVE_FOLDER_ID` y pega el ID.
+5. Vuelve a implementar la aplicacion web y acepta el permiso de Drive.
+
+Se crea automaticamente una subcarpeta por fecha, area y numero de OR. La carpeta predeterminada actual es `1pO1Atfsx0w66bPzdaGmRo9OSjRi2pZnv`; la propiedad permite reemplazarla sin modificar el codigo.
+
+## Trabajo simultaneo
+
+Varios equipos pueden cargar OR diferentes en la misma campana usando el mismo nombre de campana y sucursal. Una OR queda reservada durante la carga y el servidor bloquea escrituras simultaneas. La combinacion campana, sucursal y numero de OR no puede repetirse, aunque dos personas intenten guardarla al mismo tiempo.
+
 ## Como modificar preguntas despues
 
 Abri la pestaña del area que quieras editar. Cada fila desde la segunda fila representa una pregunta.

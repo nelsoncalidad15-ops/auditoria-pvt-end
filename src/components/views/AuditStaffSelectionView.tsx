@@ -17,7 +17,8 @@ import {
   FileDown,
   MoreHorizontal,
 } from "lucide-react";
-import { AuditSession } from "../../types";
+import { AuditSession, OrAuditParticipants } from "../../types";
+import { OR_PARTICIPANTS } from "../../constants";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/Button";
 
@@ -26,6 +27,9 @@ interface AuditStaffSelectionViewProps {
   staffList: string[];
   selectedStaff: string;
   onSelectStaff: (staffName: string) => void;
+  participants?: Partial<OrAuditParticipants>;
+  onParticipantChange?: (field: keyof OrAuditParticipants, value: string) => void;
+  participantOptions?: Partial<Record<keyof OrAuditParticipants, readonly string[]>>;
   orderNumber?: string;
   onOrderNumberChange?: (value: string) => void;
   clientIdentifier?: string;
@@ -55,6 +59,9 @@ export function AuditStaffSelectionView({
   staffList,
   selectedStaff,
   onSelectStaff,
+  participants,
+  onParticipantChange,
+  participantOptions,
   orderNumber,
   onOrderNumberChange,
   clientIdentifier,
@@ -81,6 +88,10 @@ export function AuditStaffSelectionView({
   const [searchTerm, setSearchTerm] = useState("");
   const [manualStaffName, setManualStaffName] = useState("");
   const [isCampaignEditing, setIsCampaignEditing] = useState(selectedStaffNames.length === 0);
+  const getParticipantOptions = (field: keyof OrAuditParticipants) => {
+    const configured = participantOptions?.[field]?.map((name) => name.trim()).filter(Boolean) || [];
+    return configured.length > 0 ? configured : OR_PARTICIPANTS[field];
+  };
 
   const availableStaff = isOrdersAudit && selectedStaffNames.length > 0 ? selectedStaffNames : staffList;
   const filteredStaff = availableStaff.filter((name) =>
@@ -111,13 +122,31 @@ export function AuditStaffSelectionView({
   const hasClientIdentifier = Boolean(clientIdentifier?.trim());
   const isCampaignComplete = isOrdersAudit && orderAudits.length >= sampleTarget;
   const campaignProgress = Math.min(100, Math.round((orderAudits.length / Math.max(sampleTarget, 1)) * 100));
+  const isDuplicateOrder = isOrdersAudit && Boolean(orderNumber?.trim()) && orderAudits.some((audit) => audit.orderNumber?.trim() === orderNumber?.trim());
+  const campaignAverage = orderAudits.length > 0
+    ? Math.round(orderAudits.reduce((total, audit) => total + audit.totalScore, 0) / orderAudits.length)
+    : null;
+  const campaignDeviationCount = orderAudits.reduce((total, audit) => total + audit.items.filter((item) => item.status === "fail").length, 0);
+  const mostFrequentDeviation = Array.from(orderAudits.reduce((groups, audit) => {
+    audit.items.filter((item) => item.status === "fail").forEach((item) => {
+      groups.set(item.question, (groups.get(item.question) || 0) + 1);
+    });
+    return groups;
+  }, new Map<string, number>())).sort((left, right) => right[1] - left[1])[0];
 
-  const canContinue = selectedStaff.trim() !== "" && (
+  const hasOrderParticipants = !isOrdersAudit || Boolean(
+    (participants?.asesorServicio || selectedStaff).trim()
+    && participants?.tecnico?.trim()
+    && participants?.controller?.trim()
+    && participants?.lavador?.trim()
+    && participants?.repuestos?.trim()
+  );
+  const canContinue = selectedStaff.trim() !== "" && hasOrderParticipants && (
     (isOrdersAudit && hasValidOrderNumber) ||
     (isServiceAdvisorAudit && hasValidOrderNumber && hasClientIdentifier) ||
     isTechnicianAudit ||
     isOtherRole
-  );
+  ) && !isDuplicateOrder;
 
   const toggleCampaignStaff = (name: string) => {
     const next = selectedStaffNames.includes(name)
@@ -328,6 +357,15 @@ export function AuditStaffSelectionView({
                 </span>
               </div>
 
+              {orderAudits.length > 0 && (
+                <div className="grid grid-cols-2 gap-2 border-b border-slate-100 bg-slate-50/60 p-4 sm:grid-cols-4 dark:border-white/5 dark:bg-white/[0.02]">
+                  <div className="rounded-xl bg-white p-3 dark:bg-slate-800"><p className="text-[8px] font-black uppercase tracking-wider text-slate-400">Avance</p><p className="mt-1 text-xl font-black text-slate-900 dark:text-white">{campaignProgress}%</p></div>
+                  <div className="rounded-xl bg-white p-3 dark:bg-slate-800"><p className="text-[8px] font-black uppercase tracking-wider text-slate-400">Promedio</p><p className={cn("mt-1 text-xl font-black", (campaignAverage || 0) >= 90 ? "text-emerald-600" : (campaignAverage || 0) >= 70 ? "text-amber-600" : "text-rose-600")}>{campaignAverage}%</p></div>
+                  <div className="rounded-xl bg-white p-3 dark:bg-slate-800"><p className="text-[8px] font-black uppercase tracking-wider text-slate-400">Desvíos</p><p className={cn("mt-1 text-xl font-black", campaignDeviationCount ? "text-rose-600" : "text-emerald-600")}>{campaignDeviationCount}</p></div>
+                  <div className="rounded-xl bg-white p-3 dark:bg-slate-800"><p className="text-[8px] font-black uppercase tracking-wider text-slate-400">Más repetido</p><p className="mt-1 line-clamp-2 text-[10px] font-bold leading-snug text-slate-700 dark:text-slate-200">{mostFrequentDeviation ? `${mostFrequentDeviation[1]}× ${mostFrequentDeviation[0]}` : "Sin desvíos"}</p></div>
+                </div>
+              )}
+
               {orderAuditsByAdvisor.length === 0 ? (
                 <div className="px-6 py-10 text-center">
                   <p className="text-sm font-black text-slate-700 dark:text-slate-200">Todavia no hay OR auditadas en este ciclo.</p>
@@ -404,14 +442,48 @@ export function AuditStaffSelectionView({
 
             {isOrdersAudit && !isCampaignComplete && (
               <div className="space-y-2">
-                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Responsable de esta OR</label>
-                <select value={selectedStaff} onChange={(event) => onSelectStaff(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-[#001e50] outline-none focus:border-blue-400">
+                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Asesor de servicio auditado</label>
+                <select value={selectedStaff} onChange={(event) => { onSelectStaff(event.target.value); onParticipantChange?.("asesorServicio", event.target.value); }} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-[#001e50] outline-none focus:border-blue-400">
                   <option value="">Elegir asesor</option>
                   {availableStaff.map((name) => {
                     const count = staffProgress?.find((entry) => entry.advisorName === name)?.sampledCount || 0;
                     return <option key={name} value={name}>{name} · {count} OR</option>;
                   })}
                 </select>
+                <p className="text-[9px] font-medium text-slate-400">El resultado de los puntos asignados al asesor impactará en esta persona.</p>
+              </div>
+            )}
+
+            {isOrdersAudit && !isCampaignComplete && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Técnico de la OR</label>
+                  <select value={participants?.tecnico || ""} onChange={(event) => onParticipantChange?.("tecnico", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-[#001e50] outline-none focus:border-blue-400">
+                    <option value="">Elegir técnico</option>
+                    {getParticipantOptions("tecnico").map((name) => <option key={name} value={name}>{name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Lavador de la OR</label>
+                  <select value={participants?.lavador || ""} onChange={(event) => onParticipantChange?.("lavador", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-[#001e50] outline-none focus:border-blue-400">
+                    <option value="">Elegir lavador</option>
+                    {getParticipantOptions("lavador").map((name) => <option key={name} value={name}>{name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Controller de la OR</label>
+                  <select value={participants?.controller || ""} onChange={(event) => onParticipantChange?.("controller", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-[#001e50] outline-none focus:border-blue-400">
+                    <option value="">Elegir controller</option>
+                    {getParticipantOptions("controller").map((name) => <option key={name} value={name}>{name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Responsable de repuestos</label>
+                  <select value={participants?.repuestos || ""} onChange={(event) => onParticipantChange?.("repuestos", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-[#001e50] outline-none focus:border-blue-400">
+                    <option value="">Elegir responsable</option>
+                    {getParticipantOptions("repuestos").map((name) => <option key={name} value={name}>{name}</option>)}
+                  </select>
+                </div>
               </div>
             )}
 
@@ -431,6 +503,11 @@ export function AuditStaffSelectionView({
                     autoComplete="off"
                     className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-center text-base font-black tracking-[0.16em] text-[#001e50] outline-none focus:border-blue-400"
                   />
+                  {isDuplicateOrder && (
+                    <p className="rounded-lg bg-rose-50 px-3 py-2 text-center text-[10px] font-black text-rose-700">
+                      Esta OR ya está cargada. Abrila desde el listado para verla o editarla.
+                    </p>
+                  )}
                 </div>
                 {isOrdersAudit ? (
                   <div className="rounded-lg bg-blue-50 px-3 py-2">

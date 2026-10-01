@@ -221,6 +221,11 @@ function doPost(e) {
       'photoUrl'
     ]);
 
+    if (payload && payload.event === 'order_reserve') {
+      var reservation = reserveOrder_(summarySheet, payload);
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, reservation: reservation })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     if (payload && payload.event === 'structure_replace') {
       var structureResult = replaceStructureScope_(spreadsheet, payload);
 
@@ -301,12 +306,20 @@ function doPost(e) {
     }
 
     validatePayload_(payload);
-    var normalizedItemRows = normalizeItemRows_(payload.audit, payload.sheet.itemRows || []);
-
-    deleteRowsByAuditId_(summarySheet, payload.audit.id);
-    deleteRowsByAuditId_(itemsSheet, payload.audit.id);
-    appendSummaryRow_(summarySheet, payload.sheet.summaryRow);
-    appendItemRows_(itemsSheet, normalizedItemRows);
+    var writeLock = LockService.getScriptLock();
+    writeLock.waitLock(30000);
+    var normalizedItemRows;
+    try {
+      assertOrderIsAvailable_(summarySheet, payload.audit);
+      normalizedItemRows = normalizeItemRows_(payload.audit, payload.sheet.itemRows || []);
+      deleteRowsByAuditId_(summarySheet, payload.audit.id);
+      deleteRowsByAuditId_(itemsSheet, payload.audit.id);
+      appendSummaryRow_(summarySheet, payload.sheet.summaryRow);
+      appendItemRows_(itemsSheet, normalizedItemRows);
+      releaseOrderReservation_(payload.audit);
+    } finally {
+      writeLock.releaseLock();
+    }
 
     return ContentService
       .createTextOutput(JSON.stringify({
@@ -421,6 +434,67 @@ function buildStructureResponse_() {
       scopes: scopes
     }))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function assertOrderIsAvailable_(summarySheet, audit) {
+  if (!audit || String(audit.role || '').toLowerCase() !== 'ordenes' || !audit.orderNumber) return;
+  var rows = getSheetRows_(summarySheet);
+  var orderNumber = String(audit.orderNumber || '').trim();
+  var batchName = String(audit.auditBatchName || '').trim();
+  var location = String(audit.location || '').trim();
+  var auditId = String(audit.id || '').trim();
+  var duplicate = rows.find(function(row) {
+    return String(row.auditId || '').trim() !== auditId
+      && String(row.role || '').trim().toLowerCase() === 'ordenes'
+      && String(row.orderNumber || '').trim() === orderNumber
+      && String(row.auditBatchName || '').trim() === batchName
+      && String(row.location || '').trim() === location;
+  });
+  if (duplicate) {
+    var owner = duplicate.submittedByEmail || duplicate.auditorName || duplicate.staffName || 'otro auditor';
+    throw new Error('CONFLICT_OR: La OR ' + orderNumber + ' ya fue cargada en esta campana por ' + owner + '. Actualiza el historial antes de continuar.');
+  }
+}
+
+function getOrderReservationKey_(source) {
+  var raw = [source.auditBatchName || '', source.location || '', source.orderNumber || ''].join('|');
+  var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, raw, Utilities.Charset.UTF_8);
+  return 'OR_RESERVATION_' + Utilities.base64EncodeWebSafe(digest).replace(/=+$/, '');
+}
+
+function reserveOrder_(summarySheet, payload) {
+  var audit = payload.audit || {};
+  if (!audit.id || !audit.orderNumber || !audit.auditBatchName || !audit.location) throw new Error('No se pudo reservar la OR: faltan datos.');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    assertOrderIsAvailable_(summarySheet, audit);
+    var properties = PropertiesService.getScriptProperties();
+    var key = getOrderReservationKey_(audit);
+    var currentRaw = properties.getProperty(key);
+    var now = new Date().getTime();
+    if (currentRaw) {
+      var current = JSON.parse(currentRaw);
+      if (current.auditId !== audit.id && Number(current.expiresAt || 0) > now) {
+        throw new Error('OR_EN_USO: La OR ' + audit.orderNumber + ' está siendo auditada por ' + (current.owner || 'otro usuario') + '.');
+      }
+    }
+    var reservation = { auditId: audit.id, orderNumber: String(audit.orderNumber), owner: payload.owner || 'otro auditor', expiresAt: now + (20 * 60 * 1000) };
+    properties.setProperty(key, JSON.stringify(reservation));
+    return reservation;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function releaseOrderReservation_(audit) {
+  if (!audit || !audit.orderNumber) return;
+  var properties = PropertiesService.getScriptProperties();
+  var key = getOrderReservationKey_(audit);
+  var currentRaw = properties.getProperty(key);
+  if (!currentRaw) return;
+  var current = JSON.parse(currentRaw);
+  if (current.auditId === audit.id) properties.deleteProperty(key);
 }
 
 function replaceStructureScope_(spreadsheet, payload) {

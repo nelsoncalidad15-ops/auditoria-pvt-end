@@ -29,6 +29,7 @@ interface AppShellProps {
   contentContainerRef: React.RefObject<HTMLDivElement | null>;
   onNavigate: (view: AppView | "home") => void;
   onLogout: () => void;
+  onExitToStart: () => void;
   onOpenMobileNav: () => void;
   onCloseMobileNav: () => void;
   onBack: () => void;
@@ -63,6 +64,7 @@ export function AppShell({
   contentContainerRef,
   onNavigate,
   onLogout,
+  onExitToStart,
   onOpenMobileNav,
   onCloseMobileNav,
   onBack,
@@ -85,6 +87,7 @@ export function AppShell({
         onNavigate={(id) => onNavigate(id as AppView | "home")}
         onMobileClose={onCloseMobileNav}
         onLogout={onLogout}
+        onExitToStart={onExitToStart}
       />
 
       <div ref={contentContainerRef} className={cn("flex-1 flex flex-col min-h-[100dvh] relative", showSidebar && "lg:pl-[236px]")}>

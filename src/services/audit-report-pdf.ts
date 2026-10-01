@@ -1,7 +1,8 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
-import { AuditSession, AuditTemplateItem } from "../types";
+import { AuditItem, AuditSession, AuditTemplateItem, OrResponsibleRole } from "../types";
+import { calculateAuditCompliance, calculateRoleScores } from "./or-audit";
 
 // ?"??"??"? Colores corporativos ?"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"?
 const COLOR_DARK_BLUE: [number, number, number] = [12, 35, 64];
@@ -43,11 +44,14 @@ function getStatusColor(status?: "pass" | "fail" | "na" | "calculated"): [number
 }
 
 function getSectionMetrics(items: AuditTemplateItem[], session: AuditSession) {
-  const passCount = items.filter((t) => session.items.find((s) => s.question === t.text)?.status === "pass").length;
-  const failCount = items.filter((t) => session.items.find((s) => s.question === t.text)?.status === "fail").length;
-  const naCount = items.filter((t) => session.items.find((s) => s.question === t.text)?.status === "na").length;
-  const pendingCount = items.filter((t) => !session.items.find((s) => s.question === t.text)).length;
-  const validCount = passCount + failCount;
+  const answers = items
+    .map((template) => session.items.find((answer) => answer.id === template.id || answer.question === template.text))
+    .filter((answer): answer is AuditItem => Boolean(answer));
+  const passCount = answers.filter((answer) => answer.status === "pass").length;
+  const failCount = answers.filter((answer) => answer.status === "fail").length;
+  const naCount = answers.filter((answer) => answer.status === "na").length;
+  const pendingCount = items.length - answers.filter((answer) => answer.status || typeof answer.calculatedScore === "number").length;
+  const compliance = calculateAuditCompliance(answers);
 
   return {
     total: items.length,
@@ -55,8 +59,27 @@ function getSectionMetrics(items: AuditTemplateItem[], session: AuditSession) {
     failCount,
     naCount,
     pendingCount,
-    score: validCount > 0 ? Math.round((passCount / validCount) * 100) : 0,
+    score: compliance.compliance,
   };
+}
+
+const ROLE_LABELS: Record<OrResponsibleRole, string> = {
+  asesor: "Asesor de servicio",
+  tecnico: "Tecnico",
+  controller: "Control de calidad",
+  lavador: "Lavado",
+  repuestos: "Repuestos",
+};
+
+function getRoleScores(session: AuditSession) {
+  return session.roleScores?.length ? session.roleScores : calculateRoleScores(session.items);
+}
+
+function getRoleOwner(session: AuditSession, role: OrResponsibleRole) {
+  const participantKey: Record<OrResponsibleRole, keyof NonNullable<AuditSession["participants"]>> = {
+    asesor: "asesorServicio", tecnico: "tecnico", controller: "controller", lavador: "lavador", repuestos: "repuestos",
+  };
+  return session.participants?.[participantKey[role]]?.trim() || "Sin asignar";
 }
 
 type PdfWithTable = jsPDF & { lastAutoTable?: { finalY?: number } };
@@ -91,7 +114,7 @@ function drawSectionHeader(pdf: jsPDF, title: string, score: number, y: number) 
   pdf.text(title, 19, y + 6.8);
 
   // Score alineado a la derecha
-  const scoreColor = score >= 85 ? COLOR_PASS : score >= 60 ? COLOR_PENDING : COLOR_FAIL;
+  const scoreColor = score >= 90 ? COLOR_PASS : score >= 70 ? COLOR_PENDING : COLOR_FAIL;
   pdf.setFillColor(...scoreColor);
   pdf.roundedRect(pageWidth - 14 - 22, y + 1.5, 22, 7, 1, 1, "F");
   pdf.setFontSize(9);
@@ -104,7 +127,7 @@ function drawScoreBar(pdf: jsPDF, score: number, x: number, y: number, w: number
   pdf.setFillColor(...COLOR_LIGHT_GRAY);
   pdf.rect(x, y, w, h, "F");
   const fillW = Math.round((score / 100) * w);
-  const barColor = score >= 85 ? COLOR_PASS : score >= 60 ? COLOR_PENDING : COLOR_FAIL;
+  const barColor = score >= 90 ? COLOR_PASS : score >= 70 ? COLOR_PENDING : COLOR_FAIL;
   pdf.setFillColor(...barColor);
   pdf.rect(x, y, fillW, h, "F");
 }
@@ -141,7 +164,7 @@ function drawCoverPage(
 
   // Score total grande arriba a la derecha
   const totalScore = session.totalScore;
-  const totalScoreColor = totalScore >= 85 ? COLOR_PASS : totalScore >= 60 ? COLOR_PENDING : COLOR_FAIL;
+  const totalScoreColor = totalScore >= 90 ? COLOR_PASS : totalScore >= 70 ? COLOR_PENDING : COLOR_FAIL;
   pdf.setFillColor(...totalScoreColor);
   pdf.roundedRect(pageWidth - 14 - 34, 6, 34, 26, 2, 2, "F");
   pdf.setFont("helvetica", "bold");
@@ -174,6 +197,13 @@ function drawCoverPage(
       ...(session.role === "Pre Entrega"
         ? []
         : [["Personal auditado", session.staffName || "Sin asignar"]]),
+      ...(session.role === "Ordenes" ? [
+        ["Asesor de servicio", session.participants?.asesorServicio || session.staffName || "Sin asignar"],
+        ["Tecnico", session.participants?.tecnico || "Sin asignar"],
+        ["Controller", session.participants?.controller || "Sin asignar"],
+        ["Lavador", session.participants?.lavador || "Sin asignar"],
+        ["Repuestos", session.participants?.repuestos || "Sin asignar"],
+      ] : []),
       [
         "Legajos auditados",
         auditedFileNames.length > 0 ? auditedFileNames.join(", ") : "Sin legajos cargados",
@@ -222,7 +252,7 @@ function drawCoverPage(
       if (data.section === "body" && data.column.index === 6) {
         const raw = String(data.cell.raw).replace("%", "");
         const val = parseInt(raw, 10);
-        data.cell.styles.textColor = val >= 85 ? COLOR_PASS : val >= 60 ? COLOR_PENDING : COLOR_FAIL;
+        data.cell.styles.textColor = val >= 90 ? COLOR_PASS : val >= 70 ? COLOR_PENDING : COLOR_FAIL;
         data.cell.styles.fontStyle = "bold";
       }
       if (data.section === "body" && data.column.index === 3 && Number(data.cell.raw) > 0) {
@@ -243,9 +273,34 @@ function drawCoverPage(
     },
   });
 
-  // Dibujamos barras de progreso debajo de la tabla de secciones
-  const afterTableY = getLastY(pdf as PdfWithTable, 180);
+  // El impacto usa exactamente la misma logica ponderada que el puntaje general.
+  const roleRows = getRoleScores(session).filter((row) => row.totalApplicableWeight > 0);
+  let afterTableY = getLastY(pdf as PdfWithTable, 180);
   const pageHeight = pdf.internal.pageSize.getHeight();
+  if (roleRows.length > 0 && pageHeight - afterTableY > 48) {
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(10);
+    pdf.setTextColor(...COLOR_TEXT_DARK);
+    pdf.text("Impacto por responsable", 14, afterTableY + 8);
+    autoTable(pdf, {
+      startY: afterTableY + 12,
+      theme: "grid",
+      head: [["Area / rol", "Responsable", "Items", "Cumplimiento"]],
+      headStyles: { fillColor: COLOR_DARK_BLUE, textColor: [255, 255, 255], fontStyle: "bold" },
+      styles: { fontSize: 8, cellPadding: 2.3, textColor: COLOR_TEXT_DARK },
+      body: roleRows.map((row) => [ROLE_LABELS[row.role], getRoleOwner(session, row.role), String(row.itemsCount), `${row.compliance}%`]),
+      didParseCell: (data) => {
+        if (data.section === "body" && data.column.index === 3) {
+          const score = Number(String(data.cell.raw).replace("%", ""));
+          data.cell.styles.textColor = score >= 90 ? COLOR_PASS : score >= 70 ? COLOR_PENDING : COLOR_FAIL;
+          data.cell.styles.fontStyle = "bold";
+        }
+      },
+    });
+    afterTableY = getLastY(pdf as PdfWithTable, afterTableY + 35);
+  }
+
+  // Dibujamos barras de progreso debajo de la tabla de secciones
   const availableSpace = pageHeight - afterTableY - 18;
   const barRowH = 7.5;
   const canFitBars = availableSpace >= sectionRows.length * barRowH + 10;
@@ -264,7 +319,7 @@ function drawCoverPage(
       const label = sectionName.length > 35 ? sectionName.slice(0, 33) + "???" : sectionName;
       pdf.text(label, 14, rowY + 2.5);
       drawScoreBar(pdf, m.score, 90, rowY, 80);
-      const scoreCol = m.score >= 85 ? COLOR_PASS : m.score >= 60 ? COLOR_PENDING : COLOR_FAIL;
+      const scoreCol = m.score >= 90 ? COLOR_PASS : m.score >= 70 ? COLOR_PENDING : COLOR_FAIL;
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(7.5);
       pdf.setTextColor(...scoreCol);
@@ -324,7 +379,7 @@ function drawSectionDetailPage(
     startY: 46,
     theme: "striped",
     styles: { fontSize: 8.5, cellPadding: 2.6, textColor: [51, 65, 85], overflow: "linebreak" },
-    head: [["#", "?tem evaluado", "Estado", "Observaci?n"]],
+    head: [["#", "?tem evaluado", "Estado", "Observaci?n", "Evidencia"]],
     headStyles: {
       fillColor: COLOR_MID_BLUE,
       textColor: [255, 255, 255],
@@ -338,13 +393,15 @@ function drawSectionDetailPage(
         templateItem.text,
         getStatusLabel(answer?.status),
         answer?.comment || "-",
+        answer?.photoUrl ? "Abrir foto" : "-",
       ];
     }),
     columnStyles: {
       0: { cellWidth: 8, halign: "center" },
-      1: { cellWidth: 106 },
-      2: { cellWidth: 26, halign: "center" },
+      1: { cellWidth: 82 },
+      2: { cellWidth: 24, halign: "center" },
       3: { cellWidth: 42 },
+      4: { cellWidth: 28, halign: "center" },
     },
     didParseCell: (data) => {
       if (data.section === "body" && data.column.index === 2) {
@@ -353,6 +410,19 @@ function drawSectionDetailPage(
           : undefined;
         data.cell.styles.textColor = getStatusColor(status);
         data.cell.styles.fontStyle = "bold";
+      }
+      if (data.section === "body" && data.column.index === 4 && data.cell.raw !== "-") {
+        data.cell.styles.textColor = COLOR_MID_BLUE;
+        data.cell.styles.fontStyle = "bold";
+      }
+    },
+    didDrawCell: (data) => {
+      if (data.section !== "body" || data.column.index !== 4) return;
+      const answer = items[data.row.index]
+        ? session.items.find((item) => item.id === items[data.row.index].id || item.question === items[data.row.index].text)
+        : undefined;
+      if (answer?.photoUrl) {
+        pdf.link(data.cell.x, data.cell.y, data.cell.width, data.cell.height, { url: answer.photoUrl });
       }
     },
     didDrawPage: () => {
@@ -433,7 +503,27 @@ export function generateOrdersCampaignPdf(params: {
       advisor: audit.staffName || audit.participants?.asesorServicio || "Sin asignar",
       question: item.question,
       note: item.comment?.trim() || (item.photoUrl ? "Evidencia fotografica adjunta" : "Sin nota"),
+      photoUrl: item.photoUrl || "",
     })));
+  const roleImpact = Array.from(audits.reduce((groups, audit) => {
+    getRoleScores(audit).forEach((row) => {
+      if (row.totalApplicableWeight <= 0) return;
+      const current = groups.get(row.role) || { total: 0, count: 0 };
+      current.total += row.compliance;
+      current.count += 1;
+      groups.set(row.role, current);
+    });
+    return groups;
+  }, new Map<OrResponsibleRole, { total: number; count: number }>())).map(([role, metric]) => ({
+    role,
+    score: Math.round(metric.total / metric.count),
+  })).sort((left, right) => left.score - right.score);
+  const frequentDeviations = Array.from(deviations.reduce((groups, deviation) => {
+    const key = deviation.question.trim();
+    groups.set(key, (groups.get(key) || 0) + 1);
+    return groups;
+  }, new Map<string, number>())).map(([question, count]) => ({ question, count }))
+    .sort((left, right) => right.count - left.count || left.question.localeCompare(right.question));
 
   pdf.setFillColor(...COLOR_DARK_BLUE);
   pdf.rect(0, 0, pageWidth, 38, "F");
@@ -491,17 +581,45 @@ export function generateOrdersCampaignPdf(params: {
     chartY += 8;
   });
 
+  if (roleImpact.length > 0) {
+    chartY += 3;
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(11);
+    pdf.setTextColor(...COLOR_TEXT_DARK);
+    pdf.text("Impacto por area", 14, chartY);
+    chartY += 7;
+    roleImpact.forEach((metric) => {
+      const labelWidth = 48;
+      const barX = 14 + labelWidth;
+      const barWidth = pageWidth - barX - 24;
+      const scoreWidth = Math.max(0, Math.min(barWidth, barWidth * metric.score / 100));
+      const barColor = metric.score >= 90 ? COLOR_PASS : metric.score >= 70 ? COLOR_PENDING : COLOR_FAIL;
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(8);
+      pdf.setTextColor(...COLOR_TEXT_DARK);
+      pdf.text(ROLE_LABELS[metric.role], 14, chartY + 3.2);
+      pdf.setFillColor(...COLOR_LIGHT_GRAY);
+      pdf.roundedRect(barX, chartY, barWidth, 4.5, 1, 1, "F");
+      pdf.setFillColor(...barColor);
+      if (scoreWidth > 0) pdf.roundedRect(barX, chartY, scoreWidth, 4.5, 1, 1, "F");
+      pdf.setFont("helvetica", "bold");
+      pdf.text(`${metric.score}%`, pageWidth - 14, chartY + 3.2, { align: "right" });
+      chartY += 8;
+    });
+  }
+
   const startY = chartY + 4;
   autoTable(pdf, {
     startY,
     theme: "grid",
-    head: [["OR", "Responsable", "Fecha", "Resultado", "Desvios"]],
+    head: [["OR", "Asesor", "Tecnico", "Lavador", "Resultado", "Desvios"]],
     headStyles: { fillColor: COLOR_DARK_BLUE, textColor: [255, 255, 255], fontStyle: "bold" },
     styles: { fontSize: 8.5, cellPadding: 3, textColor: COLOR_TEXT_DARK },
     body: audits.map((audit) => [
       audit.orderNumber || "Sin numero",
       audit.staffName || audit.participants?.asesorServicio || "Sin asignar",
-      audit.date || "-",
+      audit.participants?.tecnico || "Sin asignar",
+      audit.participants?.lavador || "Sin asignar",
       `${audit.totalScore || 0}%`,
       String(audit.items.filter((item) => item.status === "fail").length),
     ]),
@@ -521,18 +639,48 @@ export function generateOrdersCampaignPdf(params: {
     : "No se detectaron incumplimientos en las OR auditadas.", 14, 27);
 
   if (deviations.length > 0) {
+    let deviationsTableY = 34;
+    if (frequentDeviations.length > 0) {
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(10);
+      pdf.setTextColor(...COLOR_TEXT_DARK);
+      pdf.text("Desvios mas frecuentes", 14, 36);
+      let frequencyY = 42;
+      const maxFrequency = frequentDeviations[0].count;
+      frequentDeviations.slice(0, 6).forEach((entry) => {
+        const label = entry.question.length > 52 ? `${entry.question.slice(0, 49)}...` : entry.question;
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(7.5);
+        pdf.setTextColor(...COLOR_TEXT_DARK);
+        pdf.text(label, 14, frequencyY + 3, { maxWidth: 104 });
+        pdf.setFillColor(...COLOR_LIGHT_GRAY);
+        pdf.roundedRect(121, frequencyY, 58, 4.5, 1, 1, "F");
+        pdf.setFillColor(...COLOR_FAIL);
+        pdf.roundedRect(121, frequencyY, Math.max(2, 58 * entry.count / maxFrequency), 4.5, 1, 1, "F");
+        pdf.setFont("helvetica", "bold");
+        pdf.text(`${entry.count}x`, pageWidth - 14, frequencyY + 3.2, { align: "right" });
+        frequencyY += 8;
+      });
+      deviationsTableY = frequencyY + 5;
+    }
     autoTable(pdf, {
-      startY: 34,
+      startY: deviationsTableY,
       theme: "grid",
-      head: [["OR", "Responsable", "Desvio", "Nota / evidencia"]],
+      head: [["OR", "Responsable", "Desvio", "Nota", "Evidencia"]],
       headStyles: { fillColor: COLOR_FAIL, textColor: [255, 255, 255], fontStyle: "bold" },
       styles: { fontSize: 8, cellPadding: 3, textColor: COLOR_TEXT_DARK, valign: "top", overflow: "linebreak" },
-      body: deviations.map((deviation) => [deviation.order, deviation.advisor, deviation.question, deviation.note]),
+      body: deviations.map((deviation) => [deviation.order, deviation.advisor, deviation.question, deviation.note, deviation.photoUrl ? "Abrir foto" : "-"]),
       columnStyles: {
         0: { cellWidth: 22, fontStyle: "bold" },
         1: { cellWidth: 38 },
-        2: { cellWidth: 76 },
-        3: { cellWidth: 46 },
+        2: { cellWidth: 62 },
+        3: { cellWidth: 38 },
+        4: { cellWidth: 26, halign: "center", textColor: COLOR_MID_BLUE, fontStyle: "bold" },
+      },
+      didDrawCell: (data) => {
+        if (data.section !== "body" || data.column.index !== 4) return;
+        const photoUrl = deviations[data.row.index]?.photoUrl;
+        if (photoUrl) pdf.link(data.cell.x, data.cell.y, data.cell.width, data.cell.height, { url: photoUrl });
       },
       didDrawPage: () => drawPageFooter(pdf, `campana-ordenes-${first.date}`),
     });

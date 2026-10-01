@@ -74,8 +74,13 @@ export function CategoryGrid({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
             onClick={() => onSelectCategory(category)}
+            onPointerMove={(event) => {
+              const bounds = event.currentTarget.getBoundingClientRect();
+              event.currentTarget.style.setProperty("--spotlight-x", `${event.clientX - bounds.left}px`);
+              event.currentTarget.style.setProperty("--spotlight-y", `${event.clientY - bounds.top}px`);
+            }}
             className={cn(
-              "group relative flex min-h-[82px] items-center gap-3 rounded-2xl border p-3.5 text-left transition-all active:scale-[0.98]",
+              "spotlight-card group relative flex min-h-[92px] items-center gap-3 overflow-hidden rounded-2xl border p-4 text-left transition-all active:scale-[0.98]",
               isCompleted
                 ? "bg-emerald-50/50 border-emerald-100 hover:border-emerald-300 dark:bg-emerald-500/5 dark:border-emerald-500/20"
                 : "bg-white border-slate-100 hover:border-blue-300 dark:bg-slate-900 dark:border-slate-800 dark:hover:border-blue-500/50",
@@ -83,13 +88,14 @@ export function CategoryGrid({
             )}
           >
             <div className={cn(
+              "relative z-10",
               "h-10 w-10 shrink-0 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105",
               isCompleted ? "bg-emerald-500 text-white" : "bg-slate-50 dark:bg-slate-800 text-slate-400 group-hover:text-blue-500 group-hover:bg-blue-50 dark:group-hover:bg-blue-500/10"
             )}>
               <Icon className="h-5 w-5" />
             </div>
             
-            <div className="space-y-1 w-full">
+            <div className="relative z-10 w-full space-y-1">
               <span className={cn(
                 "block pr-4 font-black text-[11px] uppercase tracking-wider leading-tight",
                 isCompleted ? "text-emerald-950 dark:text-emerald-400" : "text-slate-900 dark:text-slate-200"
@@ -101,8 +107,11 @@ export function CategoryGrid({
                 <div className="space-y-1.5 mt-1.5">
                   <div className="flex items-center gap-1.5">
                     <div className="flex-1 h-1.5 bg-emerald-200 dark:bg-emerald-500/20 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-emerald-500" 
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${progress || 0}%` }}
+                        transition={{ duration: 0.7, delay: index * 0.05 + 0.15, ease: "easeOut" }}
+                        className="h-full bg-emerald-500"
                         style={{ width: `${progress || 0}%` }} 
                       />
                     </div>

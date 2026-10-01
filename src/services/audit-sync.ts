@@ -113,6 +113,34 @@ interface AuditWebhookResponse {
   error?: string;
 }
 
+export async function reserveOrderInWebhook(webhookUrl: string, params: {
+  auditId: string;
+  auditBatchName: string;
+  location: string;
+  orderNumber: string;
+  owner: string;
+}) {
+  const response = await fetch(webhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({
+      event: "order_reserve",
+      owner: params.owner,
+      audit: {
+        id: params.auditId,
+        role: "Ordenes",
+        auditBatchName: params.auditBatchName,
+        location: params.location,
+        orderNumber: params.orderNumber,
+      },
+    }),
+  });
+  if (!response.ok) throw new Error(`No se pudo reservar la OR (${response.status}).`);
+  const parsed = JSON.parse(await response.text()) as AuditWebhookResponse;
+  if (!parsed.ok) throw new Error(parsed.error || "No se pudo reservar la OR.");
+  return parsed;
+}
+
 const statusLabelMap: Record<AuditSheetItemRow["status"], string> = {
   pass: "Cumple",
   fail: "No Cumple",
@@ -574,6 +602,8 @@ export async function fetchAuditHistoryFromWebhook(webhookUrl: string): Promise<
         },
         entityType: (row.entityType === "or" ? "or" : "general") as "or" | "general",
         source: "sheet" as const,
+        submittedAt: row.submittedAt || undefined,
+        submittedByEmail: row.submittedByEmail || undefined,
         items: (itemsByAuditId.get(row.auditId) ?? [])
           .sort((left, right) => left.questionIndex - right.questionIndex)
           .map((itemRow, index) => ({

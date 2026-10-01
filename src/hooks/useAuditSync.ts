@@ -256,7 +256,8 @@ export function useAuditSync({ isAuthReady, user, hasWebhookUrl, webhookUrl, has
 
     window.addEventListener("focus", refreshSilently);
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    const intervalId = window.setInterval(refreshSilently, 60000);
+    // Las campañas compartidas deben reflejar pronto las OR cerradas en otro equipo.
+    const intervalId = window.setInterval(refreshSilently, 15000);
 
     return () => {
       window.removeEventListener("focus", refreshSilently);

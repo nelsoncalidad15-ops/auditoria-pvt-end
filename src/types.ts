@@ -198,6 +198,8 @@ export interface AuditSession {
   entityType?: "general" | "or";
   userProfile?: AuditUserProfile;
   source?: AuditSource;
+  submittedAt?: string;
+  submittedByEmail?: string;
 }
 
 export interface IncompleteAuditListItem {

@@ -8,7 +8,6 @@ import {
   FileCheck,
   History,
   Plus,
-  ShieldCheck,
   Settings,
   LayoutDashboard,
   Activity,
@@ -20,12 +19,13 @@ import {
   Camera,
   ExternalLink,
   CheckCircle2,
+  Download,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppShell } from "./app/AppShell";
 import { AppStartGate } from "./app/AppStartGate";
 import { cn, createClientId } from "./lib/utils";
-import { buildAuditSyncPayload, sendAuditToWebhook } from "./services/audit-sync";
+import { buildAuditSyncPayload, reserveOrderInWebhook, sendAuditToWebhook } from "./services/audit-sync";
 import { 
   LOCATIONS, 
   AUDITORS,
@@ -53,6 +53,7 @@ import { useAuditSync } from "./hooks/useAuditSync";
 import { useAuditSessionActions } from "./hooks/useAuditSessionActions";
 import { useDashboardMetrics } from "./hooks/useDashboardMetrics";
 import { CategoryGrid } from "./components/audit/CategoryGrid";
+import { AuditResultSummary } from "./components/audit/AuditResultSummary";
 
 const DashboardView = React.lazy(() => import("./components/views/DashboardView").then((module) => ({ default: module.DashboardView })));
 const HistoryView = React.lazy(() => import("./components/history/HistoryView").then((module) => ({ default: module.HistoryView })));
@@ -146,6 +147,7 @@ function AuditApp() {
   const [pendingOrdersSubmitMode, setPendingOrdersSubmitMode] = useState<OrdersSubmitMode>("finish");
   const [isAuditConfigured, setIsAuditConfigured] = useState(false);
   const lastAutomaticHistorySyncRef = React.useRef("");
+  const auditSubmissionLockRef = React.useRef(false);
   const [userProfile, setUserProfile] = useState<AuditUserProfile>(() => {
     if (typeof window === "undefined") {
       return "auditor";
@@ -320,6 +322,27 @@ function AuditApp() {
   });
 
   const dashboardMetrics = useDashboardMetrics(history);
+
+  const orParticipantOptions = React.useMemo(() => {
+    const normalizeAreaName = (value: string) => value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+    const findStaff = (...areaNames: string[]) => {
+      const normalizedNames = areaNames.map(normalizeAreaName);
+      const exact = auditCategories.find((category) => normalizedNames.includes(normalizeAreaName(category.name)));
+      const partial = exact || auditCategories.find((category) => normalizedNames.some((name) => normalizeAreaName(category.name).includes(name)));
+      return partial?.staffOptions || [];
+    };
+    return {
+      asesorServicio: findStaff("Asesores de servicio", "Asesores"),
+      tecnico: findStaff("Técnicos", "Taller"),
+      controller: findStaff("Controller", "Control de calidad"),
+      lavador: findStaff("Lavadero", "Lavado"),
+      repuestos: findStaff("Repuestos"),
+    };
+  }, [auditCategories]);
 
   // Derive variables expected by the UI from the hook's actual output
   const groupedHistory = React.useMemo(() => buildGroupedHistory(history), [history]);
@@ -730,7 +753,9 @@ function AuditApp() {
   const isSubmitDisabled = answeredAuditItemCount === 0 || requiredPendingCount > 0 || isSendingToSheet || failItemsWithoutCommentCount > 0;
   const canRunAudits = userProfile !== "consulta";
   const canAccessStructure = userProfile === "supervisor";
-  const canAccessIntegrations = userProfile === "supervisor";
+  // La conexión técnica queda fuera de la interfaz del cliente final.
+  // Se conserva internamente para mantenimiento, pero no es navegable.
+  const canAccessIntegrations = false;
   const resumeDraftSession = React.useCallback((draft: IncompleteAuditListItem) => {
     setSession({
       id: draft.id,
@@ -920,7 +945,6 @@ function AuditApp() {
     ...(allIncompleteAudits.length > 0 ? [{ id: "continuar", label: "Auditorías pendientes", icon: Activity }] : []),
     { id: "history", label: "Registro y seguimiento", icon: History },
     ...(canAccessStructure ? [{ id: "structure", label: "Estructura", icon: Settings }] : []),
-    ...(canAccessIntegrations ? [{ id: "integrations", label: "Integraciones", icon: ShieldCheck }] : []),
   ];
 
   const technicianDraftSessions = realDraftAudits
@@ -1469,9 +1493,32 @@ function AuditApp() {
       return;
     }
 
+    if (isOrdersAudit && currentBatchOrderAudits.some((audit) =>
+      audit.id !== session.id && audit.orderNumber?.trim() === session.orderNumber?.trim()
+    )) {
+      alert(`La OR ${session.orderNumber?.trim()} ya fue auditada en esta campaña. Podés abrirla desde el listado para revisarla o editarla.`);
+      return;
+    }
+
     const currentAsesor = session.participants?.asesorServicio?.trim() || selectedStaff.trim();
     if (isOrdersAudit && !currentAsesor) {
       alert("Complete el asesor de servicio antes de cerrar la OR.");
+      return;
+    }
+    if (isOrdersAudit && !session.participants?.tecnico?.trim()) {
+      alert("Seleccioná el técnico responsable de la OR antes de cerrarla.");
+      return;
+    }
+    if (isOrdersAudit && !session.participants?.lavador?.trim()) {
+      alert("Seleccioná el lavador responsable de la OR antes de cerrarla.");
+      return;
+    }
+    if (isOrdersAudit && !session.participants?.controller?.trim()) {
+      alert("Seleccioná el controller responsable de la OR antes de cerrarla.");
+      return;
+    }
+    if (isOrdersAudit && !session.participants?.repuestos?.trim()) {
+      alert("Seleccioná el responsable de repuestos antes de cerrar la OR.");
       return;
     }
 
@@ -1529,9 +1576,10 @@ function AuditApp() {
 
 
   const submitAudit = async (submitMode: OrdersSubmitMode = "finish") => {
-    if (isSendingToSheet) return;
+    if (isSendingToSheet || auditSubmissionLockRef.current) return;
     if (sessionItems.length === 0 && calculatedSessionItems.length === 0) return;
 
+    auditSubmissionLockRef.current = true;
     setIsSendingToSheet(true);
 
     const normalizedSession = ensureSessionMetadata(session);
@@ -1593,8 +1641,12 @@ function AuditApp() {
         });
 
         await sendAuditToWebhook(webhookUrl, payload);
-        await refreshExternalHistory();
         savedRemotely = true;
+        // La escritura ya termino. Actualizar todo el historial no debe frenar
+        // el paso a la siguiente OR.
+        void refreshExternalHistory().catch((refreshError) => {
+          console.error("Background history refresh failed:", refreshError);
+        });
       }
       if (!savedRemotely) {
         upsertLocalAuditHistory(completeSession);
@@ -1641,7 +1693,10 @@ function AuditApp() {
       setSelectedStaff(shouldKeepStaff ? (completeSession.staffName?.trim() || "") : "");
       
       setView("audit");
-      if (submitMode === "continue") {
+      const isRepeatableAudit = completeSession.role === "Ordenes"
+        || completeSession.role === "Asesores de servicio"
+        || completeSession.role === "Técnicos";
+      if (submitMode === "continue" || (submitMode === "finish" && isRepeatableAudit)) {
         setIsAuditConfigured(false);
       }
       setSession({
@@ -1659,7 +1714,7 @@ function AuditApp() {
         items: [],
       });
 
-      if (!((completeSession.role === "Ordenes" || completeSession.role === "Asesores de servicio" || completeSession.role === "Técnicos") && submitMode === "continue")) {
+      if (!isRepeatableAudit) {
         setSelectedRole(null);
       }
 
@@ -1669,7 +1724,8 @@ function AuditApp() {
       }
 
       setSubmissionState("success");
-      setShowSuccessModal(true);
+      auditSubmissionLockRef.current = false;
+      setShowSuccessModal(submitMode === "finish");
       setToastNotification({ message: "Auditoría guardada exitosamente en Sheets", tone: "success" });
       setTimeout(() => setToastNotification(null), 3000);
     } catch (error) {
@@ -1683,6 +1739,7 @@ function AuditApp() {
       
       setShowConfirmModal(false);
       setIsSendingToSheet(false);
+      auditSubmissionLockRef.current = false;
       
       alert(`No se pudo sincronizar: ${errorMessage}. La auditoría se guardó localmente.`);
     }
@@ -1871,6 +1928,52 @@ function AuditApp() {
     }
   };
 
+  const handleExitToStart = () => {
+    setIsMobileNavOpen(false);
+    setIsSessionStarted(false);
+    setView("dashboard");
+    if (typeof window !== "undefined") window.history.replaceState(null, "", "#/dashboard");
+  };
+
+  const downloadHistoryAuditPdf = (audit: AuditSession) => {
+    const childAudits = audit.childAudits?.length ? audit.childAudits : [];
+    const orderAudits = childAudits.filter((child) => child.role === "Ordenes" || child.entityType === "or");
+    const auditorName = AUDITORS.find((auditor) => auditor.id === audit.auditorId)?.name
+      || AUDITORS.find((auditor) => auditor.id === childAudits[0]?.auditorId)?.name
+      || "Auditor";
+
+    if (orderAudits.length > 1) {
+      generateOrdersCampaignPdf({
+        appTitle,
+        audits: orderAudits,
+        auditorName,
+        sampleTarget: audit.sampleTarget || orderAudits.length,
+      });
+      return;
+    }
+
+    const targetAudit = childAudits[0] || audit;
+    const targetRole = targetAudit.role || targetAudit.items?.[0]?.category || "General";
+    const configuredTemplate = auditCategories.find((category) => category.name === targetRole)?.items;
+    const templateItems: AuditTemplateItem[] = configuredTemplate?.length
+      ? configuredTemplate
+      : targetAudit.items.map((item, index) => ({
+          id: item.id || `history-${index}`,
+          text: item.question,
+          required: false,
+          block: item.category || targetRole,
+          description: item.description,
+          responsibleRoles: item.responsibleRoles,
+          sector: item.sector,
+          weight: item.weight,
+          allowsNa: item.allowsNa,
+          order: index + 1,
+          active: true,
+        }));
+
+    generateAuditPdfReport({ appTitle, session: targetAudit, auditorName, templateItems });
+  };
+
   return (
     <AppStartGate
       isAuthReady={isAuthReady}
@@ -1899,15 +2002,40 @@ function AuditApp() {
         contentContainerRef={contentContainerRef}
         onNavigate={handleNavigate}
         onLogout={handleLogout}
+        onExitToStart={handleExitToStart}
         onOpenMobileNav={() => setIsMobileNavOpen(true)}
         onCloseMobileNav={() => setIsMobileNavOpen(false)}
         onBack={() => {
-          if (selectedRole === "General") setAuditScope(null);
+          if (view === "audit" && selectedRole) {
+            if (selectedRole === "General") setAuditScope(null);
+            clearSelectedRole();
+            return;
+          }
+          if (view === "audit" && auditScope !== null) {
+            setAuditScope(null);
+            return;
+          }
           handleTopbarBack();
         }}
         onStartAudit={handleStartNewAudit}
-        backLabel={view === "audit" ? "Volver a Áreas" : undefined}
+        backLabel={view === "audit"
+          ? selectedRole
+            ? "Volver a Áreas"
+            : auditScope !== null
+              ? "Cambiar tipo"
+              : "Volver a configuración"
+          : undefined}
       >
+        {view === "audit" && lastCompletedAuditReport && !showSuccessModal && (
+          <button
+            type="button"
+            onClick={() => setShowSuccessModal(true)}
+            className="fixed bottom-5 right-5 z-[80] inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-[10px] font-black uppercase tracking-wider text-emerald-700 shadow-xl transition hover:-translate-y-0.5 hover:bg-emerald-50 dark:border-emerald-900 dark:bg-slate-900 dark:text-emerald-300"
+          >
+            <FileCheck className="h-4 w-4" />
+            Ver última OR
+          </button>
+        )}
         <AnimatePresence mode="wait">
           {showSuccessModal && (
             <motion.div
@@ -1915,8 +2043,20 @@ function AuditApp() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md"
+              className="fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto bg-slate-950/80 p-3 backdrop-blur-md sm:p-6"
             >
+              {lastCompletedAuditReport ? (
+                <AuditResultSummary
+                  report={lastCompletedAuditReport}
+                  onDownload={() => generateAuditPdfReport({
+                    appTitle,
+                    session: lastCompletedAuditReport.session,
+                    auditorName: lastCompletedAuditReport.auditorName || "Auditor",
+                    templateItems: lastCompletedAuditReport.templateItems || [],
+                  })}
+                  onClose={() => setShowSuccessModal(false)}
+                />
+              ) : (
               <motion.div
                 initial={{ scale: 0.8, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
@@ -1927,20 +2067,6 @@ function AuditApp() {
                 </div>
                 <h3 className="text-3xl font-black mb-3">¡Completado!</h3>
                 <p className="text-slate-500 font-medium mb-10 leading-relaxed">La auditoría ha sido procesada y guardada correctamente en el sistema.</p>
-                {lastCompletedAuditReport && (
-                  <Button
-                    variant="secondary"
-                    className="mb-3 w-full h-14 rounded-2xl text-xs font-black uppercase tracking-widest"
-                    onClick={() => generateAuditPdfReport({
-                      appTitle,
-                      session: lastCompletedAuditReport.session,
-                      auditorName: lastCompletedAuditReport.auditorName || "Auditor",
-                      templateItems: lastCompletedAuditReport.templateItems || [],
-                    })}
-                  >
-                    Descargar PDF gerencial
-                  </Button>
-                )}
                 <Button
                   className="w-full h-14 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-blue-500/20"
                   onClick={() => setShowSuccessModal(false)}
@@ -1948,6 +2074,7 @@ function AuditApp() {
                   Listo
                 </Button>
               </motion.div>
+              )}
             </motion.div>
           )}
 
@@ -2334,12 +2461,27 @@ function AuditApp() {
                 <AuditStaffSelectionView
                   role={selectedRole}
                   staffList={
-                    selectedAuditCategory?.staffOptions?.length
+                    isOrdersAudit && orParticipantOptions.asesorServicio.length
+                      ? orParticipantOptions.asesorServicio
+                      : selectedAuditCategory?.staffOptions?.length
                       ? selectedAuditCategory.staffOptions
                       : STAFF[selectedRole as keyof typeof STAFF] || []
                   }
                   selectedStaff={selectedStaff}
                   onSelectStaff={setSelectedStaff}
+                  participants={session.participants}
+                  onParticipantChange={(field, value) => setSession((prev) => ({
+                    ...prev,
+                    participants: {
+                      asesorServicio: prev.participants?.asesorServicio || "",
+                      tecnico: prev.participants?.tecnico || "",
+                      controller: prev.participants?.controller || "",
+                      lavador: prev.participants?.lavador || "",
+                      repuestos: prev.participants?.repuestos || "",
+                      [field]: value,
+                    },
+                  }))}
+                  participantOptions={orParticipantOptions}
                   orderNumber={session.orderNumber}
                   onOrderNumberChange={(value) => {
                     setIsAuditConfigured(false);
@@ -2347,7 +2489,22 @@ function AuditApp() {
                   }}
                   clientIdentifier={session.clientIdentifier}
                   onClientIdentifierChange={(value) => setSession((prev) => ({ ...prev, clientIdentifier: value }))}
-                  onContinue={() => {
+                  onContinue={async () => {
+                    if (isOrdersAudit && hasWebhookUrl) {
+                      try {
+                        await reserveOrderInWebhook(webhookUrl, {
+                          auditId: session.id || createClientId(),
+                          auditBatchName: session.auditBatchName || auditBatchDisplayName,
+                          location: session.location || "Sin ubicación",
+                          orderNumber: session.orderNumber || "",
+                          owner: user?.email || selectedAuditorOption?.name || "otro auditor",
+                        });
+                      } catch (error) {
+                        alert(error instanceof Error ? error.message : "No se pudo reservar la OR.");
+                        void refreshExternalHistory();
+                        return;
+                      }
+                    }
                     setSession(prev => ({
                       ...prev,
                       staffName: selectedStaff,
@@ -2586,6 +2743,7 @@ function AuditApp() {
                   onBack={() => setView("dashboard")}
                   onSelectAudit={setSelectedAudit}
                   onEditAudit={handleEditAudit}
+                  onDownloadPdf={downloadHistoryAuditPdf}
                   onExportCsv={exportToCSV}
                   onSyncData={syncData}
                   onDeleteAudit={(audit) => setDeleteConfirmModal({ show: true, auditId: audit.id, auditIds: audit.childAuditIds, auditName: audit.auditBatchName || audit.staffName || "Auditoria sin nombre", auditSource: audit.source })}
@@ -2845,6 +3003,14 @@ function AuditApp() {
 
                 {/* Modal Footer */}
                 <div className="p-4 border-t border-slate-100 bg-slate-50 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => downloadHistoryAuditPdf(hasMultipleChildren ? selectedAudit : displayAudit)}
+                    className="flex-1 py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider text-blue-700 bg-blue-50 hover:bg-blue-100 transition border border-blue-200 flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    <Download className="h-4 w-4" />
+                    Descargar PDF
+                  </button>
                   {canRunAudits && (
                     <button 
                       type="button"

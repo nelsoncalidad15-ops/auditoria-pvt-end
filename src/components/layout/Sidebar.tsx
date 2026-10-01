@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { LogOut, LucideIcon, X } from "lucide-react";
+import { House, LogOut, LucideIcon, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "../../lib/utils";
 
@@ -19,9 +19,10 @@ interface SidebarProps {
   onNavigate: (id: string) => void;
   onMobileClose: () => void;
   onLogout: () => void;
+  onExitToStart: () => void;
 }
 
-function SidebarBase({ show, view, isMobileOpen, items, user, onNavigate, onMobileClose, onLogout }: SidebarProps) {
+function SidebarBase({ show, view, isMobileOpen, items, user, onNavigate, onMobileClose, onLogout, onExitToStart }: SidebarProps) {
   const isActive = (itemId: string) => (itemId === "home" ? view === "setup" || view === "audit" || view === "command-center" : view === itemId);
 
   const sidebarContent = (isMobile: boolean) => (
@@ -69,6 +70,20 @@ function SidebarBase({ show, view, isMobileOpen, items, user, onNavigate, onMobi
           </button>
         ))}
       </nav>
+
+      <div className="border-t border-white/10 p-3">
+        <button
+          type="button"
+          onClick={() => {
+            onExitToStart();
+            if (isMobile) onMobileClose();
+          }}
+          className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-slate-300 transition hover:bg-white/10 hover:text-white"
+        >
+          <House className="h-[17px] w-[17px]" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em]">Volver al inicio</span>
+        </button>
+      </div>
 
       {/* User Section */}
       {user && (

@@ -699,7 +699,7 @@ export function AuditSessionView({
             )}
           </div>
 
-          {(isPreDeliveryAudit || availableBlocks.length > 1) && (
+          {(isPreDeliveryAudit || (!isOrdersAudit && availableBlocks.length > 1)) && (
             <div className="premium-card p-6 bg-white dark:bg-slate-900 border-white/5 shadow-2xl">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 mb-4 tracking-[0.2em]">Secciones</p>
               <div className="grid grid-cols-1 gap-2">
@@ -730,16 +730,6 @@ export function AuditSessionView({
                       Legajos
                     </button>
                   </>
-                ) : isOrdersAudit ? (
-                  availableBlocks.map(block => (
-                    <div
-                      key={block}
-                      className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black text-[11px] uppercase tracking-widest text-left"
-                    >
-                      <Layout className="h-4 w-4" />
-                      {block}
-                    </div>
-                  ))
                 ) : (
                   availableBlocks.map(block => (
                     <button

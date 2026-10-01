@@ -372,11 +372,12 @@ function AuditItemRowBase({
           disabled={isProcessingPhoto}
           className={cn(
             "flex-1 h-10 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700",
-            hasPhoto && "text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20"
+            hasPhoto && "text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20",
+            item?.status === "fail" && !hasPhoto && "border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
           )}
         >
           <Camera className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">{isProcessingPhoto ? "Procesando..." : hasPhoto ? "Foto lista" : "Añadir Foto"}</span>
+          <span className="hidden sm:inline">{isProcessingPhoto ? "Procesando..." : hasPhoto ? "Evidencia lista" : item?.status === "fail" ? "Adjuntar evidencia" : "Añadir Foto"}</span>
           <span className="sm:hidden">{isProcessingPhoto ? "..." : "Foto"}</span>
         </button>
       </div>

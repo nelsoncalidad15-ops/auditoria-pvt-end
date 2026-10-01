@@ -24,6 +24,31 @@
 body { background: #f4f7fa; }
 .premium-card { border-radius: 14px; box-shadow: 0 7px 22px rgba(0,30,80,.06); }
 .premium-card:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(0,30,80,.09); }
+
+.spotlight-card {
+	--spotlight-x: 50%;
+	--spotlight-y: 50%;
+	isolation: isolate;
+}
+
+.spotlight-card::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	pointer-events: none;
+	opacity: 0;
+	background: radial-gradient(260px circle at var(--spotlight-x) var(--spotlight-y), rgba(37, 99, 235, .12), transparent 66%);
+	transition: opacity 220ms ease;
+}
+
+.spotlight-card:hover::before,
+.spotlight-card:focus-visible::before { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+	.spotlight-card,
+	.spotlight-card * { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
 .dashboard-card { padding: 18px; border-radius: 14px; }
 .audit-welcome { min-height: 100svh; display: flex; flex-direction: column; background: #f7f9fc; color: #001e50; font-family: "Plus Jakarta Sans", sans-serif; }
 .audit-welcome__header { min-height: 70px; padding: 8px clamp(22px,4vw,64px); display: flex; align-items: center; justify-content: space-between; gap: 20px; background: #fff; border-bottom: 1px solid #e3eaf2; }

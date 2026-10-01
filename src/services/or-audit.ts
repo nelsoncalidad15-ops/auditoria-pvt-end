@@ -38,13 +38,16 @@ export function calculateRoleScores(items: AuditItem[], impactSharedItemsOnAllRo
     const applicableRoles = impactSharedItemsOnAllRoles ? responsibleRoles : responsibleRoles.slice(0, 1);
 
     applicableRoles.forEach((role) => {
+      if (!isApplicableItem(item)) {
+        return;
+      }
       const current = roleMetrics.get(role) ?? { obtainedWeight: 0, totalApplicableWeight: 0, itemsCount: 0 };
-      if (item.status === "pass" || item.status === "fail") {
-        current.totalApplicableWeight += normalizeWeight(item.weight);
-        current.itemsCount += 1;
-        if (item.status === "pass") {
-          current.obtainedWeight += normalizeWeight(item.weight);
-        }
+      current.totalApplicableWeight += normalizeWeight(item.weight);
+      current.itemsCount += 1;
+      if (isCalculatedScore(item)) {
+        current.obtainedWeight += normalizeWeight(item.weight) * Math.max(0, Math.min(100, item.calculatedScore || 0)) / 100;
+      } else if (item.status === "pass") {
+        current.obtainedWeight += normalizeWeight(item.weight);
       }
       roleMetrics.set(role, current);
     });
