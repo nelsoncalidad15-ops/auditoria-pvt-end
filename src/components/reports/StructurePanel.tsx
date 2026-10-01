@@ -255,7 +255,7 @@ export function StructurePanel({
           <div className="h-10 w-[1px] bg-slate-200 dark:bg-white/10 hidden lg:block" />
           
           <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-slate-200 dark:border-white/5">
-             {(["global", "Salta", "Jujuy"] as AuditStructureScope[]).map((scope) => (
+             {(["Salta", "Jujuy"] as AuditStructureScope[]).map((scope) => (
                <button
                  key={scope}
                  onClick={() => setSelectedStructureScope(scope)}
@@ -266,7 +266,7 @@ export function StructurePanel({
                     : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                  )}
                >
-                 {scope === "global" ? "Base" : scope}
+                 {scope}
                </button>
              ))}
           </div>

@@ -188,7 +188,7 @@ export function useAuditStructure({
   hasWebhookUrl,
   webhookUrl,
 }: UseAuditStructureParams) {
-  const [selectedStructureScope, setSelectedStructureScope] = useState<AuditStructureScope>("global");
+  const [selectedStructureScope, setSelectedStructureScope] = useState<AuditStructureScope>(sessionLocation === "Salta" || sessionLocation === "Jujuy" ? sessionLocation : "Jujuy");
   const [auditCategoryScopes, setAuditCategoryScopes] = useState<Record<AuditStructureScope, AuditCategory[]>>(createInitialScopes);
   const [calculationRules, setCalculationRules] = useState<CalculationRule[]>(getStoredCalculationRules);
   const [processDefinitions, setProcessDefinitions] = useState<ProcessDefinition[]>([]);
