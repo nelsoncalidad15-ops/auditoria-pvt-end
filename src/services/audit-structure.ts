@@ -1,4 +1,4 @@
-import { ASESOR_CHECKLIST_ITEMS, AUDIT_QUESTIONS, OR_CHECKLIST_ITEMS, PRE_DELIVERY_CHECKLIST_ITEMS, STAFF, STAFF_BY_LOCATION, SUBGERENTE_CHECKLIST_ITEMS } from "../constants";
+import { ASESOR_CHECKLIST_ITEMS, AUDIT_QUESTIONS, OR_CHECKLIST_ITEMS, PRE_DELIVERY_CHECKLIST_ITEMS, STAFF_BY_LOCATION, SUBGERENTE_CHECKLIST_ITEMS } from "../constants";
 import { createClientId } from "../lib/utils";
 import { AuditCategory, AuditStructureScope, AuditTemplateItem, ScoreLink } from "../types";
 

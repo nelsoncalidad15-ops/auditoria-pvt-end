@@ -30,6 +30,7 @@ import {
   LOCATIONS, 
   AUDITORS,
   STAFF,
+  STAFF_BY_LOCATION,
 } from "./constants";
 import { AppView, AuditSession, AuditSource, AuditTemplateItem, AuditUserProfile, CompletedAuditReport, HistoryPanel, IncompleteAuditListItem, Role } from "./types";
 import { buildOrderAuditItems, calculateAuditCompliance, calculateRoleScores } from "./services/or-audit";
@@ -244,6 +245,7 @@ function AuditApp() {
     handleToggleCalculationLink,
     processDefinitions,
     auditCategories,
+    activeAuditCategories,
     selectedAuditCategory,
     selectedStructureCategory,
     selectedStructureCategoryId,

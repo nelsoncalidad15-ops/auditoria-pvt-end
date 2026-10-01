@@ -184,6 +184,7 @@ export function useAuditStructure({
   sessionLocation,
   hasWebhookUrl,
   webhookUrl,
+  onSaveSuccess,
 }: UseAuditStructureParams) {
   const [selectedStructureScope, setSelectedStructureScope] = useState<AuditStructureScope>(sessionLocation === "Salta" || sessionLocation === "Jujuy" ? sessionLocation : "Jujuy");
   const [auditCategoryScopes, setAuditCategoryScopes] = useState<Record<AuditStructureScope, AuditCategory[]>>(createInitialScopes);
@@ -214,6 +215,17 @@ export function useAuditStructure({
   const [hasPendingStructureChanges, setHasPendingStructureChanges] = useState(false);
   const [reportFilter, setReportFilter] = useState(createInitialReportFilter);
   const loadedSheetUrlRef = useRef("");
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoSaveAbortRef = useRef<AbortController | null>(null);
+
+  // Cleanup auto-save timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      if (autoSaveAbortRef.current) autoSaveAbortRef.current.abort();
+    };
+  }, []);
+
 
   const getCategoriesForScope = (scope?: AuditStructureScope) => {
     const targetScope: "Salta" | "Jujuy" = scope === "Salta" ? "Salta" : "Jujuy";
@@ -276,7 +288,37 @@ export function useAuditStructure({
     setStructureStorageLabel("local");
     setHasPendingStructureChanges(true);
     setLastStructureSavedAt(new Date().toISOString());
-  }, [selectedStructureScope]);
+
+    // Auto-save to Sheet (debounced 2s) so changes persist across reloads
+    const scopeToSave = selectedStructureScope;
+    const categoriesToSave = nextCategories;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    if (autoSaveAbortRef.current) autoSaveAbortRef.current.abort();
+    autoSaveTimerRef.current = setTimeout(() => {
+      const effectiveWebhookUrl = webhookUrl.trim() || localStorage.getItem("webhookUrl") || "";
+      if (!effectiveWebhookUrl) return;
+      const controller = new AbortController();
+      autoSaveAbortRef.current = controller;
+      setIsSavingStructureToSheet(true);
+      saveAuditStructureToWebhook(effectiveWebhookUrl, scopeToSave, categoriesToSave)
+        .then(() => {
+          if (!controller.signal.aborted) {
+            setStructureStorageLabel("sheet");
+            setHasPendingStructureChanges(false);
+            setLastStructureSavedAt(new Date().toISOString());
+            onSaveSuccess?.("Estructura sincronizada con Google Sheets");
+          }
+        })
+        .catch((err) => {
+          if (!controller.signal.aborted) {
+            console.warn("Auto-save to Sheet failed:", err);
+          }
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setIsSavingStructureToSheet(false);
+        });
+    }, 2000);
+  }, [selectedStructureScope, webhookUrl, onSaveSuccess]);
 
   const updateCategory = useCallback((categoryId: string, updater: (category: AuditCategory) => AuditCategory) => {
     const currentCategory = auditCategories.find((category) => category.id === categoryId);
