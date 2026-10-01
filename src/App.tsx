@@ -156,12 +156,9 @@ function AuditApp() {
     const storedProfile = window.localStorage.getItem(USER_PROFILE_STORAGE_KEY);
     return storedProfile === "supervisor" || storedProfile === "consulta" ? storedProfile : "auditor";
   });
-  const [isSessionStarted, setIsSessionStarted] = useState<boolean>(() => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-    return Boolean(window.localStorage.getItem(USER_PROFILE_STORAGE_KEY));
-  });
+  // La aplicación cliente siempre comienza en la portada de selección.
+  // El perfil guardado sirve como valor recordado, pero no saltea esta pantalla.
+  const [isSessionStarted, setIsSessionStarted] = useState(false);
   // Sheets es la fuente de datos de auditoría. Firebase queda desacoplado de este flujo.
   const isFirebaseEnabled = false;
 
