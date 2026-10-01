@@ -411,12 +411,10 @@ export function StructurePanel({
                           className="w-full mt-1.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
                         />
                       </div>
-                      {isOrdersCategory && (
-                        <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                          <label className="block space-y-1.5"><span className="text-[9px] font-black uppercase tracking-wider text-slate-500">Sector de la OR</span><select value={newItemSector} onChange={(event) => setNewItemSector(event.target.value as OrAuditSector)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 outline-none focus:border-blue-400">{Object.entries(sectorLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-                          <div><p className="mb-2 text-[9px] font-black uppercase tracking-wider text-slate-500">Responsables del punto</p><div className="flex flex-wrap gap-1.5">{responsibleRoleOptions.map((role) => <button key={role.value} type="button" onClick={() => setNewItemResponsibleRoles((current) => current.includes(role.value) ? current.filter((value) => value !== role.value) : [...current, role.value])} className={cn("rounded-lg border px-2.5 py-2 text-[9px] font-black", newItemResponsibleRoles.includes(role.value) ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500")}>{role.label}</button>)}</div></div>
-                        </div>
-                      )}
+                      <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        {isOrdersCategory && <label className="block space-y-1.5"><span className="text-[9px] font-black uppercase tracking-wider text-slate-500">Sector de la OR</span><select value={newItemSector} onChange={(event) => setNewItemSector(event.target.value as OrAuditSector)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 outline-none focus:border-blue-400">{Object.entries(sectorLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>}
+                        <div><p className="mb-2 text-[9px] font-black uppercase tracking-wider text-slate-500">Responsables del punto</p><div className="flex flex-wrap gap-1.5">{responsibleRoleOptions.map((role) => <button key={role.value} type="button" onClick={() => setNewItemResponsibleRoles((current) => current.includes(role.value) ? current.filter((value) => value !== role.value) : [...current, role.value])} className={cn("rounded-lg border px-2.5 py-2 text-[9px] font-black", newItemResponsibleRoles.includes(role.value) ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500")}>{role.label}</button>)}</div></div>
+                      </div>
                       <button 
                         onClick={handleAddItem}
                         className="w-full py-4 rounded-2xl bg-blue-600 text-[11px] font-black uppercase tracking-widest text-white shadow-lg shadow-blue-500/20 hover:scale-[1.02] active:scale-95 transition-all"
@@ -481,12 +479,10 @@ export function StructurePanel({
                                          <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-red-500/10 text-red-500">Crítico</span>
                                        )}
                                     </div>
-                                    {isOrdersCategory && (
-                                      <div className="space-y-1.5">
-                                        <div className="flex flex-wrap items-center gap-1.5"><span className="mr-1 text-[9px] font-black uppercase tracking-wider text-slate-400">Responsables</span>{responsibleRoleOptions.map((role) => { const assigned = item.responsibleRoles?.includes(role.value) ?? false; return <button key={role.value} type="button" onClick={() => handleToggleItemResponsibleRole(item.id, role.value)} className={cn("rounded-md border px-2 py-1 text-[9px] font-bold transition", assigned ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-400 hover:border-blue-300")}>{assigned ? "✓ " : "+ "}{role.label}</button>; })}</div>
-                                        <div className="flex flex-wrap items-center gap-1.5"><span className="mr-1 text-[9px] font-black uppercase tracking-wider text-slate-400">Impacta en</span>{(item.scoreAreas?.length ? item.scoreAreas : []).map((area) => <span key={area} className="rounded-md bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700">{area}</span>)}{!item.scoreAreas?.length && <span className="text-[9px] font-medium text-slate-400">Sin regla de cálculo</span>}</div>
-                                      </div>
-                                    )}
+                                    <div className="space-y-1.5">
+                                      <div className="flex flex-wrap items-center gap-1.5"><span className="mr-1 text-[9px] font-black uppercase tracking-wider text-slate-400">Responsables</span>{responsibleRoleOptions.map((role) => { const assigned = item.responsibleRoles?.includes(role.value) ?? false; return <button key={role.value} type="button" onClick={() => handleToggleItemResponsibleRole(item.id, role.value)} className={cn("rounded-md border px-2 py-1 text-[9px] font-bold transition", assigned ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-400 hover:border-blue-300")}>{assigned ? "✓ " : "+ "}{role.label}</button>; })}</div>
+                                      <div className="flex flex-wrap items-center gap-1.5"><span className="mr-1 text-[9px] font-black uppercase tracking-wider text-slate-400">Impacta en</span>{(item.scoreAreas?.length ? item.scoreAreas : []).map((area) => <span key={area} className="rounded-md bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700">{area}</span>)}{!item.scoreAreas?.length && <span className="text-[9px] font-medium text-slate-400">Sin regla de cálculo</span>}</div>
+                                    </div>
                                  </div>
                               </div>
                               
