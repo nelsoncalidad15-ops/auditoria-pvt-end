@@ -166,6 +166,7 @@ export function StructurePanel({
   const sourceMatrixItems = renderableCategories.find(c => c.name === selectedSourceAreaName)?.items ?? [];
   const targetMatrixItems = renderableCategories.find(c => c.name === selectedTargetAreaName)?.items ?? [];
   const isOrdersCategory = selectedStructureCategory?.name.toLowerCase().includes("orden") ?? false;
+  const controllerDirectory = renderableCategories.find((category) => category.name === "Controllers de OR");
   const responsibleRoleOptions: Array<{ value: OrResponsibleRole; label: string }> = [
     { value: "asesor", label: "Asesor" },
     { value: "tecnico", label: "Técnico" },
@@ -294,12 +295,34 @@ export function StructurePanel({
         {/* Tab: Categories */}
         {activeTab === "categories" && (
           <div className="space-y-4 animate-in slide-in-from-left-4 duration-500">
+            {controllerDirectory && (
+              <section className="rounded-2xl border border-blue-200 bg-blue-50/60 p-4 shadow-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2"><Users className="h-4 w-4 text-blue-600" /><h4 className="text-xs font-black text-slate-900">Controllers de OR</h4></div>
+                    <p className="mt-1 text-[11px] font-medium text-slate-500">Estos nombres aparecerán al elegir el controller de cada orden.</p>
+                  </div>
+                  <button type="button" onClick={() => { setEditingCategoryStaffId(controllerDirectory.id); setTempStaffInput(controllerDirectory.staffOptions.join(', ')); }} className="h-9 rounded-xl bg-blue-600 px-4 text-[10px] font-black uppercase tracking-wider text-white hover:bg-blue-700">Editar controllers</button>
+                </div>
+                {editingCategoryStaffId === controllerDirectory.id ? (
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <input type="text" value={tempStaffInput} onChange={(event) => setTempStaffInput(event.target.value)} placeholder="Ej: Marcelo Pereyra, Nelson Notario" className="h-10 flex-1 rounded-xl border border-blue-300 bg-white px-3 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500" autoFocus />
+                    <button type="button" onClick={() => { const names = tempStaffInput.split(',').map((name) => name.trim()).filter(Boolean); updateCategory(controllerDirectory.id, (category) => ({ ...category, staffOptions: names })); setEditingCategoryStaffId(null); }} className="h-10 rounded-xl bg-blue-600 px-4 text-[10px] font-black uppercase text-white hover:bg-blue-700">Guardar nombres</button>
+                    <button type="button" onClick={() => setEditingCategoryStaffId(null)} className="h-10 rounded-xl bg-white px-4 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-100">Cancelar</button>
+                  </div>
+                ) : (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {controllerDirectory.staffOptions.length > 0 ? controllerDirectory.staffOptions.map((name) => <span key={name} className="rounded-lg border border-blue-100 bg-white px-2.5 py-1 text-[10px] font-bold text-slate-700">{name}</span>) : <span className="text-[10px] italic text-slate-400">Todavía no hay controllers cargados.</span>}
+                  </div>
+                )}
+              </section>
+            )}
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="mb-3 flex items-center gap-2"><PlusCircle className="h-4 w-4 text-blue-600" /><h4 className="text-xs font-black text-slate-900">Agregar área</h4></div>
               <div className="grid gap-3 lg:grid-cols-[minmax(180px,1fr)_minmax(200px,1.2fr)_minmax(220px,1.4fr)_120px]">
                 <input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="Nombre del área" className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none focus:border-blue-400" />
                 <input value={newCategoryDescription} onChange={e => setNewCategoryDescription(e.target.value)} placeholder="Descripción opcional" className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none focus:border-blue-400" />
-                <input value={newCategoryStaff} onChange={e => setNewCategoryStaff(e.target.value)} placeholder="Asesores (separados por coma)" className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400" />
+                <input value={newCategoryStaff} onChange={e => setNewCategoryStaff(e.target.value)} placeholder="Personal (separado por coma)" className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400" />
                 <button onClick={handleAddCategory} disabled={!newCategoryName.trim()} className="h-11 rounded-xl bg-slate-950 px-4 text-[10px] font-black uppercase tracking-wider text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400">Agregar</button>
               </div>
             </section>

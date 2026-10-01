@@ -260,7 +260,10 @@ export function normalizeAuditCategories(categories: AuditCategory[] | unknown, 
     (defaultCat) => !normalized.some((cat) => cat.name === defaultCat.name)
   );
 
-  return includeMissingDefaults ? [...normalized, ...missingDefaults] : normalized;
+  // El directorio de controllers es configuración necesaria incluso al leer
+  // hojas antiguas que todavía no contienen esta categoría.
+  const controllerDirectory = missingDefaults.filter((category) => category.name === "Controllers de OR");
+  return includeMissingDefaults ? [...normalized, ...missingDefaults] : [...normalized, ...controllerDirectory];
 }
 
 export function getStoredAuditCategories(scope: AuditStructureScope = "global"): AuditCategory[] {

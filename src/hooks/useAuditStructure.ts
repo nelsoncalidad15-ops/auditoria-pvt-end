@@ -236,7 +236,7 @@ export function useAuditStructure({
     ];
   };
   const auditCategories = getCategoriesForScope(selectedStructureScope);
-  const activeAuditCategories = getCategoriesForScope(sessionLocation);
+  const activeAuditCategories = getCategoriesForScope(sessionLocation).filter((category) => category.items.length > 0);
   const selectedAuditCategory = selectedRole
     ? activeAuditCategories.find((category) => category.name === selectedRole)
       ?? auditCategories.find((category) => category.name === selectedRole)

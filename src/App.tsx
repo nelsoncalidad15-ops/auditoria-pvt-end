@@ -335,7 +335,7 @@ function AuditApp() {
     return {
       asesorServicio: findStaff("Asesores de servicio", "Asesores"),
       tecnico: findStaff("Técnicos", "Taller"),
-      controller: findStaff("Controller", "Control de calidad"),
+      controller: findStaff("Controllers de OR", "Controller", "Control de calidad"),
       lavador: findStaff("Lavadero", "Lavado"),
       repuestos: findStaff("Repuestos"),
     };
