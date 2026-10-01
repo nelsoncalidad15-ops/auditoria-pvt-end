@@ -268,7 +268,25 @@ export function normalizeAuditCategories(categories: AuditCategory[] | unknown, 
   // El directorio de controllers es configuración necesaria incluso al leer
   // hojas antiguas que todavía no contienen esta categoría.
   const controllerDirectory = missingDefaults.filter((category) => category.name === "Controllers de OR");
-  return includeMissingDefaults ? [...normalized, ...missingDefaults] : [...normalized, ...controllerDirectory];
+  const result = includeMissingDefaults ? [...normalized, ...missingDefaults] : [...normalized, ...controllerDirectory];
+
+  // Sanitize contaminated cache / sheet data:
+  // If Jujuy has Salta's exact advisors ("Mauro Gutierrez", "Cristian Cardozo", "Carlos Farina"),
+  // clear them so Jujuy never accidentally shows Salta's advisors due to old cached fallbacks or legacy sheet data.
+  if (scope === "Jujuy") {
+    const saltaAdvisorSet = new Set(STAFF_BY_LOCATION.Salta["Asesores de servicio"]);
+    return result.map((cat) => {
+      if (cat.name === "Asesores de servicio" || cat.name === "Ordenes") {
+        const isPolluted = cat.staffOptions.length > 0 && cat.staffOptions.every((name: string) => saltaAdvisorSet.has(name));
+        if (isPolluted) {
+          return { ...cat, staffOptions: [] };
+        }
+      }
+      return cat;
+    });
+  }
+
+  return result;
 }
 
 export function getStoredAuditCategories(scope: AuditStructureScope = "Jujuy"): AuditCategory[] {
@@ -279,25 +297,7 @@ export function getStoredAuditCategories(scope: AuditStructureScope = "Jujuy"): 
       return getDefaultAuditCategories(effectiveScope);
     }
 
-    const categories = normalizeAuditCategories(JSON.parse(rawValue) as AuditCategory[], { scope: effectiveScope });
-
-    // Sanitize contaminated cache:
-    // If Jujuy has Salta's exact advisors ("Mauro Gutierrez", "Cristian Cardozo", "Carlos Farina"),
-    // clear them so Jujuy never accidentally shows Salta's advisors due to old cached fallbacks!
-    if (effectiveScope === "Jujuy") {
-      const saltaAdvisorSet = new Set(STAFF_BY_LOCATION.Salta["Asesores de servicio"]);
-      return categories.map((cat) => {
-        if (cat.name === "Asesores de servicio" || cat.name === "Ordenes") {
-          const isPolluted = cat.staffOptions.length > 0 && cat.staffOptions.every((name) => saltaAdvisorSet.has(name));
-          if (isPolluted) {
-            return { ...cat, staffOptions: [] };
-          }
-        }
-        return cat;
-      });
-    }
-
-    return categories;
+    return normalizeAuditCategories(JSON.parse(rawValue) as AuditCategory[], { scope: effectiveScope });
   } catch {
     return getDefaultAuditCategories(effectiveScope);
   }
