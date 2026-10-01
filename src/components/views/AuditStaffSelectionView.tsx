@@ -551,9 +551,29 @@ export function AuditStaffSelectionView({
                 <ArrowRight className="h-4 w-4" />
               </Button>
               {!canContinue ? (
-                <p className="mt-4 text-center text-[10px] font-bold uppercase tracking-widest text-rose-500 animate-pulse">
-                  Faltan datos obligatorios
-                </p>
+                <div className="mt-3 text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-rose-500">
+                    {isOrdersAudit ? (
+                      !selectedStaff.trim()
+                        ? "Seleccioná el asesor de servicio"
+                        : !hasValidOrderNumber
+                          ? "Ingresá el número de OR"
+                          : isDuplicateOrder
+                            ? "El número de OR ya existe"
+                            : !participants?.tecnico?.trim()
+                              ? "Seleccioná el técnico de la OR"
+                              : !participants?.controller?.trim()
+                                ? "Seleccioná el controller de la OR"
+                                : !participants?.lavador?.trim()
+                                  ? "Seleccioná el lavador de la OR"
+                                  : !participants?.repuestos?.trim()
+                                    ? "Seleccioná el responsable de repuestos"
+                                    : "Faltan datos obligatorios"
+                    ) : (
+                      "Faltan datos obligatorios"
+                    )}
+                  </p>
+                </div>
               ) : null}
             </div>}
 
