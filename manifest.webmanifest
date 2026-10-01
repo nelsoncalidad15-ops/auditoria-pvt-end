@@ -1,0 +1,17 @@
+{
+  "name": "Auditoría OR Postventa VW",
+  "short_name": "Auditoría VW",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4efe6",
+  "theme_color": "#0f766e",
+  "description": "Auditoría mobile-first para postventa Volkswagen.",
+  "icons": [
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
