@@ -77,7 +77,8 @@ import {
   buildAuditBatchName, 
   createEmptyAuditedFileNames, 
   getStoredMeta, 
-  buildGroupedHistory, 
+  buildGroupedHistory,
+  getOrdersForSample,
   persistMeta, 
   getDefaultQuickAuditMode,
   formatAuditMonthLabel
@@ -830,26 +831,11 @@ function AuditApp() {
 
   const advisorGoal = session.sampleTarget || 30;
   
-  const currentBatchOrderAudits = React.useMemo(() => {
-    const recordsById = new Map<string, AuditSession>();
-    const currentBatchName = session.auditBatchName?.trim();
-
-    [...history, ...completedAuditReports.map((report) => report.session)].forEach((audit) => {
-      const isOrder = audit.entityType === "or" || String(audit.role || "").toLowerCase().includes("orden");
-      const belongsToCurrentBatch = session.sampleId
-        ? (audit.sampleId === session.sampleId || (!audit.sampleId && audit.id === session.sampleId))
-        : currentBatchName
-        ? audit.auditBatchName?.trim() === currentBatchName
-        : audit.date === session.date && audit.location === session.location;
-
-      if (isOrder && belongsToCurrentBatch) {
-        recordsById.set(audit.id, audit);
-      }
-    });
-
-    return Array.from(recordsById.values())
-      .sort((left, right) => `${right.date}-${right.id}`.localeCompare(`${left.date}-${left.id}`));
-  }, [completedAuditReports, history, session.auditBatchName, session.date, session.location, session.sampleId]);
+  const currentBatchOrderAudits = React.useMemo(() => getOrdersForSample(
+    [...history, ...completedAuditReports.map((report) => report.session)],
+    groupedHistory,
+    { sampleId: session.sampleId, auditBatchName: session.auditBatchName, date: session.date!, location: session.location! },
+  ), [completedAuditReports, groupedHistory, history, session.auditBatchName, session.date, session.location, session.sampleId]);
 
   const orderStaffProgress = React.useMemo(() => {
     const counts = new Map<string, number>();
