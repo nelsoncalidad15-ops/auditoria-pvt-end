@@ -12,7 +12,7 @@ vm.runInNewContext(compiled, {
   require: () => ({}),
   window: undefined,
 });
-const { buildGroupedHistory } = moduleForHelpers.exports;
+const { buildGroupedHistory, getOrdersForSample } = moduleForHelpers.exports;
 
 function order(id, orderNumber, sampleId, auditBatchName = 'Campaña') {
   return { id, orderNumber, sampleId, auditBatchName, date: '2026-10-08', location: 'Jujuy', auditorId: 'a', role: 'Ordenes', entityType: 'or', items: [], totalScore: 90 };
@@ -29,6 +29,20 @@ test('new orders can continue a legacy sample without changing historical IDs', 
   assert.equal(grouped.length, 1);
   assert.equal(grouped[0].childAudits.length, 3);
   assert.equal(grouped[0].childAudits.find((child) => child.orderNumber === '12345').id, 'legacy');
+});
+
+test('continuing a legacy sample lists every saved OR, not only the reference OR', () => {
+  const audits = [
+    order('legacy', '5442607'),
+    order('legacy-two', '5442231'),
+    order('legacy-three', '5442069'),
+    order('legacy-four', '5442584'),
+    order('legacy-five', '5442150'),
+  ];
+  const groups = buildGroupedHistory(audits);
+  const sample = { sampleId: 'legacy', auditBatchName: 'Campaña', date: '2026-10-08', location: 'Jujuy' };
+  assert.equal(getOrdersForSample(audits, groups, sample).length, 5);
+  assert.equal(getOrdersForSample([...audits, order('other', '5449999', 'other')], groups, sample).length, 5);
 });
 
 const server = vm.createContext({});
