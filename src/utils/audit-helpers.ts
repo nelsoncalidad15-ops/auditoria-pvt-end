@@ -123,6 +123,30 @@ export function buildGroupedHistory(history: AuditSession[]) {
   }).sort((left, right) => `${right.date}-${right.id}`.localeCompare(`${left.date}-${left.id}`));
 }
 
+export function getOrdersForSample(
+  audits: AuditSession[],
+  groupedHistory: AuditSession[],
+  sample: Pick<AuditSession, "sampleId" | "auditBatchName" | "date" | "location">,
+) {
+  const selectedGroup = sample.sampleId
+    ? groupedHistory.find((group) => group.sampleId === sample.sampleId
+      || group.childAudits?.some((child) => child.id === sample.sampleId))
+    : undefined;
+  const selectedIds = new Set(selectedGroup?.childAuditIds || []);
+  const byId = new Map<string, AuditSession>();
+  audits.forEach((audit) => {
+    const isOrder = audit.entityType === "or" || audit.role === "Ordenes";
+    const belongs = sample.sampleId
+      ? audit.sampleId === sample.sampleId || selectedIds.has(audit.id)
+      : sample.auditBatchName?.trim()
+        ? audit.auditBatchName?.trim() === sample.auditBatchName.trim()
+        : audit.date === sample.date && audit.location === sample.location;
+    if (isOrder && belongs) byId.set(audit.id, audit);
+  });
+  return Array.from(byId.values())
+    .sort((left, right) => `${right.date}-${right.id}`.localeCompare(`${left.date}-${left.id}`));
+}
+
 export function persistMeta(storageKey: string, payload: { timestamp: string; message?: string }) {
   if (typeof window === "undefined") {
     return;
