@@ -39,6 +39,13 @@ export function getStoredMeta(storageKey: string) {
 }
 
 export function buildHistoryGroupKey(audit: AuditSession) {
+  if (audit.entityType === "or" || audit.role === "Ordenes") {
+    if (audit.sampleId?.trim()) return `or:${audit.sampleId.trim()}`;
+    // Legacy rows have no sample ID. Include all stable campaign metadata to
+    // avoid combining unrelated samples that happen to share a name.
+    return ["legacy-or", audit.auditBatchName || "", audit.date || "", audit.location || "", audit.auditorId || ""]
+      .map((value) => value.trim().toLowerCase()).join("|");
+  }
   const batchName = audit.auditBatchName?.trim();
   if (batchName) {
     return `batch:${batchName.toLowerCase()}`;
@@ -73,8 +80,13 @@ export function summarizeRoles(audits: AuditSession[]) {
 }
 
 export function buildGroupedHistory(history: AuditSession[]) {
+  const legacyRoots = new Map(history
+    .filter((audit) => (audit.entityType === "or" || audit.role === "Ordenes") && !audit.sampleId)
+    .map((audit) => [audit.id, buildHistoryGroupKey(audit)] as const));
   const groups = history.reduce((acc, audit) => {
-    const groupKey = buildHistoryGroupKey(audit);
+    const groupKey = audit.sampleId && legacyRoots.has(audit.sampleId)
+      ? legacyRoots.get(audit.sampleId)!
+      : buildHistoryGroupKey(audit);
     const current = acc.get(groupKey) ?? [];
     current.push(audit);
     acc.set(groupKey, current);

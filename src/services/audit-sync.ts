@@ -5,6 +5,7 @@ export interface AuditSheetSummaryRow {
   submittedAt: string;
   auditDate: string;
   auditBatchName: string;
+  sampleId?: string;
   sampleTarget: number;
   selectedStaffNames: string;
   location: string;
@@ -116,6 +117,7 @@ interface AuditWebhookResponse {
 export async function reserveOrderInWebhook(webhookUrl: string, params: {
   auditId: string;
   auditBatchName: string;
+  sampleId?: string;
   location: string;
   orderNumber: string;
   owner: string;
@@ -130,6 +132,7 @@ export async function reserveOrderInWebhook(webhookUrl: string, params: {
         id: params.auditId,
         role: "Ordenes",
         auditBatchName: params.auditBatchName,
+        sampleId: params.sampleId,
         location: params.location,
         orderNumber: params.orderNumber,
       },
@@ -205,6 +208,7 @@ export function buildAuditSyncPayload(params: { templateItems: AuditTemplateItem
         submittedAt,
         auditDate: session.date,
         auditBatchName: session.auditBatchName ?? "",
+        sampleId: session.sampleId ?? "",
         sampleTarget: session.sampleTarget ?? 0,
         selectedStaffNames: (session.selectedStaffNames ?? []).join("|") ,
         location: session.location,
@@ -584,6 +588,7 @@ export async function fetchAuditHistoryFromWebhook(webhookUrl: string): Promise<
         id: row.auditId,
         date: row.auditDate,
         auditBatchName: row.auditBatchName || "",
+        sampleId: row.sampleId || undefined,
         sampleTarget: parseNumber(row.sampleTarget) || undefined,
         selectedStaffNames: row.selectedStaffNames ? String(row.selectedStaffNames).split("|").map((name) => name.trim()).filter(Boolean) : undefined,
         auditorId: row.auditorId || "",

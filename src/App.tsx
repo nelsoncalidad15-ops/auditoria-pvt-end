@@ -646,10 +646,10 @@ function AuditApp() {
   const activeAuditSessionItem = activeAuditItem ? getAnsweredAuditItem(activeAuditItem) : undefined;
   const activeAuditItemIndex = activeAuditItem ? visibleAuditItems.findIndex((auditItem) => auditItem.id === activeAuditItem.id) : -1;
   const draftSaveStateLabel = draftSaveState === "saving"
-    ? "Guardando borrador..."
+    ? "Guardando borrador local..."
     : draftSaveState === "saved"
-      ? "Borrador guardado"
-      : "Borrador listo";
+      ? "Borrador guardado en este dispositivo; pendiente de sincronización"
+      : "Borrador local listo";
   const observationSuggestions = isPreDeliveryAudit && preDeliverySection === "legajos"
     ? DEFAULT_OBSERVATION_SUGGESTIONS
     : matchesRole(selectedRole, "Lavadero", ["lavadero", "lavado"])
@@ -762,6 +762,7 @@ function AuditApp() {
       id: draft.id,
       date: draft.date,
       auditBatchName: draft.auditBatchName,
+      sampleId: draft.sampleId,
       sampleTarget: draft.sampleTarget,
       selectedStaffNames: draft.selectedStaffNames,
       auditorId: draft.auditorId,
@@ -801,6 +802,7 @@ function AuditApp() {
       id: sourceAudit.id,
       date: sourceAudit.date,
       auditBatchName: sourceAudit.auditBatchName || audit.auditBatchName,
+      sampleId: sourceAudit.sampleId || audit.sampleId || (sourceAudit.entityType === "or" ? sourceAudit.id : undefined),
       sampleTarget: sourceAudit.sampleTarget || audit.sampleTarget,
       selectedStaffNames: sourceAudit.selectedStaffNames || audit.selectedStaffNames,
       auditorId: sourceAudit.auditorId || audit.auditorId,
@@ -834,7 +836,9 @@ function AuditApp() {
 
     [...history, ...completedAuditReports.map((report) => report.session)].forEach((audit) => {
       const isOrder = audit.entityType === "or" || String(audit.role || "").toLowerCase().includes("orden");
-      const belongsToCurrentBatch = currentBatchName
+      const belongsToCurrentBatch = session.sampleId
+        ? (audit.sampleId === session.sampleId || (!audit.sampleId && audit.id === session.sampleId))
+        : currentBatchName
         ? audit.auditBatchName?.trim() === currentBatchName
         : audit.date === session.date && audit.location === session.location;
 
@@ -845,7 +849,7 @@ function AuditApp() {
 
     return Array.from(recordsById.values())
       .sort((left, right) => `${right.date}-${right.id}`.localeCompare(`${left.date}-${left.id}`));
-  }, [completedAuditReports, history, session.auditBatchName, session.date, session.location]);
+  }, [completedAuditReports, history, session.auditBatchName, session.date, session.location, session.sampleId]);
 
   const orderStaffProgress = React.useMemo(() => {
     const counts = new Map<string, number>();
@@ -890,6 +894,8 @@ function AuditApp() {
   const groupedHistoryAudits = buildGroupedHistory(history);
   const incompletedHistoryAudits: IncompleteAuditListItem[] = groupedHistoryAudits
     .filter((auditSession) => {
+      const orderAudits = (auditSession.childAudits || [auditSession]).filter((audit) => audit.entityType === "or" || audit.role === "Ordenes");
+      if (orderAudits.length) return new Set(orderAudits.map((audit) => audit.orderNumber?.trim()).filter(Boolean)).size < (auditSession.sampleTarget || 30);
       const scopeKey = (auditSession.location === "Salta" || auditSession.location === "Jujuy")
         ? auditSession.location
         : "global";
@@ -917,6 +923,8 @@ function AuditApp() {
 
       return {
         id: auditSession.id,
+        sampleId: auditSession.sampleId,
+        sampleTarget: auditSession.sampleTarget,
         childAuditIds: auditSession.childAuditIds,
         childAudits,
         expectedChildCount: expectedCategories.length,
@@ -924,7 +932,7 @@ function AuditApp() {
         auditBatchName: sourceAudit?.auditBatchName || auditSession.auditBatchName || "Auditoria de proceso",
         auditorId: sourceAudit?.auditorId || auditSession.auditorId,
         location: sourceAudit?.location || auditSession.location,
-        role: "Auditoria de proceso",
+        role: childAudits.some((audit) => audit.entityType === "or" || audit.role === "Ordenes") ? "Ordenes" : "Auditoria de proceso",
         staffName: sourceAudit?.staffName || auditSession.staffName,
         items: auditSession.items,
         updatedAt: sourceAudit?.date || auditSession.date,
@@ -1609,6 +1617,7 @@ function AuditApp() {
       participants: session.participants,
       roleScores,
       entityType: isOrdersAudit ? "or" : "general",
+      sampleId: isOrdersAudit ? (normalizedSession.sampleId || normalizedSession.id) : undefined,
     };
     const shouldKeepOrdersAdvisor = completeSession.role === "Ordenes" && submitMode === "continue";
     const shouldKeepServiceAdvisor = completeSession.role === "Asesores de servicio" && submitMode === "continue";
@@ -1704,6 +1713,7 @@ function AuditApp() {
         id: createClientId(),
         date: completeSession.date,
         auditBatchName: completeSession.auditBatchName,
+        sampleId: completeSession.sampleId,
         sampleTarget: completeSession.sampleTarget,
         selectedStaffNames: completeSession.selectedStaffNames,
         auditorId: completeSession.auditorId,
@@ -1727,7 +1737,7 @@ function AuditApp() {
       setSubmissionState("success");
       auditSubmissionLockRef.current = false;
       setShowSuccessModal(submitMode === "finish");
-      setToastNotification({ message: "Auditoría guardada exitosamente en Sheets", tone: "success" });
+      setToastNotification({ message: savedRemotely ? "Auditoría guardada en Sheets" : "Auditoría guardada localmente, pendiente de sincronización", tone: "success" });
       setTimeout(() => setToastNotification(null), 3000);
     } catch (error) {
       console.error("Submit audit failed:", error);
@@ -1735,14 +1745,13 @@ function AuditApp() {
 
       const errorMessage = error instanceof Error ? error.message : String(error);
       
-      // En caso de error, todavía guardamos localmente para no perder datos
-      upsertLocalAuditHistory(completeSession);
+      // Preserve the current form and its stable ID for an idempotent retry.
       
       setShowConfirmModal(false);
       setIsSendingToSheet(false);
       auditSubmissionLockRef.current = false;
       
-      alert(`No se pudo sincronizar: ${errorMessage}. La auditoría se guardó localmente.`);
+      alert(`No se pudo sincronizar: ${errorMessage}. El formulario y el borrador local siguen disponibles para reintentar.`);
     }
   };
 
@@ -2495,6 +2504,7 @@ function AuditApp() {
                       try {
                         await reserveOrderInWebhook(webhookUrl, {
                           auditId: session.id || createClientId(),
+                          sampleId: session.sampleId || session.id,
                           auditBatchName: session.auditBatchName || auditBatchDisplayName,
                           location: session.location || "Sin ubicación",
                           orderNumber: session.orderNumber || "",

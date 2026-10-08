@@ -170,6 +170,7 @@ function doPost(e) {
       'submittedAt',
       'auditDate',
       'auditBatchName',
+      'sampleId',
       'sampleTarget',
       'selectedStaffNames',
       'location',
@@ -443,12 +444,25 @@ function assertOrderIsAvailable_(summarySheet, audit) {
   var batchName = String(audit.auditBatchName || '').trim();
   var location = String(audit.location || '').trim();
   var auditId = String(audit.id || '').trim();
+  var sampleId = String(audit.sampleId || '').trim();
+  var auditDate = String(audit.date || '').trim();
+  var auditorId = String(audit.auditorId || '').trim();
+  var legacyRoot = sampleId && rows.find(function(row) { return String(row.auditId || '').trim() === sampleId; });
   var duplicate = rows.find(function(row) {
+    var sameSample = sampleId
+      ? String(row.sampleId || '').trim() === sampleId || Boolean(legacyRoot && !String(row.sampleId || '').trim()
+          && String(row.auditDate || '').trim() === String(legacyRoot.auditDate || '').trim()
+          && String(row.auditorId || '').trim() === String(legacyRoot.auditorId || '').trim()
+          && String(row.auditBatchName || '').trim() === String(legacyRoot.auditBatchName || '').trim()
+          && String(row.location || '').trim() === String(legacyRoot.location || '').trim())
+      : !String(row.sampleId || '').trim() && String(row.auditDate || '').trim() === auditDate
+        && String(row.auditorId || '').trim() === auditorId
+        && String(row.auditBatchName || '').trim() === batchName
+        && String(row.location || '').trim() === location;
     return String(row.auditId || '').trim() !== auditId
       && String(row.role || '').trim().toLowerCase() === 'ordenes'
       && String(row.orderNumber || '').trim() === orderNumber
-      && String(row.auditBatchName || '').trim() === batchName
-      && String(row.location || '').trim() === location;
+      && sameSample;
   });
   if (duplicate) {
     var owner = duplicate.submittedByEmail || duplicate.auditorName || duplicate.staffName || 'otro auditor';
@@ -457,7 +471,7 @@ function assertOrderIsAvailable_(summarySheet, audit) {
 }
 
 function getOrderReservationKey_(source) {
-  var raw = [source.auditBatchName || '', source.location || '', source.orderNumber || ''].join('|');
+  var raw = [source.sampleId || [source.auditBatchName || '', source.location || '', source.date || '', source.auditorId || ''].join('|'), source.orderNumber || ''].join('|');
   var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, raw, Utilities.Charset.UTF_8);
   return 'OR_RESERVATION_' + Utilities.base64EncodeWebSafe(digest).replace(/=+$/, '');
 }
