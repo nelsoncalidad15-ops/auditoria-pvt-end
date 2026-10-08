@@ -166,13 +166,14 @@ function shouldUpgradeOrdersCategory(category: any) {
     return false;
   }
 
+  // If it already has exactly 27 items and contains the new official items, keep it
   const itemTexts = category.items.map((item: any) => String(item?.text || ""));
-  // Legacy 22-item checklist had 22 questions and lacked items like "Concesionario Vendedor", "Enumera los Trabajos", etc.
-  const has22Questions = category.items.length === 22 && itemTexts.some((text: string) => text.includes("01. Ingreso y entrega"));
-  // Or legacy 28 items from AUDIT_QUESTIONS (where item 1 was "1. Número de OR")
-  const hasLegacy28Questions = itemTexts.some((text: string) => text.includes("1. Número de OR"));
+  const hasOfficial27 = category.items.length === 27
+    && itemTexts.some((text: string) => text.includes("Concesionario Vendedor"))
+    && itemTexts.some((text: string) => text.includes("Enumera los Trabajos"))
+    && itemTexts.some((text: string) => text.includes("27. Lavador — Checklist"));
 
-  return has22Questions || hasLegacy28Questions;
+  return !hasOfficial27;
 }
 
 export function getDefaultAuditCategories(scope: AuditStructureScope = "Salta"): AuditCategory[] {
