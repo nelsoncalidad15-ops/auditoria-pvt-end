@@ -18,6 +18,7 @@ import {
 import { cn } from "../../lib/utils";
 import {
   AuditCategory,
+  AuditTemplateItem,
   CalculationRule,
   AuditItemPriority,
   AuditStructureScope,
@@ -152,6 +153,16 @@ export function StructurePanel({
   const [selectedTargetAreaName, setSelectedTargetAreaName] = useState("");
   const [editingCategoryStaffId, setEditingCategoryStaffId] = useState<string | null>(null);
   const [tempStaffInput, setTempStaffInput] = useState("");
+  const [editingItem, setEditingItem] = useState<AuditTemplateItem | null>(null);
+  const updateEditingItem = (patch: Partial<AuditTemplateItem>) => setEditingItem((current) => current ? { ...current, ...patch } : null);
+  const saveEditingItem = () => {
+    if (!editingItem?.text.trim()) return;
+    updateCategory(selectedStructureCategoryId, (category) => ({
+      ...category,
+      items: category.items.map((item) => item.id === editingItem.id ? { ...editingItem, text: editingItem.text.trim() } : item),
+    }));
+    setEditingItem(null);
+  };
   const controllerDirectory = auditCategories.find(isControllerDirectory);
   const renderableCategories = auditCategories.filter(
     (category) => category.name.trim().length > 0 && !isControllerDirectory(category),
@@ -561,6 +572,7 @@ export function StructurePanel({
                               </div>
                               
                               <div className="flex items-center gap-1 shrink-0">
+                                 {isOrdersCategory && <button type="button" onClick={() => setEditingItem({ ...item })} className="rounded-lg px-2 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50">Editar</button>}
                                  <button 
                                    onClick={() => handleMoveItem(item.id, "up")}
                                    disabled={idx === 0}
@@ -598,6 +610,20 @@ export function StructurePanel({
           </div>
         )}
 
+        {editingItem && isOrdersCategory && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-label="Editar pregunta de OR">
+            <div className="w-full max-w-xl space-y-3 rounded-2xl bg-white p-5 shadow-xl">
+              <h3 className="text-lg font-bold text-slate-900">Editar pregunta de OR</h3>
+              <label className="block text-sm font-semibold">Pregunta<input className="mt-1 w-full rounded-lg border p-2" value={editingItem.text} onChange={(event) => updateEditingItem({ text: event.target.value })} /></label>
+              <label className="block text-sm font-semibold">Descripción o repregunta<textarea className="mt-1 w-full rounded-lg border p-2" value={editingItem.description || ""} onChange={(event) => updateEditingItem({ description: event.target.value })} /></label>
+              <label className="block text-sm font-semibold">Indicaciones u observación de referencia<textarea className="mt-1 w-full rounded-lg border p-2" value={editingItem.guidance || ""} onChange={(event) => updateEditingItem({ guidance: event.target.value })} /></label>
+              <label className="block text-sm font-semibold">Bloque<input className="mt-1 w-full rounded-lg border p-2" value={editingItem.block || ""} onChange={(event) => updateEditingItem({ block: event.target.value })} /></label>
+              <label className="flex gap-2 text-sm"><input type="checkbox" checked={editingItem.required} onChange={(event) => updateEditingItem({ required: event.target.checked })} />Obligatoria</label>
+              <label className="flex gap-2 text-sm"><input type="checkbox" checked={editingItem.requiresCommentOnFail || false} onChange={(event) => updateEditingItem({ requiresCommentOnFail: event.target.checked })} />Observación obligatoria ante incumplimiento</label>
+              <div className="flex justify-end gap-2"><button type="button" onClick={() => setEditingItem(null)} className="rounded-lg border px-4 py-2">Cancelar</button><button type="button" onClick={saveEditingItem} className="rounded-lg bg-blue-600 px-4 py-2 text-white">Guardar cambios</button></div>
+            </div>
+          </div>
+        )}
         {/* Tab: Matrix (Advanced Links) */}
         {activeTab === "matrix" && (
           <div className="animate-in zoom-in-95 duration-500">

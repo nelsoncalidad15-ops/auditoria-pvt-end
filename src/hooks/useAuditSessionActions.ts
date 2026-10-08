@@ -169,6 +169,7 @@ export function useAuditSessionActions({
   const handleResumeIncompleteAudit = React.useCallback((draft: IncompleteAuditListItem) => {
     if (draft._source === "history") {
       const sourceAudit = draft.childAudits?.[0];
+      const isOrdersSample = draft.childAudits?.some((audit) => audit.entityType === "or" || audit.role === "Ordenes");
       setCompletedAuditReports(
         (draft.childAudits || []).map((childAudit) => ({
           role: childAudit.role || childAudit.items?.[0]?.category || "General",
@@ -181,6 +182,7 @@ export function useAuditSessionActions({
         id: createClientId(),
         date: draft.date,
         auditBatchName: draft.auditBatchName,
+        sampleId: draft.sampleId ?? sourceAudit?.sampleId ?? (isOrdersSample ? sourceAudit?.id : undefined),
         sampleTarget: draft.sampleTarget ?? sourceAudit?.sampleTarget,
         selectedStaffNames: draft.selectedStaffNames ?? sourceAudit?.selectedStaffNames,
         auditorId: draft.auditorId || sourceAudit?.auditorId,
@@ -189,15 +191,15 @@ export function useAuditSessionActions({
         clientIdentifier: undefined,
         auditedFileNames: draft.auditedFileNames,
         notes: draft.notes,
-        participants: sourceAudit?.participants || draft.participants,
-        items: draft.items ?? [],
+        participants: isOrdersSample ? undefined : (sourceAudit?.participants || draft.participants),
+        items: isOrdersSample ? [] : (draft.items ?? []),
       });
-      setSelectedRole(null);
+      setSelectedRole(isOrdersSample ? "Ordenes" : null);
       setSelectedStaff("");
       setActiveAuditItemId(null);
       setFocusedAuditItemId(null);
       setIsAuditConfigured(false);
-      setView("setup");
+      setView(isOrdersSample ? "audit" : "setup");
       return;
     }
 

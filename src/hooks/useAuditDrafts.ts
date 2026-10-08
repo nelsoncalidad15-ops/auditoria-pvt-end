@@ -7,6 +7,7 @@ export interface AuditDraft {
   id: string;
   date: string;
   auditBatchName?: string;
+  sampleId?: string;
   sampleTarget?: number;
   selectedStaffNames?: string[];
   auditorId?: string;
@@ -48,6 +49,7 @@ function normalizeDraft(rawDraft: Partial<AuditDraft>): AuditDraft {
     id: rawDraft.id || crypto.randomUUID(),
     date: rawDraft.date || new Date().toISOString().split("T")[0],
     auditBatchName: rawDraft.auditBatchName,
+    sampleId: rawDraft.sampleId,
     sampleTarget: typeof rawDraft.sampleTarget === "number" ? rawDraft.sampleTarget : undefined,
     selectedStaffNames: Array.isArray(rawDraft.selectedStaffNames) ? rawDraft.selectedStaffNames.filter(Boolean) : undefined,
     auditorId: rawDraft.auditorId,
@@ -184,6 +186,7 @@ export function useAuditDrafts({ selectedRole, selectedStaff, session, sessionIt
       id: session.id,
       date: session.date || new Date().toISOString().split("T")[0],
       auditBatchName: session.auditBatchName,
+      sampleId: session.sampleId,
       sampleTarget: session.sampleTarget,
       selectedStaffNames: session.selectedStaffNames,
       auditorId: session.auditorId,
@@ -204,6 +207,7 @@ export function useAuditDrafts({ selectedRole, selectedStaff, session, sessionIt
         id: currentDraft.id,
         date: currentDraft.date,
         auditBatchName: currentDraft.auditBatchName,
+        sampleId: currentDraft.sampleId,
         auditorId: currentDraft.auditorId,
         location: currentDraft.location,
         staffName: currentDraft.staffName,
@@ -219,6 +223,7 @@ export function useAuditDrafts({ selectedRole, selectedStaff, session, sessionIt
         id: nextDraft.id,
         date: nextDraft.date,
         auditBatchName: nextDraft.auditBatchName,
+        sampleId: nextDraft.sampleId,
         auditorId: nextDraft.auditorId,
         location: nextDraft.location,
         staffName: nextDraft.staffName,

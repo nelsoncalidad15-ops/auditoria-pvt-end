@@ -179,6 +179,7 @@ export interface AuditSession {
   childAudits?: AuditSession[];
   date: string;
   auditBatchName?: string;
+  sampleId?: string;
   /** Objetivo total de unidades que componen la campaña (por ejemplo, 100 OR). */
   sampleTarget?: number;
   /** Nómina preseleccionada para agilizar la carga repetitiva de la campaña. */
@@ -204,6 +205,7 @@ export interface AuditSession {
 
 export interface IncompleteAuditListItem {
   id: string;
+  sampleId?: string;
   childAuditIds?: string[];
   childAudits?: AuditSession[];
   expectedChildCount?: number;
