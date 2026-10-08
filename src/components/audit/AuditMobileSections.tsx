@@ -77,11 +77,15 @@ export function AuditMobileSections({
                         item={sessionItems.find((item) => item.id === auditItem.id || item.question === auditItem.text)}
                         required={auditItem.required}
                         block={auditItem.block}
+                        description={auditItem.description}
+                        responsibleRoles={auditItem.responsibleRoles}
+                        allowsNa={auditItem.allowsNa}
                         priority={auditItem.priority}
                         guidance={auditItem.guidance}
                         requiresCommentOnFail={auditItem.requiresCommentOnFail}
                         emphasized={focusedItemId === auditItem.id}
                         showStructuredQuestion={showStructuredQuestion}
+                        weight={auditItem.weight}
                         onStatusToggle={(status) => onStatusToggle(auditItem.text, status)}
                         onCommentUpdate={(comment) => onCommentUpdate(auditItem.text, comment)}
                         onPhotoUpdate={(photoUrl) => onPhotoUpdate(auditItem.text, photoUrl)}
