@@ -290,8 +290,7 @@ function AuditApp() {
     handleAddCategory,
     handleDuplicateCategory,
     handleDeleteCategory,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    handleDuplicateItem: _handleDuplicateItem,
+    handleDuplicateItem,
     handleDeleteItem,
     handleAddItem,
     handleMoveItem,
@@ -1939,11 +1938,13 @@ function AuditApp() {
       || "Auditor";
 
     if (orderAudits.length > 1) {
+      const ordersCategoryTemplate = auditCategories.find((category) => category.name === "Ordenes")?.items;
       generateOrdersCampaignPdf({
         appTitle,
         audits: orderAudits,
         auditorName,
         sampleTarget: audit.sampleTarget || orderAudits.length,
+        templateItems: ordersCategoryTemplate,
       });
       return;
     }
@@ -2537,6 +2538,7 @@ function AuditApp() {
                     audits: currentBatchOrderAudits,
                     auditorName: AUDITORS.find((auditor) => auditor.id === session.auditorId)?.name || "Auditor",
                     sampleTarget: session.sampleTarget || 30,
+                    templateItems: selectedAuditItems,
                   })}
                   onOpenPhysicalStockControl={selectedRole === "Repuestos" ? () => setView("stock-control") : undefined}
                 />
@@ -2627,6 +2629,7 @@ function AuditApp() {
                   setSelectedStructureCategoryId={setSelectedStructureCategoryId}
                   handleDuplicateCategory={handleDuplicateCategory}
                   handleDeleteCategory={handleDeleteCategory}
+                  handleDuplicateItem={handleDuplicateItem}
                   handleDeleteItem={handleDeleteItem}
                   updateCategory={updateCategory}
                   newCategoryName={newCategoryName}

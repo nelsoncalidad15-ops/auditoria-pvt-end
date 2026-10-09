@@ -69,6 +69,7 @@ export interface AuditCategory {
   description?: string;
   items: AuditTemplateItem[];
   staffOptions: string[];
+  active?: boolean;
 }
 
 export interface AuditItem {

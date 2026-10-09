@@ -243,7 +243,12 @@ export function normalizeAuditCategories(categories: AuditCategory[] | unknown, 
               nextItemId = `${slugify(normalizedName)}-${categoryIndex + 1}-${index + 1}-${itemDuplicateIndex}`;
               itemDuplicateIndex += 1;
             }
-            usedItemIds.add(nextItemId);
+            const itemRoles = Array.isArray(item.responsibleRoles) ? item.responsibleRoles : [];
+            const sanitizedRoles = (normalizedName === "Ordenes" && (
+              rawItemId === "or-26" || rawItemId === "or-12" ||
+              normalizedItemText.includes("Validación de Ampliaciones") ||
+              normalizedItemText.includes("Campo de Ampliaciones")
+            )) ? itemRoles.filter((role: any) => role !== "repuestos") : itemRoles;
 
             return [{
             id: nextItemId,
@@ -254,7 +259,7 @@ export function normalizeAuditCategories(categories: AuditCategory[] | unknown, 
             guidance: typeof item.guidance === "string" ? item.guidance : "",
             requiresCommentOnFail: typeof item.requiresCommentOnFail === "boolean" ? item.requiresCommentOnFail : false,
             description: typeof item.description === "string" ? item.description : "",
-            responsibleRoles: Array.isArray(item.responsibleRoles) ? item.responsibleRoles : [],
+            responsibleRoles: sanitizedRoles,
             sector: typeof item.sector === "string" && item.sector.trim() ? item.sector : "resumen",
             allowsNa: typeof item.allowsNa === "boolean" ? item.allowsNa : true,
             weight: typeof item.weight === "number" ? item.weight : 1,
