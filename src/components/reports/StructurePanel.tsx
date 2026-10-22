@@ -101,7 +101,7 @@ export interface StructurePanelProps {
   hasPendingStructureChanges: boolean;
 }
 
-type TabType = "categories" | "questions" | "matrix";
+type TabType = "categories" | "questions" | "matrix" | "staff";
 
 const normalizeCategoryName = (value: string) =>
   value
@@ -169,6 +169,8 @@ export function StructurePanel({
     setActiveTab(tab);
     localStorage.setItem("audit-structure-tab", tab);
   };
+
+  const [staffSearch, setStaffSearch] = useState("");
 
   // Categories filtering & renderable list
   const controllerDirectory = auditCategories.find(isControllerDirectory);
@@ -421,10 +423,10 @@ export function StructurePanel({
 
   // Inline staff tag management helpers
   const handleAddStaffChip = (categoryId: string, staffName: string) => {
-    const trimmed = staffName.trim();
+    const trimmed = staffName.trim().replace(/\s+/g, " ");
     if (!trimmed) return;
     updateCategory(categoryId, (cat) => {
-      if ((cat.staffOptions || []).includes(trimmed)) return cat;
+      if ((cat.staffOptions || []).some((name) => normalizeCategoryName(name) === normalizeCategoryName(trimmed))) return cat;
       return {
         ...cat,
         staffOptions: [...(cat.staffOptions || []), trimmed],
@@ -533,7 +535,13 @@ export function StructurePanel({
       </div>
 
       {/* 2. Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-white/10 pb-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-white/10 pb-2">
+        <button
+          onClick={() => handleTabChange("staff")}
+          className={cn("flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all", activeTab === "staff" ? "bg-blue-600 text-white shadow-md shadow-blue-500/20" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5")}
+        >
+          <Users className="h-4 w-4" /> Personal
+        </button>
         <button
           onClick={() => handleTabChange("categories")}
           className={cn(
@@ -591,6 +599,34 @@ export function StructurePanel({
           Reglas de cálculo
         </button>
       </div>
+
+      {activeTab === "staff" && (
+        <section className="space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:bg-slate-900 dark:border-white/10">
+            <h3 className="font-black text-slate-900 dark:text-white">Personal de {selectedStructureScope}</h3>
+            <p className="mt-2 text-sm text-slate-500">Agregá colaboradores en su área. Esta lista se utiliza en las auditorías de la sucursal y para asignar responsables en Órdenes.</p>
+            <p className="mt-1 text-xs text-slate-500">Quitar una persona de la lista no modifica las auditorías ya registradas. Usá Guardar cambios para sincronizar.</p>
+            <input aria-label="Buscar personal o área" placeholder="Buscar personal o área..." value={staffSearch} onChange={(event) => setStaffSearch(event.target.value)} className="mt-4 w-full rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm dark:text-white" />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {auditCategories.filter((category) => normalizeCategoryName(category.name) !== "ordenes").filter((category) => normalizeCategoryName(category.name).includes(normalizeCategoryName(staffSearch)) || category.staffOptions.some((name) => normalizeCategoryName(name).includes(normalizeCategoryName(staffSearch)))).map((category) => (
+              <div key={`${selectedStructureScope}-${category.id}`} className="rounded-2xl border border-slate-200 bg-white p-5 dark:bg-slate-900 dark:border-white/10">
+                <h4 className="font-bold text-slate-900 dark:text-white">{category.name} <span className="text-xs text-slate-400">({category.staffOptions.length})</span></h4>
+                <div className="my-4 flex flex-wrap gap-2">
+                  {category.staffOptions.map((name, index) => (
+                    <span key={name} className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm dark:bg-white/10 dark:text-white">
+                      {name}
+                      <button type="button" aria-label={`Quitar a ${name} de ${category.name}`} onClick={() => { if (window.confirm(`¿Quitar a ${name} de ${category.name}? Las auditorías registradas se conservarán.`)) handleRemoveStaffChip(category.id, index); }} className="text-slate-400 hover:text-rose-600"><X className="h-4 w-4" /></button>
+                    </span>
+                  ))}
+                  {category.staffOptions.length === 0 && <p className="text-sm text-slate-400">Todavía no hay personal en esta área.</p>}
+                </div>
+                <InlineAddStaff placeholder="+ Agregar persona" onAdd={(name) => handleAddStaffChip(category.id, name)} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 3. TAB: ÁREAS */}
       {activeTab === "categories" && (
@@ -1969,6 +2005,7 @@ function InlineAddStaff({
           if (e.key === "Escape") setIsOpen(false);
         }}
         placeholder="Nombre..."
+        aria-label="Nombre del colaborador"
         className="h-6 w-28 rounded-md border border-blue-400 bg-white dark:bg-slate-800 px-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none"
       />
       <button

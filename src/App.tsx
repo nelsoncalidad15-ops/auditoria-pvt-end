@@ -29,8 +29,6 @@ import { buildAuditSyncPayload, reserveOrderInWebhook, sendAuditToWebhook } from
 import { 
   LOCATIONS, 
   AUDITORS,
-  STAFF,
-  STAFF_BY_LOCATION,
 } from "./constants";
 import { AppView, AuditSession, AuditSource, AuditTemplateItem, AuditUserProfile, CompletedAuditReport, HistoryPanel, IncompleteAuditListItem, Role } from "./types";
 import { buildOrderAuditItems, calculateAuditCompliance, calculateRoleScores } from "./services/or-audit";
@@ -2458,11 +2456,9 @@ function AuditApp() {
                 <AuditStaffSelectionView
                   role={selectedRole}
                   staffList={
-                    isOrdersAudit && orParticipantOptions.asesorServicio.length
+                    isOrdersAudit
                       ? orParticipantOptions.asesorServicio
-                      : selectedAuditCategory?.staffOptions?.length
-                      ? selectedAuditCategory.staffOptions
-                      : ((session.location === "Salta" ? STAFF_BY_LOCATION.Salta : STAFF_BY_LOCATION.Jujuy)[selectedRole as keyof typeof STAFF] || [])
+                      : selectedAuditCategory?.staffOptions ?? []
                   }
                   selectedStaff={selectedStaff}
                   onSelectStaff={setSelectedStaff}

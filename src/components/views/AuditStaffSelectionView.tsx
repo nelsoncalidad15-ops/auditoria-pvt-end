@@ -89,8 +89,9 @@ export function AuditStaffSelectionView({
   const [manualStaffName, setManualStaffName] = useState("");
   const [isCampaignEditing, setIsCampaignEditing] = useState(selectedStaffNames.length === 0);
   const getParticipantOptions = (field: keyof OrAuditParticipants) => {
-    const configured = participantOptions?.[field]?.map((name) => name.trim()).filter(Boolean) || [];
-    return configured.length > 0 ? configured : OR_PARTICIPANTS[field];
+    const configured = (participantOptions?.[field] ?? OR_PARTICIPANTS[field]).map((name) => name.trim()).filter(Boolean);
+    const selected = participants?.[field]?.trim();
+    return selected && !configured.includes(selected) ? [...configured, selected] : configured;
   };
 
   const availableStaff = isOrdersAudit && selectedStaffNames.length > 0 ? selectedStaffNames : staffList;
