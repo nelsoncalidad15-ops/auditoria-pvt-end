@@ -220,6 +220,7 @@ function AuditApp() {
     removeLocalAuditHistoryItem,
     deleteRemoteAudit,
     refreshExternalHistory,
+    prependExternalAudit,
   } = useAuditSync({
     isAuthReady,
     user,
