@@ -16,6 +16,9 @@ import {
   Flag,
   FileDown,
   MoreHorizontal,
+  UserCheck,
+  X,
+  Check,
 } from "lucide-react";
 import { AuditSession, OrAuditParticipants } from "../../types";
 import { OR_PARTICIPANTS } from "../../constants";
@@ -48,6 +51,7 @@ interface AuditStaffSelectionViewProps {
   onViewOrderAudit?: (audit: AuditSession) => void;
   onEditOrderAudit?: (audit: AuditSession) => void;
   onPrintOrderAudit?: (audit: AuditSession) => void;
+  onReassignOrderAdvisor?: (audit: AuditSession, newAdvisor: string) => void;
   onSaveOrdersCampaign?: () => void;
   onFinishOrdersCampaign?: () => void;
   onPrintOrdersCampaign?: () => void;
@@ -80,6 +84,7 @@ export function AuditStaffSelectionView({
   onViewOrderAudit,
   onEditOrderAudit,
   onPrintOrderAudit,
+  onReassignOrderAdvisor,
   onSaveOrdersCampaign,
   onFinishOrdersCampaign,
   onPrintOrdersCampaign,
@@ -88,13 +93,25 @@ export function AuditStaffSelectionView({
   const [searchTerm, setSearchTerm] = useState("");
   const [manualStaffName, setManualStaffName] = useState("");
   const [isCampaignEditing, setIsCampaignEditing] = useState(selectedStaffNames.length === 0);
+  const [reassignModalAudit, setReassignModalAudit] = useState<AuditSession | null>(null);
+  const [reassignModalAdvisor, setReassignModalAdvisor] = useState("");
+
   const getParticipantOptions = (field: keyof OrAuditParticipants) => {
-    const configured = (participantOptions?.[field] ?? OR_PARTICIPANTS[field]).map((name) => name.trim()).filter(Boolean);
+    const list = participantOptions?.[field]?.length ? participantOptions[field] : OR_PARTICIPANTS[field];
+    const configured = (list || []).map((name) => name.trim()).filter(Boolean);
     const selected = participants?.[field]?.trim();
     return selected && !configured.includes(selected) ? [...configured, selected] : configured;
   };
 
-  const availableStaff = isOrdersAudit && selectedStaffNames.length > 0 ? selectedStaffNames : staffList;
+  const baseStaff = isOrdersAudit && selectedStaffNames.length > 0
+    ? selectedStaffNames
+    : (staffList.length > 0 ? staffList : OR_PARTICIPANTS.asesorServicio);
+  const availableStaff = Array.from(new Set([
+    ...baseStaff,
+    ...(selectedStaff?.trim() ? [selectedStaff.trim()] : []),
+    ...(participants?.asesorServicio?.trim() ? [participants.asesorServicio.trim()] : []),
+    ...OR_PARTICIPANTS.asesorServicio,
+  ])).filter(Boolean);
   const filteredStaff = availableStaff.filter((name) =>
     name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -139,7 +156,7 @@ export function AuditStaffSelectionView({
     (participants?.asesorServicio || selectedStaff).trim()
     && participants?.tecnico?.trim()
     && participants?.controller?.trim()
-    && participants?.lavador?.trim()
+
     && participants?.repuestos?.trim()
   );
   const canContinue = selectedStaff.trim() !== "" && hasOrderParticipants && (
@@ -398,6 +415,10 @@ export function AuditStaffSelectionView({
                                 <button type="button" onClick={() => onViewOrderAudit?.(audit)} title="Ver auditoria" className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white text-slate-600 transition hover:bg-blue-50 hover:text-blue-600 dark:bg-slate-800 dark:text-slate-200">
                                   <Eye className="h-4 w-4" />
                                 </button>
+                                <button type="button" onClick={() => { setReassignModalAudit(audit); setReassignModalAdvisor(audit.staffName || audit.participants?.asesorServicio || ""); }} title="Cambiar asesor asignado" className="inline-flex h-9 items-center gap-1 rounded-xl bg-white px-2.5 text-xs font-bold text-slate-600 transition hover:bg-blue-50 hover:text-blue-600 dark:bg-slate-800 dark:text-slate-200">
+                                  <UserCheck className="h-4 w-4 text-blue-500" />
+                                  <span className="hidden sm:inline">Asesor</span>
+                                </button>
                                 <button type="button" onClick={() => onEditOrderAudit?.(audit)} title="Editar OR" className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white text-slate-600 transition hover:bg-amber-50 hover:text-amber-600 dark:bg-slate-800 dark:text-slate-200">
                                   <Pencil className="h-4 w-4" />
                                 </button>
@@ -444,13 +465,43 @@ export function AuditStaffSelectionView({
             {isOrdersAudit && !isCampaignComplete && (
               <div className="space-y-2">
                 <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Asesor de servicio auditado</label>
-                <select value={selectedStaff} onChange={(event) => { onSelectStaff(event.target.value); onParticipantChange?.("asesorServicio", event.target.value); }} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-[#001e50] outline-none focus:border-blue-400">
+                <div className="flex flex-wrap gap-1 pb-1">
+                  {availableStaff.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => {
+                        onSelectStaff(name);
+                        onParticipantChange?.("asesorServicio", name);
+                      }}
+                      className={cn(
+                        "rounded-lg px-2.5 py-1 text-[11px] font-black transition",
+                        (selectedStaff === name || participants?.asesorServicio === name)
+                          ? "bg-blue-600 text-white shadow-sm"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+                      )}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+                <select value={selectedStaff} onChange={(event) => { onSelectStaff(event.target.value); onParticipantChange?.("asesorServicio", event.target.value); }} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-[#001e50] outline-none focus:border-blue-400 dark:border-white/10 dark:bg-slate-800 dark:text-white">
                   <option value="">Elegir asesor</option>
                   {availableStaff.map((name) => {
                     const count = staffProgress?.find((entry) => entry.advisorName === name)?.sampledCount || 0;
                     return <option key={name} value={name}>{name} · {count} OR</option>;
                   })}
                 </select>
+                <input
+                  type="text"
+                  placeholder="O escribir otro asesor manual..."
+                  value={!availableStaff.includes(selectedStaff) ? selectedStaff : ""}
+                  onChange={(e) => {
+                    onSelectStaff(e.target.value);
+                    onParticipantChange?.("asesorServicio", e.target.value);
+                  }}
+                  className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-slate-800 outline-none focus:border-blue-400 dark:border-white/10 dark:bg-slate-800 dark:text-white"
+                />
                 <p className="text-[9px] font-medium text-slate-400">El resultado de los puntos asignados al asesor impactará en esta persona.</p>
               </div>
             )}
@@ -465,9 +516,9 @@ export function AuditStaffSelectionView({
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Lavador de la OR</label>
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Lavador de la OR <span className="lowercase font-medium text-slate-400">(opcional si no se lavó)</span></label>
                   <select value={participants?.lavador || ""} onChange={(event) => onParticipantChange?.("lavador", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-[#001e50] outline-none focus:border-blue-400">
-                    <option value="">Elegir lavador</option>
+                    <option value="">Sin lavado / No se lavó</option>
                     {getParticipantOptions("lavador").map((name) => <option key={name} value={name}>{name}</option>)}
                   </select>
                 </div>
@@ -565,8 +616,7 @@ export function AuditStaffSelectionView({
                               ? "Seleccioná el técnico de la OR"
                               : !participants?.controller?.trim()
                                 ? "Seleccioná el controller de la OR"
-                                : !participants?.lavador?.trim()
-                                  ? "Seleccioná el lavador de la OR"
+
                                   : !participants?.repuestos?.trim()
                                     ? "Seleccioná el responsable de repuestos"
                                     : "Faltan datos obligatorios"
@@ -616,6 +666,94 @@ export function AuditStaffSelectionView({
           </div>
         </aside>
       </div>
+
+      {reassignModalAudit && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <div
+            onClick={() => setReassignModalAudit(null)}
+            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+          />
+          <div className="relative w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-slate-900">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
+                  <UserCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">Cambiar asesor asignado</h3>
+                  <p className="text-xs font-bold text-slate-400">OR #{reassignModalAudit.orderNumber || "Sin número"}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReassignModalAudit(null)}
+                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/5"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                  Elegir nuevo asesor
+                </label>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {Array.from(new Set([...availableStaff, "Tatiana"])).map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => setReassignModalAdvisor(name)}
+                      className={cn(
+                        "rounded-xl border px-3 py-1.5 text-xs font-black transition",
+                        reassignModalAdvisor === name
+                          ? "border-blue-600 bg-blue-600 text-white shadow-sm"
+                          : "border-slate-200 bg-slate-50 text-slate-700 hover:border-blue-300 dark:border-white/10 dark:bg-slate-800 dark:text-slate-300"
+                      )}
+                    >
+                      {reassignModalAdvisor === name && <Check className="mr-1 inline-block h-3 w-3" />}
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                  O ingresar nombre manualmente
+                </label>
+                <input
+                  type="text"
+                  value={reassignModalAdvisor}
+                  onChange={(e) => setReassignModalAdvisor(e.target.value)}
+                  placeholder="Nombre del asesor..."
+                  className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-xs font-bold text-slate-900 outline-none focus:border-blue-500 focus:bg-white dark:border-white/10 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button variant="secondary" className="flex-1" onClick={() => setReassignModalAudit(null)}>
+                  Cancelar
+                </Button>
+                <Button
+                  className="flex-1 bg-blue-600 text-white font-black hover:bg-blue-700"
+                  onClick={() => {
+                    const clean = reassignModalAdvisor.trim();
+                    if (!clean) {
+                      alert("Por favor indicá el nuevo asesor.");
+                      return;
+                    }
+                    onReassignOrderAdvisor?.(reassignModalAudit, clean);
+                    setReassignModalAudit(null);
+                  }}
+                >
+                  Guardar cambio
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

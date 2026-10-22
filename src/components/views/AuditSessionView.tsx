@@ -6,12 +6,15 @@ import {
   CheckCircle2,
   XCircle,
   MinusCircle,
-  PackageCheck
+  PackageCheck,
+  Pencil
 } from "lucide-react";
+import { useState } from "react";
 import { motion } from "motion/react";
 import { cn } from "../../lib/utils";
-import { AuditSession, AuditTemplateItem, CalculatedItemResult, ProcessResult, Role } from "../../types";
+import { AuditSession, AuditTemplateItem, CalculatedItemResult, ProcessResult, Role, OrAuditParticipants } from "../../types";
 import { AuditItemRow } from "../audit/AuditItemRow";
+import { EditSessionMetadataModal } from "../modals/EditSessionMetadataModal";
 
 interface AuditSessionViewProps {
   session: Partial<AuditSession>;
@@ -61,6 +64,8 @@ interface AuditSessionViewProps {
   completedOrderCount?: number;
   recentStaffAudits?: any[];
   onOpenPhysicalStockControl?: () => void;
+  participantOptions?: Record<keyof OrAuditParticipants, string[]>;
+  onStaffChange?: (newStaff: string) => void;
 }
 
 export function AuditSessionView({
@@ -108,7 +113,10 @@ export function AuditSessionView({
   completedOrderCount = 0,
   recentStaffAudits = [],
   onOpenPhysicalStockControl,
+  participantOptions,
+  onStaffChange,
 }: AuditSessionViewProps) {
+  const [isEditSessionModalOpen, setIsEditSessionModalOpen] = useState(false);
   const sessionItems = session.items || [];
   const staffName = session.participants?.asesorServicio || session.staffName;
   
@@ -338,28 +346,51 @@ export function AuditSessionView({
               </div>
 
               {(isOrdersAudit || isServiceAdvisorAudit || isTechnicianAudit) && (
-                <div className="mb-4 flex flex-wrap gap-2">
+                <div className="mb-4 flex flex-wrap items-center gap-2">
                   {staffName && (
-                    <div className="rounded-2xl bg-blue-500/5 border border-blue-500/10 px-4 py-2.5 flex items-center gap-3">
-                      <div className="h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
-                      <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 leading-none mb-1">Responsable</p>
-                        <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{staffName}</p>
+                    <div className="rounded-2xl bg-blue-500/5 border border-blue-500/10 px-4 py-2 flex items-center justify-between gap-3 shadow-sm hover:border-blue-500/30 transition">
+                      <div className="flex items-center gap-3">
+                        <div className="h-2.5 w-2.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 leading-none mb-1">
+                            {isServiceAdvisorAudit ? "Asesor de Servicio" : isTechnicianAudit ? "Técnico" : "Responsable (Asesor)"}
+                          </p>
+                          <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{staffName}</p>
+                        </div>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditSessionModalOpen(true)}
+                        className="ml-2 inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-white px-2.5 py-1 text-[11px] font-black text-blue-700 shadow-sm transition hover:bg-blue-50 hover:border-blue-300 active:scale-95 dark:border-white/10 dark:bg-slate-800 dark:text-blue-300"
+                        title="Cambiar asesor de servicio"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        <span>Cambiar</span>
+                      </button>
                     </div>
                   )}
                   {session.orderNumber && (
-                    <div className="rounded-2xl bg-indigo-500/5 border border-indigo-500/10 px-4 py-2.5 flex items-center gap-3">
-                      <div className="h-2 w-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
-                      <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 leading-none mb-1">Nº de OR</p>
-                        <p className="text-sm font-black text-indigo-500 uppercase tracking-[0.1em]">{session.orderNumber}</p>
+                    <div className="rounded-2xl bg-indigo-500/5 border border-indigo-500/10 px-4 py-2 flex items-center justify-between gap-3 shadow-sm hover:border-indigo-500/30 transition">
+                      <div className="flex items-center gap-3">
+                        <div className="h-2.5 w-2.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 leading-none mb-1">Nº de OR</p>
+                          <p className="text-sm font-black text-indigo-500 uppercase tracking-[0.1em]">{session.orderNumber}</p>
+                        </div>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditSessionModalOpen(true)}
+                        className="ml-1.5 inline-flex items-center gap-1 rounded-xl border border-indigo-200 bg-white p-1 text-[10px] font-bold text-indigo-600 shadow-sm transition hover:bg-indigo-50 active:scale-95 dark:border-white/10 dark:bg-slate-800 dark:text-indigo-300"
+                        title="Editar número de OR"
+                      >
+                        <Pencil className="h-2.5 w-2.5" />
+                      </button>
                     </div>
                   )}
                   {isOrdersAudit && (
                     <div className="rounded-2xl bg-emerald-500/5 border border-emerald-500/10 px-4 py-2.5 flex items-center gap-3">
-                      <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                      <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
                       <div>
                         <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 leading-none mb-1">Lote de ORs</p>
                         <p className="text-sm font-black text-emerald-600 uppercase tracking-tight">OR {currentStaffAuditCount + 1} de {session.sampleTarget || 30}</p>
@@ -368,15 +399,46 @@ export function AuditSessionView({
                   )}
                   {session.clientIdentifier && (
                     <div className="rounded-2xl bg-amber-500/5 border border-amber-500/10 px-4 py-2.5 flex items-center gap-3">
-                      <div className="h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
+                      <div className="h-2.5 w-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
                       <div>
                         <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 leading-none mb-1">Cliente / VIN</p>
                         <p className="text-sm font-black text-amber-600 uppercase tracking-tight">{session.clientIdentifier}</p>
                       </div>
                     </div>
                   )}
+                  {/* Botón directo para editar datos */}
+                  <button
+                    type="button"
+                    onClick={() => setIsEditSessionModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-black uppercase tracking-wider text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 active:scale-95 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200"
+                    title="Editar asesor, número de OR o participantes"
+                  >
+                    <Pencil className="h-3.5 w-3.5 text-blue-600" />
+                    <span>Editar datos OR</span>
+                  </button>
                 </div>
               )}
+
+              <EditSessionMetadataModal
+                isOpen={isEditSessionModalOpen}
+                onClose={() => setIsEditSessionModalOpen(false)}
+                session={session}
+                isOrdersAudit={isOrdersAudit}
+                participantOptions={participantOptions}
+                onSave={(data) => {
+                  setSession((prev) => ({
+                    ...prev,
+                    staffName: data.staffName,
+                    orderNumber: data.orderNumber,
+                    participants: {
+                      ...(prev.participants || {}),
+                      ...data.participants,
+                      asesorServicio: data.staffName,
+                    },
+                  }));
+                  onStaffChange?.(data.staffName);
+                }}
+              />
 
 
               <div className={isOrdersAudit ? "space-y-2.5" : "space-y-4"}>

@@ -826,6 +826,56 @@ function AuditApp() {
     setIsAuditConfigured(Boolean(editableRole));
   }, [canRunAudits]);
 
+  const handleQuickReassignAdvisor = React.useCallback(async (audit: AuditSession, newAdvisor: string) => {
+    const cleanAdvisor = newAdvisor.trim();
+    if (!cleanAdvisor) return;
+
+    const updatedSession: AuditSession = {
+      ...audit,
+      staffName: cleanAdvisor,
+      participants: {
+        ...(audit.participants || {}),
+        asesorServicio: cleanAdvisor,
+      },
+    };
+
+    try {
+      if (hasWebhookUrl) {
+        const auditorName = AUDITORS.find((a) => a.id === updatedSession.auditorId)?.name || "N/A";
+        const templateItems = selectedAuditItems.length > 0
+          ? selectedAuditItems
+          : (audit.items as any) || [];
+        const payload = buildAuditSyncPayload({
+          session: updatedSession,
+          templateItems,
+          auditorName,
+          submittedByEmail: user?.email,
+        });
+        await sendAuditToWebhook(webhookUrl, payload);
+        prependExternalAudit(updatedSession);
+        void refreshExternalHistory().catch(console.error);
+      }
+      upsertLocalAuditHistory(updatedSession);
+
+      setCompletedAuditReports((current) =>
+        current.map((rep) =>
+          rep.session.id === audit.id
+            ? { ...rep, session: updatedSession }
+            : rep
+        )
+      );
+
+      setToastNotification({
+        message: `OR ${audit.orderNumber || ""} reasignada a ${cleanAdvisor}`,
+        tone: "success",
+      });
+      setTimeout(() => setToastNotification(null), 3000);
+    } catch (err) {
+      console.error("Error reassigning advisor:", err);
+      alert("Error al actualizar el asesor.");
+    }
+  }, [hasWebhookUrl, webhookUrl, selectedAuditItems, user?.email, prependExternalAudit, refreshExternalHistory, upsertLocalAuditHistory]);
+
   const advisorGoal = session.sampleTarget || 30;
   
   const currentBatchOrderAudits = React.useMemo(() => getOrdersForSample(
@@ -1501,8 +1551,8 @@ function AuditApp() {
       alert("Seleccioná el técnico responsable de la OR antes de cerrarla.");
       return;
     }
-    if (isOrdersAudit && !session.participants?.lavador?.trim()) {
-      alert("Seleccioná el lavador responsable de la OR antes de cerrarla.");
+    if (false) {
+      // lavador opcional
       return;
     }
     if (isOrdersAudit && !session.participants?.controller?.trim()) {
@@ -1590,7 +1640,7 @@ function AuditApp() {
     const completeSession: AuditSession = {
       ...normalizedSession as AuditSession,
       userProfile,
-      staffName: (selectedStaff || session.participants?.asesorServicio || session.staffName || "").trim(),
+      staffName: (session.participants?.asesorServicio?.trim() || session.staffName?.trim() || selectedStaff.trim()),
       role: selectedRole!,
       orderNumber: (isOrdersAudit || isServiceAdvisorAudit) ? session.orderNumber?.trim() || undefined : undefined,
       clientIdentifier: (isServiceAdvisorAudit || isPreDeliveryAudit) ? session.clientIdentifier?.trim() || undefined : undefined,
@@ -1635,6 +1685,7 @@ function AuditApp() {
 
         await sendAuditToWebhook(webhookUrl, payload);
         savedRemotely = true;
+        prependExternalAudit(completeSession);
         // La escritura ya termino. Actualizar todo el historial no debe frenar
         // el paso a la siguiente OR.
         void refreshExternalHistory().catch((refreshError) => {
@@ -2521,6 +2572,7 @@ function AuditApp() {
                   orderAudits={currentBatchOrderAudits}
                   onViewOrderAudit={setSelectedAudit}
                   onEditOrderAudit={handleEditAudit}
+                  onReassignOrderAdvisor={handleQuickReassignAdvisor}
                   onPrintOrderAudit={(audit) => generateAuditPdfReport({
                     appTitle,
                     session: audit,
@@ -2542,6 +2594,18 @@ function AuditApp() {
                 <Suspense fallback={<div className="rounded-[1.8rem] border border-slate-200 bg-white p-6 text-sm font-bold text-slate-500">Cargando sesión de auditoría...</div>}>
                   <AuditSessionView
                     session={session}
+                    participantOptions={orParticipantOptions}
+                    onStaffChange={(newStaff) => {
+                      setSelectedStaff(newStaff);
+                      setSession((prev) => ({
+                        ...prev,
+                        staffName: newStaff,
+                        participants: {
+                          ...(prev.participants || {}),
+                          asesorServicio: newStaff,
+                        },
+                      }));
+                    }}
                     selectedRole={selectedRole}
                     isOrdersAudit={isOrdersAudit}
                     isServiceAdvisorAudit={isServiceAdvisorAudit}

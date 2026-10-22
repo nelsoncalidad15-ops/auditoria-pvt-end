@@ -30,10 +30,10 @@ export const OR_SECTOR_LABELS: Record<OrAuditSector, string> = {
 };
 
 export const OR_PARTICIPANTS = {
-  asesorServicio: ["Mauro Gutierrez", "Cristian Cardozo", "Carlos Farina"],
+  asesorServicio: ["Mauro Gutierrez", "Cristian Cardozo", "Carlos Farina", "Tatiana Moreno", "Tatiana"],
   tecnico: ["J. Araya", "N. Poclava", "R. Garcia", "P. Fernandez", "E. Cruz", "I. Alanoca"],
   controller: ["Marcelo Pereyra", "Nelson Notario"],
-  lavador: ["Claudio Bravo", "Santiago Silva", "Alejandro Mamani"],
+  lavador: ["Claudio Bravo", "Santiago Silva", "Alejandro Mamani", "Sin lavado"],
   repuestos: ["Repuestos 1", "Repuestos 2"],
 } as const;
 
@@ -1113,7 +1113,7 @@ export const SUBGERENTE_CHECKLIST_ITEMS: AuditTemplateItem[] = [
 
 export const STAFF_BY_LOCATION: Record<"Salta" | "Jujuy", Record<Role, string[]>> = {
   Salta: {
-    "Asesores de servicio": ["Mauro Gutierrez", "Cristian Cardozo", "Carlos Farina"],
+    "Asesores de servicio": ["Mauro Gutierrez", "Cristian Cardozo", "Carlos Farina", "Tatiana Moreno", "Tatiana"],
     "Asesores de cita": ["Pablo Guantay"],
     "Técnicos": ["J. Araya", "N. Poclava", "R. Garcia", "P. Fernandez", "E. Cruz", "I. Alanoca"],
     "Subgerente de servicio": [],
@@ -1121,24 +1121,24 @@ export const STAFF_BY_LOCATION: Record<"Salta" | "Jujuy", Record<Role, string[]>
     "Garantía": ["Garantía 1"],
     "Repuestos": ["Repuestos 1"],
     "Jefe de Repuestos": ["Jefe Repuestos 1"],
-    "Lavadero": ["Claudio Bravo", "Santiago Silva", "Alejandro Mamani"],
+    "Lavadero": ["Claudio Bravo", "Santiago Silva", "Alejandro Mamani", "Sin lavado"],
     "Controllers de OR": ["Marcelo Pereyra", "Nelson Notario"],
     "Pre Entrega": ["Baysse Fernando", "Paredes Gustavo", "Cañzares Otero", "Bedoya Victoria", "Luna Jimenez Alejandro", "Quispe Orlando David"],
-    "Ordenes": ["Mauro Gutierrez", "Cristian Cardozo", "Carlos Farina"],
+    "Ordenes": ["Mauro Gutierrez", "Cristian Cardozo", "Carlos Farina", "Tatiana Moreno", "Tatiana"],
   },
   Jujuy: {
-    "Asesores de servicio": [],
+    "Asesores de servicio": ["Tatiana Moreno", "Tatiana", "Mauro Gutierrez", "Cristian Cardozo", "Carlos Farina"],
     "Asesores de cita": [],
-    "Técnicos": [],
+    "Técnicos": ["J. Araya", "N. Poclava", "R. Garcia", "P. Fernandez", "E. Cruz", "I. Alanoca"],
     "Subgerente de servicio": ["Nelson Notario"],
-    "Jefe de Taller": [],
+    "Jefe de Taller": ["Marcelo Pereyra"],
     "Garantía": [],
-    "Repuestos": [],
+    "Repuestos": ["Repuestos 1"],
     "Jefe de Repuestos": [],
-    "Lavadero": [],
+    "Lavadero": ["Claudio Bravo", "Santiago Silva", "Alejandro Mamani", "Sin lavado"],
     "Controllers de OR": ["Nelson Notario"],
     "Pre Entrega": [],
-    "Ordenes": [],
+    "Ordenes": ["Tatiana Moreno", "Tatiana", "Mauro Gutierrez", "Cristian Cardozo", "Carlos Farina"],
   },
 };
 
